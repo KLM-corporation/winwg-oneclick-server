@@ -18,8 +18,7 @@ param(
     [string]$BaseDir = "$env:ProgramData\WireGuardPhoneServer",
     [switch]$Quiet,
     [switch]$RemoveWireGuardApp,
-    [switch]$KeepConfigs,
-    [switch]$DisableIPv4Router
+    [switch]$KeepConfigs
 )
 
 Set-StrictMode -Version Latest
@@ -189,23 +188,6 @@ function Remove-ConfigDirectory([string]$BaseDir) {
     Write-Ok "Dossier supprime : $BaseDir"
 }
 
-function Disable-IPv4ForwardingIfRequested {
-    if (-not $DisableIPv4Router) {
-        $disable = Ask-YesNo "Desactiver aussi le routage IPv4 Windows global ? Attention si tu l'utilises pour autre chose." $false
-        if (-not $disable) {
-            Write-Ok "Routage IPv4 global laisse tel quel"
-            return
-        }
-    }
-
-    Write-Step "Desactivation du routage IPv4 Windows"
-    Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -Name IPEnableRouter -Value 0
-    Get-NetIPInterface -AddressFamily IPv4 | ForEach-Object {
-        try { Set-NetIPInterface -InterfaceIndex $_.InterfaceIndex -Forwarding Disabled -ErrorAction Stop } catch {}
-    }
-    Write-Ok "Routage IPv4 desactive"
-}
-
 function Uninstall-WireGuardAppIfRequested {
     if (-not $RemoveWireGuardApp) {
         $removeApp = Ask-YesNo "Desinstaller aussi l'application WireGuard de Windows ?" $false
@@ -273,7 +255,6 @@ try {
     Remove-WindowsNat
     Remove-UpnpMapping -Port $ListenPort
     Remove-ConfigDirectory -BaseDir $BaseDir
-    Disable-IPv4ForwardingIfRequested
     Uninstall-WireGuardAppIfRequested
     Show-RemainingState -TunnelName $TunnelName -Port $ListenPort -BaseDir $BaseDir
 

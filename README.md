@@ -162,15 +162,16 @@ Le désinstalleur supprime :
 - le NAT Windows `WireGuardPhoneServerNAT` ;
 - la redirection UPnP UDP `51820` si elle avait été créée automatiquement ;
 - les configurations et clés dans `C:\ProgramData\WireGuardPhoneServer` ;
-- optionnellement le routage IPv4 global Windows ;
 - optionnellement l'application WireGuard elle-même.
 
 Si tu avais créé une redirection de port manuelle sur ta box, il faut aussi la supprimer dans l'interface de la box.
 
+> Sécurité : le désinstalleur ne désactive plus le routage IPv4 global de Windows, afin d'éviter de casser Hyper-V, WSL, le partage de connexion ou d'autres outils réseau.
+
 Mode silencieux avancé :
 
 ```powershell
-.\Uninstall-WireGuard-Server.ps1 -Quiet -DisableIPv4Router -RemoveWireGuardApp
+.\Uninstall-WireGuard-Server.ps1 -Quiet -RemoveWireGuardApp
 ```
 
 

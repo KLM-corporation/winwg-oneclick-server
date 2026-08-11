@@ -131,15 +131,16 @@ The uninstaller removes:
 - the Windows NAT `WireGuardPhoneServerNAT`;
 - the UDP `51820` UPnP mapping if it was automatically created;
 - configurations and keys in `C:\ProgramData\WireGuardPhoneServer`;
-- optionally the global Windows IPv4 routing setting;
 - optionally the WireGuard application itself.
 
 If you manually created port-forwarding on your router, you must also remove it in the router admin UI.
 
+> Safety note: the uninstaller no longer disables global Windows IPv4 routing, to avoid breaking Hyper-V, WSL, Internet Connection Sharing, or other networking tools.
+
 Advanced silent mode:
 
 ```powershell
-.\Uninstall-WireGuard-Server.ps1 -Quiet -DisableIPv4Router -RemoveWireGuardApp
+.\Uninstall-WireGuard-Server.ps1 -Quiet -RemoveWireGuardApp
 ```
 
 ## Enable or disable the VPN service

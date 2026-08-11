@@ -84,6 +84,18 @@ function Get-ServerConfigPath([string]$TunnelName, [string]$BaseDir) {
     return Join-Path $BaseDir "server\$TunnelName.conf"
 }
 
+function Test-ProjectInstalled([string]$TunnelName, [string]$BaseDir) {
+    $configPath = Get-ServerConfigPath -TunnelName $TunnelName -BaseDir $BaseDir
+    return (Test-Path $configPath)
+}
+
+function Assert-ProjectInstalled([string]$TunnelName, [string]$BaseDir) {
+    $configPath = Get-ServerConfigPath -TunnelName $TunnelName -BaseDir $BaseDir
+    if (-not (Test-Path $configPath)) {
+        throw "WinWG OneClick Server semble desinstalle : configuration serveur introuvable ($configPath). Relance INSTALLER-ONE-CLICK.bat avant d'activer le service."
+    }
+}
+
 function Get-TunnelService([string]$TunnelName) {
     $serviceName = "WireGuardTunnel`$$TunnelName"
     $svc = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
@@ -96,26 +108,36 @@ function Get-TunnelService([string]$TunnelName) {
 function Show-Status([string]$TunnelName, [string]$BaseDir) {
     Write-Step "Statut du serveur WireGuard"
     $configPath = Get-ServerConfigPath -TunnelName $TunnelName -BaseDir $BaseDir
+    $installed = Test-ProjectInstalled -TunnelName $TunnelName -BaseDir $BaseDir
     $svc = Get-TunnelService -TunnelName $TunnelName
 
     Write-Host "Tunnel        : $TunnelName"
     Write-Host "Config serveur: $configPath"
 
+    if ($installed) {
+        Write-Host "Installation  : presente" -ForegroundColor Green
+    } else {
+        Write-Host "Installation  : absente / desinstallee" -ForegroundColor Yellow
+    }
+
     if ($svc) {
         $color = if ($svc.Status -eq 'Running') { 'Green' } else { 'Yellow' }
         Write-Host "Service       : $($svc.Name) - $($svc.Status)" -ForegroundColor $color
+        if (-not $installed) {
+            Write-Warn "Service residuel detecte alors que la configuration est absente. Utilise l'action 2 pour le supprimer proprement."
+        }
     } else {
         Write-Host "Service       : non installe / desactive" -ForegroundColor Yellow
     }
 
-    if (Test-Path $configPath) {
+    if ($installed) {
         Write-Host "Config        : presente" -ForegroundColor Green
     } else {
         Write-Host "Config        : manquante" -ForegroundColor Red
     }
 
     $wgExe = Get-WgExe
-    if ($wgExe -and $svc -and $svc.Status -eq 'Running') {
+    if ($wgExe -and $svc -and $svc.Status -eq 'Running' -and $installed) {
         Write-Host ""
         Write-Host "wg show:" -ForegroundColor Cyan
         & $wgExe show $TunnelName 2>&1 | Out-Host
@@ -127,9 +149,7 @@ function Enable-Tunnel([string]$TunnelName, [string]$BaseDir) {
     $wireguardExe = Get-WireGuardExe
     $configPath = Get-ServerConfigPath -TunnelName $TunnelName -BaseDir $BaseDir
 
-    if (-not (Test-Path $configPath)) {
-        throw "Configuration serveur introuvable : $configPath. Relance INSTALLER-ONE-CLICK.bat."
-    }
+    Assert-ProjectInstalled -TunnelName $TunnelName -BaseDir $BaseDir
 
     $svc = Get-TunnelService -TunnelName $TunnelName
     if ($svc) {
@@ -187,8 +207,8 @@ function Show-Menu {
         Show-Status -TunnelName $TunnelName -BaseDir $BaseDir
         Write-Host ""
         Write-Host "Actions:" -ForegroundColor Cyan
-        Write-Host "1 - Activer / demarrer le serveur VPN"
-        Write-Host "2 - Desactiver / arreter le serveur VPN"
+        Write-Host "1 - Activer / demarrer le serveur VPN (si installe)"
+        Write-Host "2 - Desactiver / arreter le serveur VPN ou nettoyer un service residuel"
         Write-Host "3 - Redemarrer le serveur VPN"
         Write-Host "4 - Rafraichir le statut"
         Write-Host "Q - Quitter"

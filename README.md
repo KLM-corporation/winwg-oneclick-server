@@ -240,6 +240,34 @@ SERVER-CONSOLE.bat
 
 Tu peux fermer cette console sans couper le VPN : le serveur WireGuard continue en service Windows.
 
+
+## Roadmap / idées prévues
+
+Fonctionnalité prévue pour une prochaine version :
+
+```text
+Gestion facile des appareils directement depuis la console serveur
+```
+
+Objectif : depuis `SERVER-CONSOLE.bat`, pouvoir ajouter ou supprimer un téléphone, une tablette ou un PC portable sans lancer de commande PowerShell manuelle.
+
+Idées prévues :
+
+- menu `Ajouter un appareil` ;
+- menu `Supprimer un appareil` ;
+- génération automatique d'une nouvelle IP VPN disponible ;
+- génération du fichier `.conf` pour l'appareil ;
+- affichage du chemin du fichier généré ;
+- éventuellement génération d'un QR code pour import mobile plus rapide ;
+- redémarrage/rechargement propre du tunnel après modification.
+
+Pour l'instant, l'ajout et la suppression restent disponibles via :
+
+```powershell
+.\scripts\Add-WireGuardPeer.ps1 -ClientName "android" -Endpoint "home-vpn.duckdns.org"
+.\scripts\Remove-WireGuardPeer.ps1 -ClientName "android"
+```
+
 ## Utilisation
 
 ### Ajouter un deuxième téléphone

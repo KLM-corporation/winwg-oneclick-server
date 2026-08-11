@@ -220,6 +220,34 @@ In your router/Internet box admin panel:
 
 Tip: assign a static local IP to the Windows PC in your router, otherwise port-forwarding may break if the local IP changes.
 
+
+## Roadmap / planned ideas
+
+Planned feature for a future version:
+
+```text
+Easy device management directly from the server console
+```
+
+Goal: from `SERVER-CONSOLE.bat`, add or remove a phone, tablet, or laptop without running manual PowerShell commands.
+
+Planned ideas:
+
+- `Add device` menu;
+- `Remove device` menu;
+- automatic selection of the next available VPN IP;
+- automatic `.conf` file generation for the device;
+- display of the generated file path;
+- optional QR code generation for faster mobile import;
+- clean tunnel reload/restart after changes.
+
+For now, adding and removing devices is available through:
+
+```powershell
+.\scripts\Add-WireGuardPeer.ps1 -ClientName "android" -Endpoint "home-vpn.duckdns.org"
+.\scripts\Remove-WireGuardPeer.ps1 -ClientName "android"
+```
+
 ## Usage
 
 ### Add a second phone/device

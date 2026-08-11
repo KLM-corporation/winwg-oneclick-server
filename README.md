@@ -1,0 +1,301 @@
+# WinWG OneClick Server
+
+[English documentation](README.en.md) | Documentation française
+
+**One script. One click. Ton PC Windows devient un serveur VPN WireGuard.**
+
+Un projet Windows simple et propre pour transformer un PC Windows 10/11 en **serveur d’accès distant WireGuard** avec une installation en **un seul script / un seul double-clic**. Il génère aussi la configuration à importer sur ton téléphone, ta tablette ou ton PC portable.
+
+
+
+## Promesse du projet
+
+Le but de WinWG OneClick Server est simple :
+
+```text
+1 script
+1 double-clic
+1 serveur WireGuard fonctionnel sur Windows
+```
+
+Le projet configure automatiquement ce qui est normalement pénible à faire à la main :
+
+- installation de WireGuard pour Windows si absent ;
+- génération des clés serveur et appareil distant ;
+- création du service tunnel WireGuard ;
+- pare-feu Windows ;
+- NAT Windows ;
+- tentative de redirection UPnP ;
+- fichier `.conf` prêt à importer dans l'app WireGuard mobile ;
+- console de supervision ;
+- bouton d'activation/désactivation du service ;
+- désinstallation propre.
+
+
+> Compatibilité : certains chemins internes gardent le nom historique `WireGuardPhoneServer`, par exemple `C:\ProgramData\WireGuardPhoneServer`. C'est volontaire pour ne pas casser les installations existantes.
+
+## Installation one-click recommandée
+
+Sur le PC Windows qui doit devenir serveur VPN :
+
+1. Télécharge/copie ce repo sur le PC.
+2. Double-clique simplement :
+
+```text
+INSTALLER-ONE-CLICK.bat
+```
+
+L'installeur demande les droits administrateur Windows, installe WireGuard si besoin, génère la configuration serveur + téléphone, configure le pare-feu, le routage, le NAT, puis ouvre le dossier contenant le fichier `.conf` à importer dans l'application WireGuard du téléphone.
+
+Il tente aussi de créer automatiquement la redirection de port sur la box via UPnP. Si ta box refuse ou si UPnP est désactivé, l'installeur affiche l'IP locale du PC et tu devras faire la redirection manuellement :
+
+```text
+UDP 51820 -> IP locale du PC Windows -> UDP 51820
+```
+
+> Note : aucune installation ne peut contourner automatiquement le CG-NAT de ton opérateur. Si tu es derrière CG-NAT, il faut demander une IPv4 publique/full stack ou utiliser un VPS relais.
+
+> ⚠️ Important : pour se connecter depuis l'extérieur, il faut que le PC soit joignable depuis Internet. Dans la majorité des cas, cela veut dire :
+> 1. ouvrir/forwarder un port UDP sur la box/routeur vers le PC Windows ;
+> 2. utiliser l'IP publique de la box, ou un nom DNS dynamique ;
+> 3. éviter le CG-NAT, ou demander une IPv4 publique à l'opérateur.
+
+## Ce que le projet automatise
+
+- Installation de WireGuard pour Windows via `winget` si nécessaire.
+- Génération des clés serveur/client.
+- Création d'un tunnel WireGuard serveur.
+- Activation du routage IPv4 Windows.
+- Création d'une règle pare-feu UDP.
+- Création d'une règle NAT Windows pour permettre au téléphone de sortir vers Internet via le PC.
+- Génération d'un fichier client `.conf` à importer dans l'app WireGuard mobile.
+
+## Pré-requis
+
+- Windows 10/11.
+- PowerShell lancé **en administrateur**.
+- Accès administrateur au routeur/à la box pour faire une redirection de port.
+- WireGuard mobile installé sur le téléphone :
+  - Android : Google Play / F-Droid.
+  - iPhone : App Store.
+
+
+
+## Originalité, attribution et marque WireGuard
+
+WinWG OneClick Server est un projet indépendant. Il n'est pas un fork et n'est pas basé sur une copie d'un autre projet open source.
+
+Le projet utilise les outils officiels WireGuard pour Windows (`wg.exe` et `wireguard.exe`) et des commandes natives Windows/PowerShell (`New-NetNat`, `New-NetFirewallRule`, services Windows, etc.).
+
+WireGuard est un projet et une marque appartenant à ses auteurs respectifs. Ce dépôt n'est pas affilié, sponsorisé, validé ou approuvé par le projet WireGuard.
+
+Le nom `WinWG` signifie simplement :
+
+```text
+Windows + WireGuard helper
+```
+
+## Serveur WireGuard vs configuration téléphone
+
+Sur Windows, il n'existe pas vraiment de paquet officiel séparé "serveur seulement". L'application WireGuard Windows installe aussi les composants nécessaires au mode serveur : `wg.exe`, `wireguard.exe`, le driver et le service tunnel.
+
+Le projet ne transforme pas ton PC en "client VPN". Il utilise WireGuard pour créer un **tunnel serveur** sur le PC.
+
+Quand le script parle de fichier `client` ou de dossier `clients`, cela veut dire :
+
+```text
+configuration à importer sur le téléphone
+```
+
+Le téléphone est le client VPN. Le PC Windows reste le serveur.
+
+## Installation rapide
+
+Ouvre PowerShell **en administrateur**, puis :
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass -Force
+cd .\winwg-oneclick-server
+.\scripts\Install-WireGuardServer.ps1 -Endpoint "MON_IP_PUBLIQUE_OU_DNS" -ClientName "telephone"
+```
+
+Exemple :
+
+```powershell
+.\scripts\Install-WireGuardServer.ps1 -Endpoint "vpn-maison.duckdns.org" -ClientName "iphone"
+```
+
+À la fin, le script affiche le chemin du fichier client, par exemple :
+
+```text
+C:\ProgramData\WireGuardPhoneServer\clients\iphone.conf
+```
+
+Copie ce fichier sur ton téléphone puis importe-le dans l'application WireGuard.
+
+## Redirection de port sur la box
+
+Dans l'interface de ta box/routeur :
+
+| Paramètre | Valeur par défaut |
+|---|---|
+| Protocole | UDP |
+| Port externe | 51820 |
+| IP locale cible | IP LAN du PC Windows |
+| Port interne | 51820 |
+
+Astuce : donne une IP fixe au PC Windows dans ta box, sinon la redirection peut casser si son IP locale change.
+
+
+## Désinstallation one-click
+
+Pour supprimer proprement tout ce que le projet a configuré sur le PC Windows, double-clique :
+
+```text
+UNINSTALLER-ONE-CLICK.bat
+```
+
+Le désinstalleur supprime :
+
+- le tunnel/service WireGuard `wg-phone-server` ;
+- la règle pare-feu UDP `51820` ;
+- le NAT Windows `WireGuardPhoneServerNAT` ;
+- la redirection UPnP UDP `51820` si elle avait été créée automatiquement ;
+- les configurations et clés dans `C:\ProgramData\WireGuardPhoneServer` ;
+- optionnellement le routage IPv4 global Windows ;
+- optionnellement l'application WireGuard elle-même.
+
+Si tu avais créé une redirection de port manuelle sur ta box, il faut aussi la supprimer dans l'interface de la box.
+
+Mode silencieux avancé :
+
+```powershell
+.\Uninstall-WireGuard-Server.ps1 -Quiet -DisableIPv4Router -RemoveWireGuardApp
+```
+
+
+
+## Activer ou désactiver le service VPN
+
+Pour démarrer, arrêter ou redémarrer le serveur WireGuard sans supprimer les configurations, double-clique :
+
+```text
+WIREGUARD-SERVICE-TOGGLE.bat
+```
+
+Menu disponible :
+
+```text
+1 - Activer / démarrer le serveur VPN
+2 - Désactiver / arrêter le serveur VPN
+3 - Redémarrer le serveur VPN
+4 - Rafraîchir le statut
+```
+
+La désactivation arrête et retire le service tunnel WireGuard, mais conserve les fichiers dans :
+
+```text
+C:\ProgramData\WireGuardPhoneServer
+```
+
+Tu peux donc le réactiver plus tard sans régénérer les clés.
+
+Mode PowerShell avancé :
+
+```powershell
+.\Manage-WireGuard-Service.ps1 -Action Start
+.\Manage-WireGuard-Service.ps1 -Action Stop
+.\Manage-WireGuard-Service.ps1 -Action Restart
+.\Manage-WireGuard-Service.ps1 -Action Status
+```
+
+## Console serveur de supervision
+
+WireGuard Windows tourne comme un service en arrière-plan. Il n'y a donc pas de console serveur visible par défaut.
+
+Sur la branche de test `test-server-console`, le projet ajoute :
+
+```text
+SERVER-CONSOLE.bat
+WireGuard-Server-Console.ps1
+```
+
+Cette console affiche :
+
+- l'état du service WireGuard ;
+- la présence de la règle pare-feu ;
+- le NAT Windows ;
+- les fichiers de configuration téléphone ;
+- un tableau clair `Telephones / peers` avec le nom du téléphone, son IP VPN, son endpoint, son dernier handshake et le trafic ;
+- la sortie brute `wg show` pour diagnostic avancé.
+
+Après l'installation one-click, cette console s'ouvre automatiquement. Tu peux aussi la lancer manuellement avec :
+
+```text
+SERVER-CONSOLE.bat
+```
+
+Tu peux fermer cette console sans couper le VPN : le serveur WireGuard continue en service Windows.
+
+## Utilisation
+
+### Ajouter un deuxième téléphone
+
+```powershell
+.\scripts\Add-WireGuardPeer.ps1 -ClientName "android" -Endpoint "vpn-maison.duckdns.org"
+```
+
+### Supprimer un client
+
+```powershell
+.\scripts\Remove-WireGuardPeer.ps1 -ClientName "android"
+```
+
+### Voir les clients configurés
+
+```powershell
+Get-ChildItem "C:\ProgramData\WireGuardPhoneServer\clients"
+```
+
+### Redémarrer le tunnel
+
+```powershell
+& "$env:ProgramFiles\WireGuard\wireguard.exe" /uninstalltunnelservice "wg-phone-server"
+& "$env:ProgramFiles\WireGuard\wireguard.exe" /installtunnelservice "C:\ProgramData\WireGuardPhoneServer\server\wg-phone-server.conf"
+```
+
+## Configuration par défaut
+
+| Option | Valeur |
+|---|---|
+| Nom tunnel | `wg-phone-server` |
+| Port WireGuard | `51820/UDP` |
+| Réseau VPN | `10.66.66.0/24` |
+| IP serveur VPN | `10.66.66.1` |
+| DNS client | `1.1.1.1, 8.8.8.8` |
+| Mode client | full-tunnel IPv4 : `AllowedIPs = 0.0.0.0/0` |
+
+## Tester depuis le téléphone
+
+1. Désactive le Wi-Fi du téléphone.
+2. Active la 4G/5G.
+3. Active le tunnel WireGuard.
+4. Ouvre un site comme `https://ifconfig.me`.
+5. L'IP affichée doit être celle de ta connexion maison.
+
+## Dépannage rapide
+
+Consulte [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md).
+
+## Sécurité
+
+- Ne partage jamais les fichiers `.conf` générés : ils contiennent des clés privées.
+- Utilise un nom DNS dynamique plutôt qu'une IP copiée partout.
+- Garde Windows et WireGuard à jour.
+- Supprime immédiatement un peer si un téléphone est perdu.
+
+## Limites connues
+
+- Si ton opérateur utilise du CG-NAT, la redirection de port ne fonctionnera pas. Solutions : demander une IPv4 publique, utiliser IPv6, ou passer par un VPS relais.
+- Le script configure l'IPv4. L'IPv6 n'est pas activé par défaut.
+- Certains antivirus/firewalls tiers peuvent bloquer le trafic UDP.

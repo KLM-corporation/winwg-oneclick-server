@@ -1,0 +1,11 @@
+# Secrets WireGuard générés localement
+*.conf
+*.key
+*.psk
+
+# Logs
+*.log
+
+# Windows
+Thumbs.db
+Desktop.ini

@@ -198,6 +198,13 @@ function Uninstall-WireGuardAppIfRequested {
     }
 
     Write-Step "Desinstallation de l'application WireGuard"
+
+    $wireguardExe = Join-Path $env:ProgramFiles "WireGuard\wireguard.exe"
+    if (-not (Test-Path $wireguardExe)) {
+        Write-Ok "Application WireGuard deja absente ou chemin introuvable"
+        return
+    }
+
     $winget = Get-Command winget -ErrorAction SilentlyContinue
     if ($winget) {
         $result = Invoke-ExternalNoThrow -FileName "winget" -Arguments @('uninstall', '--id', 'WireGuard.WireGuard', '-e', '--accept-source-agreements')
@@ -206,19 +213,37 @@ function Uninstall-WireGuardAppIfRequested {
             Write-Ok "WireGuard desinstalle via winget"
             return
         }
-        Write-Warn "winget n'a pas reussi : $msg"
+        if ($msg -match 'No installed package found|Aucun package installe|aucun package installe|not found|introuvable') {
+            Write-Warn "Aucun paquet WireGuard trouve via winget, verification du registre Windows..."
+        } else {
+            Write-Warn "winget n'a pas reussi : $msg"
+        }
     }
 
+    # Fallback registre. Sous StrictMode, certains objets de desinstallation n'ont pas DisplayName.
+    # On verifie donc l'existence des proprietes avant de les lire.
     $uninstallKeys = @(
         'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*',
         'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
     )
+
+    $found = $false
     foreach ($key in $uninstallKeys) {
-        Get-ItemProperty $key -ErrorAction SilentlyContinue |
-            Where-Object { $_.DisplayName -like 'WireGuard*' -and $_.UninstallString } |
-            ForEach-Object {
-                Write-Warn "Desinstalle WireGuard manuellement via Parametres Windows si necessaire. UninstallString: $($_.UninstallString)"
+        $items = @(Get-ItemProperty $key -ErrorAction SilentlyContinue)
+        foreach ($item in $items) {
+            $hasDisplayName = $null -ne $item.PSObject.Properties['DisplayName']
+            $hasUninstallString = $null -ne $item.PSObject.Properties['UninstallString']
+            if (-not $hasDisplayName -or -not $hasUninstallString) { continue }
+            if ($item.DisplayName -like 'WireGuard*' -and -not [string]::IsNullOrWhiteSpace($item.UninstallString)) {
+                $found = $true
+                Write-Warn "WireGuard est detecte mais n'a pas pu etre desinstalle automatiquement. Desinstalle-le manuellement via Parametres Windows > Applications."
+                Write-Host "UninstallString: $($item.UninstallString)" -ForegroundColor DarkGray
             }
+        }
+    }
+
+    if (-not $found) {
+        Write-Ok "Aucune installation WireGuard restante detectee"
     }
 }
 

@@ -201,6 +201,8 @@ C:\ProgramData\WireGuardPhoneServer
 
 Tu peux donc le réactiver plus tard sans régénérer les clés.
 
+> Sécurité : si le désinstalleur a supprimé les configurations, ce menu ne peut plus réactiver le VPN. Il affichera que l'installation est absente et demandera de relancer `INSTALLER-ONE-CLICK.bat`.
+
 Mode PowerShell avancé :
 
 ```powershell

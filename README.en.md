@@ -168,6 +168,8 @@ C:\ProgramData\WireGuardPhoneServer
 
 You can enable it again later without regenerating keys or re-importing the phone configuration.
 
+> Safety: if the uninstaller removed the configurations, this menu can no longer re-enable the VPN. It will show that the installation is missing and ask you to run `INSTALLER-ONE-CLICK.bat` again.
+
 Advanced PowerShell mode:
 
 ```powershell

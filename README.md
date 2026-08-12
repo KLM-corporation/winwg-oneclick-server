@@ -1,5 +1,7 @@
 # WinWG OneClick Server
 
+![Status](https://img.shields.io/badge/status-beta-orange) ![Platform](https://img.shields.io/badge/platform-Windows-blue) ![License](https://img.shields.io/badge/license-MIT-green)
+
 [English documentation](README.en.md) | Documentation française
 
 **One script. One click. Ton PC Windows devient un serveur VPN WireGuard.**
@@ -7,6 +9,13 @@
 Un projet Windows simple et propre pour transformer un PC Windows 10/11 en **serveur d’accès distant WireGuard** avec une installation en **un seul script / un seul double-clic**. Il génère aussi la configuration à importer sur ton téléphone, ta tablette ou ton PC portable.
 
 
+
+
+## Statut du projet
+
+WinWG OneClick Server est actuellement en **beta**. Il est utilisable, mais il doit encore être testé sur plusieurs machines Windows avant d'être considéré comme stable.
+
+À utiliser d'abord pour un usage personnel, home-lab ou test. Évite de l'installer directement sur une machine critique sans validation.
 
 ## Promesse du projet
 
@@ -80,6 +89,17 @@ UDP 51820 -> IP locale du PC Windows -> UDP 51820
   - iPhone : App Store.
 
 
+
+
+## Attribution
+
+Licence : MIT.
+
+Tu peux utiliser, copier, modifier, redistribuer et intégrer ce projet, y compris commercialement, à condition de conserver la notice de copyright et la licence.
+
+Projet original : **WinWG OneClick Server**  
+Auteur : **KLM-DEV**  
+Dépôt : `https://github.com/KLM-corporation/winwg-oneclick-server`
 
 ## Originalité, attribution et marque WireGuard
 
@@ -325,6 +345,20 @@ Get-ChildItem "C:\ProgramData\WireGuardPhoneServer\clients"
 ## Dépannage rapide
 
 Consulte [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md).
+
+
+## Avertissement sécurité
+
+Ce projet configure un serveur VPN et peut exposer un port UDP sur Internet. Tu es responsable de ta configuration réseau.
+
+Avant usage public ou prolongé :
+
+- garde Windows et WireGuard à jour ;
+- ne partage jamais les fichiers `.conf` générés ;
+- supprime immédiatement un appareil perdu ou compromis ;
+- vérifie ta redirection de port ;
+- comprends les limites CG-NAT ;
+- teste la désinstallation avant de dépendre du serveur.
 
 ## Sécurité
 

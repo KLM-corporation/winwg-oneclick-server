@@ -1,5 +1,7 @@
 # WinWG OneClick Server
 
+![Status](https://img.shields.io/badge/status-beta-orange) ![Platform](https://img.shields.io/badge/platform-Windows-blue) ![License](https://img.shields.io/badge/license-MIT-green)
+
 **One script. One click. Your Windows PC becomes a WireGuard VPN server.**
 
 WinWG OneClick Server is a simple Windows project that turns a Windows 10/11 PC into a **WireGuard remote access server** with a **single script / single double-click** installation. It also generates the configuration file to import on your phone, tablet, or laptop.
@@ -8,6 +10,13 @@ WinWG OneClick Server is a simple Windows project that turns a Windows 10/11 PC 
 > 1. forwarding a UDP port on your router/Internet box to the Windows PC;
 > 2. using your public IP address or a dynamic DNS hostname;
 > 3. avoiding CG-NAT, or asking your ISP for a public/full-stack IPv4 address.
+
+
+## Project status
+
+WinWG OneClick Server is currently in **beta**. It is usable, but it still needs testing on multiple Windows machines before being considered stable.
+
+Use it first for personal, home-lab, or test environments. Avoid installing it directly on a critical machine without validation.
 
 ## Project promise
 
@@ -63,6 +72,17 @@ UDP 51820 -> Windows PC local IP -> UDP 51820
 - WireGuard mobile app installed on your phone:
   - Android: Google Play / F-Droid.
   - iPhone: App Store.
+
+
+## Attribution
+
+License: MIT.
+
+You may use, copy, modify, redistribute, and include this project in other projects, including commercially, as long as the copyright and license notice are preserved.
+
+Original project: **WinWG OneClick Server**  
+Author: **KLM-DEV**  
+Repository: `https://github.com/KLM-corporation/winwg-oneclick-server`
 
 ## Originality, attribution and WireGuard trademark
 
@@ -306,6 +326,20 @@ Get-ChildItem "C:\ProgramData\WireGuardPhoneServer\clients"
 ## Troubleshooting
 
 See [`docs/TROUBLESHOOTING.en.md`](docs/TROUBLESHOOTING.en.md).
+
+
+## Security warning
+
+This project configures a VPN server and may expose a UDP port to the Internet. You are responsible for your network configuration.
+
+Before public or long-term use:
+
+- keep Windows and WireGuard up to date;
+- never share generated `.conf` files;
+- immediately remove lost or compromised devices;
+- verify your port-forwarding configuration;
+- understand CG-NAT limitations;
+- test uninstall before depending on the server.
 
 ## Security
 

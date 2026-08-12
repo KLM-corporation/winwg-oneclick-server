@@ -176,69 +176,36 @@ Mode silencieux avancé :
 
 
 
-## Activer ou désactiver le service VPN
 
-Pour démarrer, arrêter ou redémarrer le serveur WireGuard sans supprimer les configurations, double-clique :
+## Console serveur unifiée
 
-```text
-WIREGUARD-SERVICE-TOGGLE.bat
-```
-
-Menu disponible :
-
-```text
-1 - Activer / démarrer le serveur VPN
-2 - Désactiver / arrêter le serveur VPN
-3 - Redémarrer le serveur VPN
-4 - Rafraîchir le statut
-```
-
-La désactivation arrête et retire le service tunnel WireGuard, mais conserve les fichiers dans :
-
-```text
-C:\ProgramData\WireGuardPhoneServer
-```
-
-Tu peux donc le réactiver plus tard sans régénérer les clés.
-
-> Sécurité : si le désinstalleur a supprimé les configurations, ce menu ne peut plus réactiver le VPN. Il affichera que l'installation est absente et demandera de relancer `INSTALLER-ONE-CLICK.bat`.
-
-Mode PowerShell avancé :
-
-```powershell
-.\Manage-WireGuard-Service.ps1 -Action Start
-.\Manage-WireGuard-Service.ps1 -Action Stop
-.\Manage-WireGuard-Service.ps1 -Action Restart
-.\Manage-WireGuard-Service.ps1 -Action Status
-```
-
-## Console serveur de supervision
-
-WireGuard Windows tourne comme un service en arrière-plan. Il n'y a donc pas de console serveur visible par défaut.
-
-Sur la branche de test `test-server-console`, le projet ajoute :
-
-```text
-SERVER-CONSOLE.bat
-WireGuard-Server-Console.ps1
-```
-
-Cette console affiche :
-
-- l'état du service WireGuard ;
-- la présence de la règle pare-feu ;
-- le NAT Windows ;
-- les fichiers de configuration téléphone ;
-- un tableau clair `Telephones / peers` avec le nom du téléphone, son IP VPN, son endpoint, son dernier handshake et le trafic ;
-- la sortie brute `wg show` pour diagnostic avancé.
-
-Après l'installation one-click, cette console s'ouvre automatiquement. Tu peux aussi la lancer manuellement avec :
+WireGuard Windows tourne comme un service en arrière-plan. WinWG regroupe maintenant la supervision et le contrôle du serveur dans une seule console :
 
 ```text
 SERVER-CONSOLE.bat
 ```
 
-Tu peux fermer cette console sans couper le VPN : le serveur WireGuard continue en service Windows.
+Cette console permet de :
+
+- voir l'état du service WireGuard ;
+- voir les téléphones/appareils connectés et leurs handshakes ;
+- vérifier le pare-feu, le NAT et le port UDP ;
+- activer/démarrer le serveur VPN ;
+- désactiver/arrêter le serveur VPN sans supprimer les configurations ;
+- redémarrer le serveur VPN.
+
+Touches disponibles dans la console :
+
+```text
+A - Activer / démarrer le serveur VPN
+D - Désactiver / arrêter le serveur VPN
+R - Redémarrer le serveur VPN
+Q - Quitter la console
+```
+
+Si le désinstalleur a supprimé les configurations, la console ne peut plus réactiver le VPN et demandera de relancer `INSTALLER-ONE-CLICK.bat`.
+
+> Note : l'ancien script séparé `WIREGUARD-SERVICE-TOGGLE.bat` a été retiré dans cette version de test, car ses fonctions sont maintenant intégrées dans `SERVER-CONSOLE.bat`.
 
 
 ## Roadmap / idées prévues

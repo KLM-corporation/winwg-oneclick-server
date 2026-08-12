@@ -72,3 +72,8 @@ Puis utilise ce nom comme endpoint client, par exemple :
 ```ini
 Endpoint = vpn-maison.duckdns.org:51820
 ```
+
+
+## 7. Le service tourne mais je veux couper temporairement le VPN
+
+Utilise `SERVER-CONSOLE.bat`, puis appuie sur `D`. Tu peux le réactiver avec `A`.

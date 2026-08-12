@@ -261,6 +261,21 @@ function Test-DeviceRemoved([string]$ClientName, [string]$TunnelName, [string]$B
     return ($clientFileRemoved -and $peerRemoved)
 }
 
+
+function Test-DeviceAdded([string]$ClientName, [string]$TunnelName, [string]$BaseDir) {
+    $serverConfig = Get-ServerConfigPath -TunnelName $TunnelName -BaseDir $BaseDir
+    $clientConfig = Join-Path $BaseDir "clients\$ClientName.conf"
+
+    $clientFilePresent = Test-Path $clientConfig
+    $peerPresent = $false
+    if (Test-Path $serverConfig) {
+        $content = Get-Content $serverConfig -Raw -ErrorAction SilentlyContinue
+        if ($content -match "(?m)^#\s*$([regex]::Escape($ClientName))\s*$") { $peerPresent = $true }
+    }
+
+    return ($clientFilePresent -and $peerPresent)
+}
+
 function Add-DeviceFromConsole([string]$TunnelName, [int]$ListenPort, [string]$BaseDir) {
     Assert-ProjectInstalled -TunnelName $TunnelName -BaseDir $BaseDir
     $scriptPath = Join-Path $PSScriptRoot "scripts\Add-WireGuardPeer.ps1"
@@ -282,10 +297,21 @@ function Add-DeviceFromConsole([string]$TunnelName, [int]$ListenPort, [string]$B
     $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -ClientName $clientName -Endpoint $endpoint -ClientNumber $clientNumber -ListenPort $ListenPort -TunnelName $TunnelName 2>&1
     $code = $LASTEXITCODE
     if ($output) { $output | Out-Host }
-    if ($code -ne 0) { throw "Echec de l'ajout de l'appareil '$clientName'." }
+
+    $added = Test-DeviceAdded -ClientName $clientName -TunnelName $TunnelName -BaseDir $BaseDir
+    if ($code -ne 0 -and -not $added) {
+        $details = ($output | Out-String).Trim()
+        if ([string]::IsNullOrWhiteSpace($details)) { $details = "Aucun detail retourne par le script d'ajout." }
+        throw "Echec de l'ajout de l'appareil '$clientName'. Details: $details"
+    }
 
     $clientDir = Join-Path $BaseDir "clients"
     if (Test-Path $clientDir) { Start-Process explorer.exe $clientDir }
+
+    if ($code -ne 0 -and $added) {
+        return "Appareil ajoute : $clientName. Note : le script a retourne une erreur apres creation, probablement pendant le rechargement du service. Fichier .conf genere dans $clientDir. Si besoin, utilise 3 pour redemarrer le serveur VPN."
+    }
+
     return "Appareil ajoute : $clientName. Fichier .conf genere dans $clientDir"
 }
 

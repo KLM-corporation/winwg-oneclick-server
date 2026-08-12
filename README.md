@@ -235,6 +235,8 @@ L'ajout d'appareil :
 - génère le fichier `.conf` à importer ;
 - ouvre le dossier contenant la configuration générée.
 
+> Note : si l'ajout crée bien le fichier `.conf` et le peer mais qu'un message d'erreur apparaît pendant le rechargement du service, la console le signale comme un ajout réussi avec avertissement. Tu peux ensuite utiliser `3` pour redémarrer le serveur VPN.
+
 La suppression d'appareil :
 
 - liste les fichiers `.conf` existants ;

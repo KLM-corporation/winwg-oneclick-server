@@ -216,6 +216,8 @@ Adding a device:
 - generates the `.conf` file to import;
 - opens the folder containing the generated configuration.
 
+> Note: if adding creates the `.conf` file and peer but an error appears while reloading the service, the console reports it as a successful addition with a warning. You can then use `3` to restart the VPN server.
+
 Removing a device:
 
 - lists existing `.conf` files;

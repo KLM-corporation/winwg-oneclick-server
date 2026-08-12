@@ -238,6 +238,7 @@ L'ajout d'appareil :
 La suppression d'appareil :
 
 - liste les fichiers `.conf` existants ;
+- s’il n’y a qu’un seul appareil, le sélectionne automatiquement ;
 - demande confirmation ;
 - supprime le peer du serveur ;
 - supprime le fichier `.conf` local correspondant ;

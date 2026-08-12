@@ -219,6 +219,7 @@ Adding a device:
 Removing a device:
 
 - lists existing `.conf` files;
+- if there is only one device, selects it automatically;
 - asks for confirmation;
 - removes the peer from the server;
 - deletes the matching local `.conf` file;

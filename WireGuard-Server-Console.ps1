@@ -286,23 +286,32 @@ function Remove-DeviceFromConsole([string]$TunnelName, [string]$BaseDir) {
     Write-Host ""
     Write-Host "Supprimer un appareil" -ForegroundColor Cyan
     Write-Host "---------------------" -ForegroundColor DarkGray
-    if ($clients.Length -gt 0) {
+    if ($clients.Length -eq 1) {
+        $clientName = $clients[0].BaseName
+        Write-Host "1 - $clientName" -ForegroundColor DarkCyan
+        Write-Host ""
+        Write-Host "Un seul appareil est configure. Selection automatique : $clientName" -ForegroundColor Yellow
+    } elseif ($clients.Length -gt 1) {
+        Write-Host "0 - Annuler"
         for ($i = 0; $i -lt $clients.Length; $i++) {
             Write-Host ("{0} - {1}" -f ($i + 1), $clients[$i].BaseName)
         }
         Write-Host ""
-        $choice = (Read-Host "Numero ou nom de l'appareil a supprimer").Trim()
+        $choice = (Read-Host "Tape le numero de l'appareil a supprimer, ou son nom exact").Trim()
+        if ($choice -eq '0') { return "Suppression annulee." }
         if ($choice -match '^\d+$' -and [int]$choice -ge 1 -and [int]$choice -le $clients.Length) {
             $clientName = $clients[[int]$choice - 1].BaseName
         } else {
             $clientName = $choice
         }
     } else {
-        $clientName = (Read-Host "Nom de l'appareil a supprimer").Trim()
+        Write-Host "Aucun fichier .conf trouve dans $clientDir" -ForegroundColor Yellow
+        $clientName = (Read-Host "Nom exact de l'appareil a supprimer, ou laisse vide pour annuler").Trim()
+        if ([string]::IsNullOrWhiteSpace($clientName)) { return "Suppression annulee." }
     }
 
-    if ([string]::IsNullOrWhiteSpace($clientName)) { throw "Nom d'appareil vide." }
-    $confirm = (Read-Host "Confirmer la suppression de '$clientName' ? [o/N]").Trim().ToLowerInvariant()
+    if ([string]::IsNullOrWhiteSpace($clientName)) { return "Suppression annulee." }
+    $confirm = (Read-Host "Confirmer la suppression de '$clientName' ? Tape O pour confirmer [o/N]").Trim().ToLowerInvariant()
     if ($confirm -notin @('o','oui','y','yes')) { return "Suppression annulee." }
 
     $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -ClientName $clientName -TunnelName $TunnelName 2>&1

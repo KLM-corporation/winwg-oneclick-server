@@ -22,6 +22,7 @@ $OutputEncoding = [System.Text.Encoding]::UTF8
 $script:UltraVerboseMode = [bool]$UltraVerbose
 $script:LogFilePath = $null
 $script:UiMargin = "  "
+$script:PeerTrafficSamples = @{}
 
 
 function Write-UiHost {
@@ -63,6 +64,7 @@ function Initialize-ConsoleLog([string]$BaseDir) {
     } catch {
         $script:LogFilePath = $null
 $script:UiMargin = "  "
+$script:PeerTrafficSamples = @{}
     }
 }
 
@@ -214,6 +216,56 @@ function Get-PeerNameMap([string]$ServerConfigPath) {
     return $map
 }
 
+
+function Convert-WgSizeToBytes([string]$Value, [string]$Unit) {
+    $number = [double]::Parse($Value, [System.Globalization.CultureInfo]::InvariantCulture)
+    switch ($Unit) {
+        'B'   { return [int64]$number }
+        'KiB' { return [int64]($number * 1KB) }
+        'MiB' { return [int64]($number * 1MB) }
+        'GiB' { return [int64]($number * 1GB) }
+        'TiB' { return [int64]($number * 1TB) }
+        default { return [int64]$number }
+    }
+}
+
+function Get-WgTransferBytes([string]$TransferText) {
+    $rx = [int64]0
+    $tx = [int64]0
+    if ($TransferText -match '([0-9]+(?:\.[0-9]+)?)\s*(B|KiB|MiB|GiB|TiB)\s+received,\s+([0-9]+(?:\.[0-9]+)?)\s*(B|KiB|MiB|GiB|TiB)\s+sent') {
+        $rx = Convert-WgSizeToBytes -Value $Matches[1] -Unit $Matches[2]
+        $tx = Convert-WgSizeToBytes -Value $Matches[3] -Unit $Matches[4]
+    }
+    return [pscustomobject]@{ ReceivedBytes = $rx; SentBytes = $tx }
+}
+
+function Format-BytesPerSecond([double]$BytesPerSecond) {
+    if ($BytesPerSecond -lt 0) { $BytesPerSecond = 0 }
+    if ($BytesPerSecond -ge 1GB) { return ("{0:N2} GiB/s" -f ($BytesPerSecond / 1GB)) }
+    if ($BytesPerSecond -ge 1MB) { return ("{0:N2} MiB/s" -f ($BytesPerSecond / 1MB)) }
+    if ($BytesPerSecond -ge 1KB) { return ("{0:N2} KiB/s" -f ($BytesPerSecond / 1KB)) }
+    return ("{0:N0} B/s" -f $BytesPerSecond)
+}
+
+function Get-PeerSpeedText([object]$Peer, [datetime]$Now) {
+    if (-not $script:PeerTrafficSamples.ContainsKey($Peer.PublicKey)) {
+        return "calcul au prochain refresh"
+    }
+
+    $previous = $script:PeerTrafficSamples[$Peer.PublicKey]
+    $seconds = ($Now - $previous.Timestamp).TotalSeconds
+    if ($seconds -le 0.5) { return "delai trop court" }
+
+    $rxDelta = [double]($Peer.ReceivedBytes - $previous.ReceivedBytes)
+    $txDelta = [double]($Peer.SentBytes - $previous.SentBytes)
+    if ($rxDelta -lt 0) { $rxDelta = 0 }
+    if ($txDelta -lt 0) { $txDelta = 0 }
+
+    $rxRate = Format-BytesPerSecond ($rxDelta / $seconds)
+    $txRate = Format-BytesPerSecond ($txDelta / $seconds)
+    return "RX $rxRate / TX $txRate"
+}
+
 function Get-WgPeerSummaries([string]$WgShowText, [hashtable]$PeerNameMap) {
     $peers = @()
     $current = $null
@@ -223,14 +275,20 @@ function Get-WgPeerSummaries([string]$WgShowText, [hashtable]$PeerNameMap) {
             if ($current) { $peers += [pscustomobject]$current }
             $pub = $Matches[1]
             $name = if ($PeerNameMap.ContainsKey($pub)) { $PeerNameMap[$pub] } else { "telephone inconnu" }
-            $current = [ordered]@{ Name=$name; PublicKey=$pub; Endpoint="-"; AllowedIPs="-"; LatestHandshake="jamais"; Transfer="-"; Status="hors ligne" }
+            $current = [ordered]@{ Name=$name; PublicKey=$pub; Endpoint="-"; AllowedIPs="-"; LatestHandshake="jamais"; Transfer="-"; ReceivedBytes=[int64]0; SentBytes=[int64]0; Status="hors ligne" }
             continue
         }
         if (-not $current) { continue }
         if ($line -match '^endpoint:\s*(.+)$') { $current.Endpoint = $Matches[1].Trim(); continue }
         if ($line -match '^allowed ips:\s*(.+)$') { $current.AllowedIPs = $Matches[1].Trim(); continue }
         if ($line -match '^latest handshake:\s*(.+)$') { $current.LatestHandshake = $Matches[1].Trim(); $current.Status = "connecte"; continue }
-        if ($line -match '^transfer:\s*(.+)$') { $current.Transfer = $Matches[1].Trim(); continue }
+        if ($line -match '^transfer:\s*(.+)$') {
+            $current.Transfer = $Matches[1].Trim()
+            $bytes = Get-WgTransferBytes -TransferText $current.Transfer
+            $current.ReceivedBytes = $bytes.ReceivedBytes
+            $current.SentBytes = $bytes.SentBytes
+            continue
+        }
     }
     if ($current) { $peers += [pscustomobject]$current }
     return @($peers)
@@ -242,14 +300,23 @@ function Write-PeerDashboard([string]$WgShowText, [string]$ServerConfigPath) {
     Write-UiHost "Telephones / peers" -ForegroundColor Cyan
     Write-UiHost "------------------" -ForegroundColor DarkGray
     if ($peers.Length -eq 0) { Write-UiHost "Aucun telephone/peer detecte dans wg show." -ForegroundColor Yellow; return }
+    $now = Get-Date
     foreach ($peer in $peers) {
         $color = if ($peer.Status -eq "connecte") { [ConsoleColor]::Green } else { [ConsoleColor]::Yellow }
+        $speedText = Get-PeerSpeedText -Peer $peer -Now $now
         Write-UiHost ("- " + $peer.Name + " : " + $peer.Status) -ForegroundColor $color
         Write-UiHost ("  IP VPN       : " + $peer.AllowedIPs) -ForegroundColor DarkCyan
         Write-UiHost ("  Endpoint     : " + $peer.Endpoint) -ForegroundColor DarkCyan
         Write-UiHost ("  Handshake    : " + $peer.LatestHandshake) -ForegroundColor DarkCyan
         Write-UiHost ("  Transfert    : " + $peer.Transfer) -ForegroundColor DarkCyan
+        Write-UiHost ("  Vitesse      : " + $speedText) -ForegroundColor Green
         Write-UiHost ("  Public key   : " + $peer.PublicKey.Substring(0, 12) + "...") -ForegroundColor DarkGray
+
+        $script:PeerTrafficSamples[$peer.PublicKey] = [pscustomobject]@{
+            Timestamp = $now
+            ReceivedBytes = $peer.ReceivedBytes
+            SentBytes = $peer.SentBytes
+        }
     }
 }
 
@@ -581,6 +648,7 @@ function Show-Status([string]$LastMessage = "") {
     Write-UiHost ""
     Write-UiHost "Aide rapide" -ForegroundColor Cyan
     Write-UiHost "- Si le telephone est connecte, il apparait dans 'Telephones / peers' avec un handshake recent."
+    Write-UiHost "- La vitesse RX/TX est calculee entre deux rafraichissements du statut. Utilise S pour mesurer."
 }
 
 function Show-MainMenu {

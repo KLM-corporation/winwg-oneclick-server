@@ -205,7 +205,7 @@ SERVER-CONSOLE.bat
 The console lets you:
 
 - view the WireGuard service status;
-- view connected phones/devices and their handshakes;
+- view connected phones/devices, their handshakes and their RX/TX speed;
 - check firewall, NAT and UDP port status;
 - enable/start the VPN server;
 - disable/stop the VPN server without deleting configurations;
@@ -232,6 +232,15 @@ The console does not auto-refresh every 5 seconds anymore: it waits for your key
 > Display: the console adds a small left margin to avoid the first letters being clipped in some Windows terminals.
 
 In this version, `R` means `Remove a device`. To restart the VPN server, use number `3`, to avoid confusion between restart and remove.
+
+
+The console also displays an estimated speed per peer:
+
+```text
+Speed: RX 120.50 KiB/s / TX 42.10 KiB/s
+```
+
+This speed is calculated between two status displays. Press `S` after a few seconds to get a measurement. On first display, the console shows `calcul au prochain refresh`.
 
 If the uninstaller removed the configurations, the console cannot re-enable the VPN and will ask you to run `INSTALLER-ONE-CLICK.bat` again.
 

@@ -494,7 +494,7 @@ function Add-DeviceFromConsole([string]$TunnelName, [int]$ListenPort, [string]$B
     $endpoint = if ([string]::IsNullOrWhiteSpace($endpointInput)) { $defaultEndpoint } else { $endpointInput }
 
     $defaultDns = Get-DefaultClientDns -BaseDir $BaseDir
-    $dnsInput = (Read-UiHost "DNS pour cet appareil [$defaultDns]").Trim()
+    $dnsInput = (Read-UiHost "DNS pour cet appareil [$defaultDns] - laisse vide pour garder cette valeur").Trim()
     $clientDns = if ([string]::IsNullOrWhiteSpace($dnsInput)) { $defaultDns } else { $dnsInput }
 
     $clientNumber = Get-NextClientNumber -TunnelName $TunnelName -BaseDir $BaseDir

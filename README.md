@@ -6,6 +6,10 @@
 
 **One script. One click. Ton PC Windows devient un serveur VPN WireGuard.**
 
+
+> 💙 **Soutenir le projet** : WinWG OneClick Server est gratuit et open source. Les dons sont optionnels.  
+> BTC : `bc1qp3lzycrpngpk00tecj85pfkhrqqr49gmslzmsg` — voir [`DONATE.md`](DONATE.md).
+
 Un projet Windows simple et propre pour transformer un PC Windows 10/11 en **serveur d’accès distant WireGuard** avec une installation en **un seul script / un seul double-clic**. Il génère aussi la configuration à importer sur ton téléphone, ta tablette ou ton PC portable.
 
 

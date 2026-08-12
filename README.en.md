@@ -4,6 +4,10 @@
 
 **One script. One click. Your Windows PC becomes a WireGuard VPN server.**
 
+
+> 💙 **Support the project**: WinWG OneClick Server is free and open source. Donations are optional.  
+> BTC: `bc1qp3lzycrpngpk00tecj85pfkhrqqr49gmslzmsg` — see [`DONATE.md`](DONATE.md).
+
 WinWG OneClick Server is a simple Windows project that turns a Windows 10/11 PC into a **WireGuard remote access server** with a **single script / single double-click** installation. It also generates the configuration file to import on your phone, tablet, or laptop.
 
 > ⚠️ Important: to connect from outside your local network, the Windows PC must be reachable from the Internet. In most home setups, this means:

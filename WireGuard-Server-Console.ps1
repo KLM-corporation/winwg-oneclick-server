@@ -834,8 +834,9 @@ function Show-Status([string]$LastMessage = "") {
     Write-UiHost "Menu interactif: pas de rafraichissement automatique." -ForegroundColor Cyan
     $verboseText = if ($script:UltraVerboseMode) { "active" } else { "desactive" }
     $advancedText = if ($script:AdvancedModeEnabled) { "active" } else { "desactive" }
+    $advancedColor = if ($script:AdvancedModeEnabled) { [ConsoleColor]::Red } else { [ConsoleColor]::DarkRed }
     Write-UiHost "Mode ultra verbeux: $verboseText" -ForegroundColor DarkYellow
-    Write-UiHost "Mode avance: $advancedText" -ForegroundColor DarkYellow
+    Write-UiHost "Mode avance: $advancedText" -ForegroundColor $advancedColor
     if ($script:UltraVerboseMode -and $script:LogFilePath) { Write-UiHost "Log: $script:LogFilePath" -ForegroundColor DarkGray }
     Write-UiHost "============================================================" -ForegroundColor DarkGray
     if (-not [string]::IsNullOrWhiteSpace($LastMessage)) {

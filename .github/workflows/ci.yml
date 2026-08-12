@@ -135,9 +135,9 @@ jobs:
             README.md
             README.en.md
             LICENSE
-            SECURITY.md
-            CONTRIBUTING.md
-            CHANGELOG.md
+            docs/SECURITY.md
+            docs/CONTRIBUTING.md
+            docs/CHANGELOG.md
             INSTALLER-ONE-CLICK.bat
             SERVER-CONSOLE.bat
             UNINSTALLER-ONE-CLICK.bat

@@ -11,23 +11,44 @@ permissions:
   contents: read
 
 jobs:
-  powershell-syntax:
-    name: PowerShell syntax (${{ matrix.shell_name }})
+  powershell-syntax-windowsps:
+    name: PowerShell syntax (Windows PowerShell 5.1)
     runs-on: windows-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - shell_name: Windows PowerShell 5.1
-            shell: powershell
-          - shell_name: PowerShell 7
-            shell: pwsh
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Check PowerShell parser errors
-        shell: ${{ matrix.shell }}
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $files = Get-ChildItem -Path . -Recurse -Filter *.ps1 |
+            Where-Object { $_.FullName -notmatch '\\.git\\' }
+
+          if (-not $files) {
+            throw 'No PowerShell files found.'
+          }
+
+          foreach ($file in $files) {
+            Write-Host "Checking $($file.FullName)"
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count -gt 0) {
+              $errors | Format-List | Out-String | Write-Error
+              throw "PowerShell parser errors found in $($file.FullName)"
+            }
+          }
+
+  powershell-syntax-pwsh:
+    name: PowerShell syntax (PowerShell 7)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check PowerShell parser errors
+        shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           $files = Get-ChildItem -Path . -Recurse -Filter *.ps1 |

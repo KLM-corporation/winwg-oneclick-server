@@ -194,14 +194,17 @@ Cette console permet de :
 - désactiver/arrêter le serveur VPN sans supprimer les configurations ;
 - redémarrer le serveur VPN.
 
-Touches disponibles dans la console :
+Menu disponible dans la console :
 
 ```text
 A - Activer / démarrer le serveur VPN
 D - Désactiver / arrêter le serveur VPN
 R - Redémarrer le serveur VPN
+S - Rafraîchir le statut
 Q - Quitter la console
 ```
+
+La console ne se rafraîchit pas automatiquement toutes les 5 secondes : elle attend ton choix au clavier, ce qui évite les problèmes de saisie et l’affichage qui bouge tout seul.
 
 Si le désinstalleur a supprimé les configurations, la console ne peut plus réactiver le VPN et demandera de relancer `INSTALLER-ONE-CLICK.bat`.
 

@@ -4,15 +4,14 @@
 
 .DESCRIPTION
   WireGuard sur Windows tourne comme un service en arriere-plan. Cette console
-  regroupe maintenant la supervision ET le controle du service : statut,
-  handshakes, demarrage, arret et redemarrage du serveur VPN.
+  regroupe maintenant la supervision ET le controle du service avec un menu
+  interactif stable, sans rafraichissement automatique.
 #>
 [CmdletBinding()]
 param(
     [string]$TunnelName = "wg-phone-server",
     [int]$ListenPort = 51820,
-    [string]$BaseDir = "$env:ProgramData\WireGuardPhoneServer",
-    [int]$RefreshSeconds = 5
+    [string]$BaseDir = "$env:ProgramData\WireGuardPhoneServer"
 )
 
 Set-StrictMode -Version Latest
@@ -214,8 +213,7 @@ function Show-Status([string]$LastMessage = "") {
     Clear-Host
     Write-Host "WinWG OneClick Server - Console serveur unifiee" -ForegroundColor Green
     Write-Host "Surveillance + controle du service VPN dans une seule console." -ForegroundColor DarkGray
-    Write-Host "Touches: A=activer  D=desactiver  R=redemarrer  Q=quitter" -ForegroundColor Cyan
-    Write-Host "Actualisation toutes les $RefreshSeconds secondes." -ForegroundColor DarkGray
+    Write-Host "Menu interactif: pas de rafraichissement automatique." -ForegroundColor Cyan
     Write-Host "============================================================" -ForegroundColor DarkGray
     if (-not [string]::IsNullOrWhiteSpace($LastMessage)) {
         Write-Host ""
@@ -277,10 +275,19 @@ function Show-Status([string]$LastMessage = "") {
 
     Write-Host ""
     Write-Host "Aide rapide" -ForegroundColor Cyan
-    Write-Host "- A active/demarre le serveur si la configuration existe."
-    Write-Host "- D desactive/arrete le serveur sans supprimer les configurations."
-    Write-Host "- R redemarre le service tunnel."
     Write-Host "- Si le telephone est connecte, il apparait dans 'Telephones / peers' avec un handshake recent."
+}
+
+function Show-MainMenu {
+    Write-Host ""
+    Write-Host "Actions" -ForegroundColor Cyan
+    Write-Host "-------" -ForegroundColor DarkGray
+    Write-Host "A - Activer / demarrer le serveur VPN"
+    Write-Host "D - Desactiver / arreter le serveur VPN"
+    Write-Host "R - Redemarrer le serveur VPN"
+    Write-Host "S - Rafraichir le statut"
+    Write-Host "Q - Quitter"
+    Write-Host ""
 }
 
 try {
@@ -290,19 +297,15 @@ try {
     while ($true) {
         Show-Status -LastMessage $lastMessage
         $lastMessage = ""
-        $deadline = (Get-Date).AddSeconds($RefreshSeconds)
-        while ((Get-Date) -lt $deadline) {
-            if ([Console]::KeyAvailable) {
-                $key = [Console]::ReadKey($true)
-                switch ($key.Key) {
-                    'Q' { return }
-                    'A' { try { $lastMessage = Enable-Tunnel -TunnelName $TunnelName -BaseDir $BaseDir } catch { $lastMessage = "ERREUR activation : $($_.Exception.Message)" }; break }
-                    'D' { try { $lastMessage = Disable-Tunnel -TunnelName $TunnelName } catch { $lastMessage = "ERREUR desactivation : $($_.Exception.Message)" }; break }
-                    'R' { try { $lastMessage = Restart-Tunnel -TunnelName $TunnelName -BaseDir $BaseDir } catch { $lastMessage = "ERREUR redemarrage : $($_.Exception.Message)" }; break }
-                }
-            }
-            if (-not [string]::IsNullOrWhiteSpace($lastMessage)) { break }
-            Start-Sleep -Milliseconds 200
+        Show-MainMenu
+        $choice = (Read-Host "Choix").Trim().ToLowerInvariant()
+        switch ($choice) {
+            'a' { try { $lastMessage = Enable-Tunnel -TunnelName $TunnelName -BaseDir $BaseDir } catch { $lastMessage = "ERREUR activation : $($_.Exception.Message)" } }
+            'd' { try { $lastMessage = Disable-Tunnel -TunnelName $TunnelName } catch { $lastMessage = "ERREUR desactivation : $($_.Exception.Message)" } }
+            'r' { try { $lastMessage = Restart-Tunnel -TunnelName $TunnelName -BaseDir $BaseDir } catch { $lastMessage = "ERREUR redemarrage : $($_.Exception.Message)" } }
+            's' { $lastMessage = "Statut rafraichi." }
+            'q' { return }
+            default { $lastMessage = "Choix invalide. Utilise A, D, R, S ou Q." }
         }
     }
 } catch {

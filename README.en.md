@@ -161,14 +161,17 @@ The console lets you:
 - disable/stop the VPN server without deleting configurations;
 - restart the VPN server.
 
-Available keys inside the console:
+Available menu inside the console:
 
 ```text
 A - Enable / start the VPN server
 D - Disable / stop the VPN server
 R - Restart the VPN server
+S - Refresh status
 Q - Quit the console
 ```
+
+The console does not auto-refresh every 5 seconds anymore: it waits for your keyboard choice, which avoids input issues and constantly moving output.
 
 If the uninstaller removed the configurations, the console cannot re-enable the VPN and will ask you to run `INSTALLER-ONE-CLICK.bat` again.
 

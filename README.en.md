@@ -49,6 +49,9 @@ The project automatically configures what is usually painful to do manually:
 
 ## Recommended one-click installation
 
+During one-click installation, the first device DNS is also requested. If you do not know what to enter, type nothing and keep the default `1.1.1.1, 8.8.8.8`. You can also use your router DNS, for example `192.168.1.1`.
+
+
 On the Windows PC that should become the VPN server:
 
 1. Download/copy this repository to the PC.
@@ -370,7 +373,9 @@ Available options:
 - change DNS for all clients;
 - change DNS for a single client;
 - change client `AllowedIPs` mode for all clients;
-- edit `AllowedIPs` for a single client.
+- edit `AllowedIPs` for a single client;
+- change `PersistentKeepalive` for all clients;
+- change `PersistentKeepalive` for a single client.
 
 Principle: when a setting affects clients, the console offers two levels whenever possible:
 
@@ -378,6 +383,30 @@ Principle: when a setting affects clients, the console offers two levels wheneve
 Global = apply the same value to all clients
 Individual = customize only one client/device
 ```
+
+
+### Advanced example: edit PersistentKeepalive
+
+By default, client configurations use:
+
+```ini
+PersistentKeepalive = 25
+```
+
+This helps keep the client-side NAT mapping open, especially on 4G/5G phones, public Wi-Fi, or strict routers.
+
+Suggested values:
+
+```text
+0  = disabled
+15 = mobile networks / very strict NAT
+25 = recommended / WireGuard default
+60 = less frequent
+```
+
+As with DNS and `AllowedIPs`, the console can change this value globally for all clients or individually for a single device.
+
+After changing this, you must re-import the `.conf` file or rescan the new QR code on the device.
 
 ### Advanced example: edit AllowedIPs
 
@@ -455,6 +484,7 @@ Adding a device:
 
 - asks for the device name;
 - suggests the already-used public/DNS endpoint when possible;
+- asks which DNS should be used by this device, with the option to type nothing and keep the default DNS;
 - automatically selects the next available VPN IP;
 - generates the `.conf` file to import;
 - opens the folder containing the generated configuration.

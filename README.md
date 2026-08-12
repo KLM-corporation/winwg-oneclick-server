@@ -49,6 +49,9 @@ Le projet configure automatiquement ce qui est normalement pénible à faire à 
 
 ## Installation one-click recommandée
 
+Pendant l’installation one-click, le DNS du premier appareil est aussi demandé. Si tu ne sais pas quoi mettre, ne tape rien et garde la valeur par défaut `1.1.1.1, 8.8.8.8`. Tu peux aussi mettre le DNS de ta box, par exemple `192.168.1.1`.
+
+
 Sur le PC Windows qui doit devenir serveur VPN :
 
 1. Télécharge/copie ce repo sur le PC.
@@ -389,7 +392,9 @@ Options disponibles :
 - changer le DNS de tous les clients ;
 - changer le DNS d'un seul client ;
 - changer le mode client `AllowedIPs` de tous les clients ;
-- modifier `AllowedIPs` d'un seul client.
+- modifier `AllowedIPs` d'un seul client ;
+- changer `PersistentKeepalive` de tous les clients ;
+- changer `PersistentKeepalive` d'un seul client.
 
 Principe : quand un paramètre concerne les clients, la console propose autant que possible deux niveaux :
 
@@ -397,6 +402,30 @@ Principe : quand un paramètre concerne les clients, la console propose autant q
 Global = appliquer la même valeur à tous les clients
 Individuel = personnaliser uniquement un client/appareil
 ```
+
+
+### Exemple avancé : modifier PersistentKeepalive
+
+Par défaut, les configurations client utilisent :
+
+```ini
+PersistentKeepalive = 25
+```
+
+Cela aide à garder ouverte la translation NAT côté client, notamment sur téléphone 4G/5G, Wi-Fi public ou routeur strict.
+
+Valeurs proposées :
+
+```text
+0  = désactivé
+15 = réseaux mobiles/NAT très stricts
+25 = recommandé / défaut WireGuard
+60 = moins fréquent
+```
+
+Comme pour le DNS et `AllowedIPs`, la console permet de modifier cette valeur globalement pour tous les clients ou individuellement pour un seul appareil.
+
+Après modification, il faut obligatoirement réimporter le `.conf` ou rescanner le nouveau QR code sur l'appareil.
 
 ### Exemple avancé : modifier AllowedIPs
 
@@ -474,6 +503,7 @@ L'ajout d'appareil :
 
 - demande le nom de l'appareil ;
 - propose automatiquement l'endpoint public/DNS déjà utilisé si possible ;
+- demande le DNS à utiliser pour cet appareil, avec possibilité de ne rien taper pour garder le DNS par défaut ;
 - choisit automatiquement la prochaine IP VPN disponible ;
 - génère le fichier `.conf` à importer ;
 - ouvre le dossier contenant la configuration générée.

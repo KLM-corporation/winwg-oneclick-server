@@ -976,9 +976,6 @@ function Show-AdvancedDefaultConfigEditor([string]$TunnelName, [string]$BaseDir,
         Write-UiHost "Options par client/appareil:" -ForegroundColor Cyan
         Write-UiHost "4 - Changer le DNS d'UN client"
         Write-UiHost "5 - Changer AllowedIPs d'UN client"
-        Write-UiHost ""
-        Write-UiHost "Options structurelles:" -ForegroundColor Yellow
-        Write-UiHost "6 - Tunnel name / VPN network / VPN server IP : afficher avertissement"
         Write-UiHost "Q - Retour"
         Write-UiHost ""
         $choice = (Read-UiHost "Choix").Trim().ToLowerInvariant()
@@ -1021,10 +1018,6 @@ function Show-AdvancedDefaultConfigEditor([string]$TunnelName, [string]$BaseDir,
             }
             '5' {
                 $msg = Edit-ClientAllowedIPsAdvanced -BaseDir $BaseDir
-                Pause-ConsoleAction $msg
-            }
-            '6' {
-                $msg = "Tunnel name, VPN network et VPN server IP sont des options structurelles. Les changer proprement implique de regenerer/reaffecter les IP des peers, NAT, services, fichiers clients et QR codes. Pour l'instant, fais plutot une reinstall propre avec les futurs parametres avances d'installation."
                 Pause-ConsoleAction $msg
             }
             'q' { return "Retour depuis la configuration avancee." }

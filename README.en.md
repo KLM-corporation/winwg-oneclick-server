@@ -370,8 +370,7 @@ Available options:
 - change DNS for all clients;
 - change DNS for a single client;
 - change client `AllowedIPs` mode for all clients;
-- edit `AllowedIPs` for a single client;
-- display a warning for structural options: tunnel name, VPN network, VPN server IP.
+- edit `AllowedIPs` for a single client.
 
 Principle: when a setting affects clients, the console offers two levels whenever possible:
 
@@ -379,8 +378,6 @@ Principle: when a setting affects clients, the console offers two levels wheneve
 Global = apply the same value to all clients
 Individual = customize only one client/device
 ```
-
-Structural options are not automatically changed yet, because they require reconfiguring the Windows service, NAT, peers, client IPs, `.conf` files and QR codes. They should be handled later through a proper advanced reinstall/migration mode.
 
 ### Advanced example: edit AllowedIPs
 

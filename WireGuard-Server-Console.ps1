@@ -1049,9 +1049,8 @@ function Show-AdvancedMenu([string]$TunnelName, [string]$BaseDir, [int]$ListenPo
         Write-UiHost "4 - Ouvrir le dossier QR codes"
         Write-UiHost "5 - Exporter un diagnostic redige"
         Write-UiHost "6 - Modifier configuration avancee (port, DNS, AllowedIPs)"
-        Write-UiHost "7 - Modifier AllowedIPs d'un appareil"
-        Write-UiHost "8 - Ouvrir wg-phone-server.conf dans Notepad (contient la cle privee)"
-        Write-UiHost "9 - Desactiver le mode avance"
+        Write-UiHost "7 - Ouvrir wg-phone-server.conf dans Notepad (contient la cle privee)"
+        Write-UiHost "8 - Desactiver le mode avance"
         Write-UiHost "Q - Retour"
         Write-UiHost ""
         $choice = (Read-UiHost "Choix").Trim().ToLowerInvariant()
@@ -1083,10 +1082,6 @@ function Show-AdvancedMenu([string]$TunnelName, [string]$BaseDir, [int]$ListenPo
                 Pause-ConsoleAction $msg
             }
             '7' {
-                try { $msg = Edit-ClientAllowedIPsAdvanced -BaseDir $BaseDir } catch { $msg = "Erreur AllowedIPs : $($_.Exception.Message)" }
-                Pause-ConsoleAction $msg
-            }
-            '8' {
                 Write-UiHost ""
                 Write-UiHost "ATTENTION : ce fichier contient la cle privee serveur." -ForegroundColor Red
                 Write-UiHost "Ne partage pas de capture ou de copie de ce fichier." -ForegroundColor Red
@@ -1097,7 +1092,7 @@ function Show-AdvancedMenu([string]$TunnelName, [string]$BaseDir, [int]$ListenPo
                     Pause-ConsoleAction "Ouverture annulee."
                 }
             }
-            '9' {
+            '8' {
                 $script:AdvancedModeEnabled = $false
                 return "Mode avance desactive."
             }

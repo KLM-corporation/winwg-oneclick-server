@@ -369,7 +369,6 @@ Ce mode peut donner accès à des fichiers et actions sensibles. Il permet notam
 - ouvrir les dossiers serveur, clients et QR codes ;
 - exporter un diagnostic redigé ;
 - modifier la configuration avancée : port WireGuard, DNS clients et `AllowedIPs` ;
-- modifier précisément `AllowedIPs` dans une configuration client ;
 - ouvrir le fichier serveur `wg-phone-server.conf` dans Notepad.
 
 Attention : le fichier serveur contient la clé privée WireGuard. Ne partage jamais ce fichier, son contenu, ni une capture d'écran non redigée.

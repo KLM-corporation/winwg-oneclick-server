@@ -350,7 +350,6 @@ This mode may expose sensitive files and actions. It can:
 - open server, clients and QR code folders;
 - export a redacted diagnostic file;
 - edit advanced configuration: WireGuard port, client DNS and `AllowedIPs`;
-- precisely edit `AllowedIPs` in a client configuration;
 - open the server `wg-phone-server.conf` file in Notepad.
 
 Warning: the server configuration file contains the WireGuard private key. Never share this file, its content, or an unredacted screenshot.

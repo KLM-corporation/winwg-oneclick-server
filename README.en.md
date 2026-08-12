@@ -166,13 +166,13 @@ The console lets you:
 Available menu inside the console:
 
 ```text
-A - Enable / start the VPN server
-D - Disable / stop the VPN server
-R - Restart the VPN server
-N - Add a new device
-X - Remove a device
-S - Refresh status
-Q - Quit the console
+1 / A - Enable / start the VPN server
+2 / D - Disable / stop the VPN server
+3 / R - Restart the VPN server
+4 / N - Add a new device
+5 / X - Remove a device
+S     - Refresh status
+Q     - Quit the console
 ```
 
 The console does not auto-refresh every 5 seconds anymore: it waits for your keyboard choice, which avoids input issues and constantly moving output.

@@ -385,14 +385,24 @@ function Show-MainMenu {
     Write-Host ""
     Write-Host "Actions" -ForegroundColor Cyan
     Write-Host "-------" -ForegroundColor DarkGray
-    Write-Host "A - Activer / demarrer le serveur VPN"
-    Write-Host "D - Desactiver / arreter le serveur VPN"
-    Write-Host "R - Redemarrer le serveur VPN"
-    Write-Host "N - Ajouter un nouvel appareil"
-    Write-Host "X - Supprimer un appareil"
-    Write-Host "S - Rafraichir le statut"
-    Write-Host "Q - Quitter"
+    Write-Host "1 / A - Activer / demarrer le serveur VPN"
+    Write-Host "2 / D - Desactiver / arreter le serveur VPN"
+    Write-Host "3 / R - Redemarrer le serveur VPN"
+    Write-Host "4 / N - Ajouter un nouvel appareil"
+    Write-Host "5 / X - Supprimer un appareil"
+    Write-Host "S     - Rafraichir le statut"
+    Write-Host "Q     - Quitter"
     Write-Host ""
+}
+
+
+function Pause-ConsoleAction([string]$Message) {
+    if (-not [string]::IsNullOrWhiteSpace($Message)) {
+        Write-Host ""
+        Write-Host $Message -ForegroundColor Yellow
+    }
+    Write-Host ""
+    [void](Read-Host "Appuie sur Entree pour revenir au menu")
 }
 
 try {
@@ -405,14 +415,34 @@ try {
         Show-MainMenu
         $choice = (Read-Host "Choix").Trim().ToLowerInvariant()
         switch ($choice) {
-            'a' { try { $lastMessage = Enable-Tunnel -TunnelName $TunnelName -BaseDir $BaseDir } catch { $lastMessage = "ERREUR activation : $($_.Exception.Message)" } }
-            'd' { try { $lastMessage = Disable-Tunnel -TunnelName $TunnelName } catch { $lastMessage = "ERREUR desactivation : $($_.Exception.Message)" } }
-            'r' { try { $lastMessage = Restart-Tunnel -TunnelName $TunnelName -BaseDir $BaseDir } catch { $lastMessage = "ERREUR redemarrage : $($_.Exception.Message)" } }
+            { $_ -in @('1','a') } {
+                try { $lastMessage = Enable-Tunnel -TunnelName $TunnelName -BaseDir $BaseDir } catch { $lastMessage = "ERREUR activation : $($_.Exception.Message)" }
+                Pause-ConsoleAction $lastMessage
+                $lastMessage = ""
+            }
+            { $_ -in @('2','d') } {
+                try { $lastMessage = Disable-Tunnel -TunnelName $TunnelName } catch { $lastMessage = "ERREUR desactivation : $($_.Exception.Message)" }
+                Pause-ConsoleAction $lastMessage
+                $lastMessage = ""
+            }
+            { $_ -in @('3','r') } {
+                try { $lastMessage = Restart-Tunnel -TunnelName $TunnelName -BaseDir $BaseDir } catch { $lastMessage = "ERREUR redemarrage : $($_.Exception.Message)" }
+                Pause-ConsoleAction $lastMessage
+                $lastMessage = ""
+            }
+            { $_ -in @('4','n') } {
+                try { $lastMessage = Add-DeviceFromConsole -TunnelName $TunnelName -ListenPort $ListenPort -BaseDir $BaseDir } catch { $lastMessage = "ERREUR ajout appareil : $($_.Exception.Message)" }
+                Pause-ConsoleAction $lastMessage
+                $lastMessage = ""
+            }
+            { $_ -in @('5','x') } {
+                try { $lastMessage = Remove-DeviceFromConsole -TunnelName $TunnelName -BaseDir $BaseDir } catch { $lastMessage = "ERREUR suppression appareil : $($_.Exception.Message)" }
+                Pause-ConsoleAction $lastMessage
+                $lastMessage = ""
+            }
             's' { $lastMessage = "Statut rafraichi." }
             'q' { return }
-            'n' { try { $lastMessage = Add-DeviceFromConsole -TunnelName $TunnelName -ListenPort $ListenPort -BaseDir $BaseDir } catch { $lastMessage = "ERREUR ajout appareil : $($_.Exception.Message)" } }
-            'x' { try { $lastMessage = Remove-DeviceFromConsole -TunnelName $TunnelName -BaseDir $BaseDir } catch { $lastMessage = "ERREUR suppression appareil : $($_.Exception.Message)" } }
-            default { $lastMessage = "Choix invalide. Utilise A, D, R, N, X, S ou Q." }
+            default { $lastMessage = "Choix invalide. Utilise 1/2/3/4/5, A/D/R/N/X, S ou Q." }
         }
     }
 } catch {

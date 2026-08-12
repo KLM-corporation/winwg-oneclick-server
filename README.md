@@ -199,13 +199,13 @@ Cette console permet de :
 Menu disponible dans la console :
 
 ```text
-A - Activer / démarrer le serveur VPN
-D - Désactiver / arrêter le serveur VPN
-R - Redémarrer le serveur VPN
-N - Ajouter un nouvel appareil
-X - Supprimer un appareil
-S - Rafraîchir le statut
-Q - Quitter la console
+1 / A - Activer / démarrer le serveur VPN
+2 / D - Désactiver / arrêter le serveur VPN
+3 / R - Redémarrer le serveur VPN
+4 / N - Ajouter un nouvel appareil
+5 / X - Supprimer un appareil
+S     - Rafraîchir le statut
+Q     - Quitter la console
 ```
 
 La console ne se rafraîchit pas automatiquement toutes les 5 secondes : elle attend ton choix au clavier, ce qui évite les problèmes de saisie et l’affichage qui bouge tout seul.

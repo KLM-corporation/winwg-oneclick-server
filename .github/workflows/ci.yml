@@ -135,15 +135,15 @@ jobs:
             README.md
             README.en.md
             LICENSE
-            SECURITY.md
-            CONTRIBUTING.md
-            CHANGELOG.md
+            docs/SECURITY.md
+            docs/CONTRIBUTING.md
+            docs/CHANGELOG.md
             INSTALLER-ONE-CLICK.bat
             SERVER-CONSOLE.bat
             UNINSTALLER-ONE-CLICK.bat
-            OneClick-WireGuard-Server.ps1
-            WireGuard-Server-Console.ps1
-            Uninstall-WireGuard-Server.ps1
+            scripts/OneClick-WireGuard-Server.ps1
+            scripts/WireGuard-Server-Console.ps1
+            scripts/Uninstall-WireGuard-Server.ps1
             docs/TROUBLESHOOTING.md
             docs/TROUBLESHOOTING.en.md
             docs/PUBLIC_RELEASE_CHECKLIST.md

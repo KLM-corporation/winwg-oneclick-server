@@ -13,7 +13,7 @@ Use this checklist before making the repository public or publishing a release.
 - [ ] Test service stop/start/restart from the console.
 - [ ] Test one-click uninstall.
 - [ ] Confirm README.md and README.en.md are aligned.
-- [ ] Confirm SECURITY.md and CONTRIBUTING.md are present.
+- [ ] Confirm docs/SECURITY.md and docs/CONTRIBUTING.md are present.
 - [ ] Create a beta release tag, for example `v0.1.0-beta`.
 
 ## Recommended

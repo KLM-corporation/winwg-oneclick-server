@@ -6,7 +6,7 @@
 
 
 > 💙 **Support the project**: WinWG OneClick Server is free and open source. Donations are optional.  
-> BTC: `bc1qp3lzycrpngpk00tecj85pfkhrqqr49gmslzmsg` — see [`DONATE.md`](DONATE.md).
+> BTC: `bc1qp3lzycrpngpk00tecj85pfkhrqqr49gmslzmsg` — see [`docs/DONATE.md`](docs/DONATE.md).
 
 WinWG OneClick Server is a simple Windows project that turns a Windows 10/11 PC into a **WireGuard remote access server** with a **single script / single double-click** installation. It also generates the configuration file to import on your phone, tablet, or laptop.
 
@@ -96,7 +96,7 @@ Bitcoin BTC address:
 bc1qp3lzycrpngpk00tecj85pfkhrqqr49gmslzmsg
 ```
 
-More information: [`DONATE.md`](DONATE.md).
+More information: [`docs/DONATE.md`](docs/DONATE.md).
 
 ## Attribution
 
@@ -212,7 +212,7 @@ If you manually created port-forwarding on your router, you must also remove it 
 Advanced silent mode:
 
 ```powershell
-.\Uninstall-WireGuard-Server.ps1 -Quiet -RemoveWireGuardApp
+.\scripts\Uninstall-WireGuard-Server.ps1 -Quiet -RemoveWireGuardApp
 ```
 
 

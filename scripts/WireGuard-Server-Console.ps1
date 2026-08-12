@@ -418,7 +418,7 @@ function Test-QrFeatureEnabled([string]$BaseDir) {
 
 function Generate-DeviceQrFromConsole([string]$BaseDir, [string]$ClientName = "") {
     if (-not (Test-QrFeatureEnabled -BaseDir $BaseDir)) { throw "Fonctionnalite QR desactivee. Relance l'installation et accepte la dependance QR pour l'activer." }
-    $scriptPath = Join-Path $PSScriptRoot "scripts\Generate-WireGuardClientQr.ps1"
+    $scriptPath = Join-Path $PSScriptRoot "Generate-WireGuardClientQr.ps1"
     if (-not (Test-Path $scriptPath)) { throw "Script QR introuvable : $scriptPath" }
 
     $clientDir = Join-Path $BaseDir "clients"
@@ -480,7 +480,7 @@ function Get-DefaultClientDns([string]$BaseDir) {
 function Add-DeviceFromConsole([string]$TunnelName, [int]$ListenPort, [string]$BaseDir) {
     Write-Ultra "Action: ajout appareil"
     Assert-ProjectInstalled -TunnelName $TunnelName -BaseDir $BaseDir
-    $scriptPath = Join-Path $PSScriptRoot "scripts\Add-WireGuardPeer.ps1"
+    $scriptPath = Join-Path $PSScriptRoot "Add-WireGuardPeer.ps1"
     if (-not (Test-Path $scriptPath)) { throw "Script d'ajout introuvable : $scriptPath" }
 
     Write-UiHost ""
@@ -540,7 +540,7 @@ function Add-DeviceFromConsole([string]$TunnelName, [int]$ListenPort, [string]$B
 function Remove-DeviceFromConsole([string]$TunnelName, [string]$BaseDir) {
     Write-Ultra "Action: suppression appareil"
     Assert-ProjectInstalled -TunnelName $TunnelName -BaseDir $BaseDir
-    $scriptPath = Join-Path $PSScriptRoot "scripts\Remove-WireGuardPeer.ps1"
+    $scriptPath = Join-Path $PSScriptRoot "Remove-WireGuardPeer.ps1"
     if (-not (Test-Path $scriptPath)) { throw "Script de suppression introuvable : $scriptPath" }
 
     $clientDir = Join-Path $BaseDir "clients"

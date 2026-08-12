@@ -439,7 +439,8 @@ PersistentKeepalive = 25
 
     Start-Process explorer.exe $clientDir
 
-    $consoleBat = Join-Path $PSScriptRoot "SERVER-CONSOLE.bat"
+    $projectRoot = Split-Path $PSScriptRoot -Parent
+    $consoleBat = Join-Path $projectRoot "SERVER-CONSOLE.bat"
     if (Test-Path $consoleBat) {
         Write-Host ""
         Write-Host "Ouverture de la console serveur de supervision..." -ForegroundColor Cyan

@@ -278,6 +278,8 @@ Q     - Quitter la console
 
 La console ne se rafraîchit pas automatiquement toutes les 5 secondes : elle attend ton choix au clavier, ce qui évite les problèmes de saisie et l’affichage qui bouge tout seul.
 
+> Affichage : la console ajoute une petite marge à gauche pour éviter que les premières lettres soient coupées dans certains terminaux Windows.
+
 Dans cette version, `R` veut dire `Retirer un appareil`. Pour redémarrer le serveur VPN, utilise le numéro `3`, afin d’éviter la confusion entre `redémarrer` et `retirer`.
 
 Si le désinstalleur a supprimé les configurations, la console ne peut plus réactiver le VPN et demandera de relancer `INSTALLER-ONE-CLICK.bat`.

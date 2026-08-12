@@ -225,6 +225,8 @@ Q     - Quit the console
 
 The console does not auto-refresh every 5 seconds anymore: it waits for your keyboard choice, which avoids input issues and constantly moving output.
 
+> Display: the console adds a small left margin to avoid the first letters being clipped in some Windows terminals.
+
 In this version, `R` means `Remove a device`. To restart the VPN server, use number `3`, to avoid confusion between restart and remove.
 
 If the uninstaller removed the configurations, the console cannot re-enable the VPN and will ask you to run `INSTALLER-ONE-CLICK.bat` again.

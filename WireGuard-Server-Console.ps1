@@ -209,6 +209,109 @@ function Write-Line([string]$Name, [string]$Value, [ConsoleColor]$Color = [Conso
     Write-Host $Value -ForegroundColor $Color
 }
 
+
+function Get-DefaultEndpoint([int]$ListenPort, [string]$BaseDir) {
+    $clientDir = Join-Path $BaseDir "clients"
+    if (Test-Path $clientDir) {
+        $firstClient = Get-ChildItem $clientDir -Filter "*.conf" -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($firstClient) {
+            $content = Get-Content $firstClient.FullName -Raw -ErrorAction SilentlyContinue
+            if ($content -match '(?m)^Endpoint\s*=\s*([^:\s]+):\d+') { return $Matches[1] }
+        }
+    }
+
+    $services = @("https://api.ipify.org", "https://ifconfig.me/ip", "https://icanhazip.com")
+    foreach ($svc in $services) {
+        try {
+            $ip = (Invoke-RestMethod -Uri $svc -TimeoutSec 5).ToString().Trim()
+            if ($ip -match '^[0-9]{1,3}(\.[0-9]{1,3}){3}$') { return $ip }
+        } catch {}
+    }
+    return "TON_IP_PUBLIQUE_OU_DNS"
+}
+
+function Get-NextClientNumber([string]$TunnelName, [string]$BaseDir) {
+    $serverConfig = Get-ServerConfigPath -TunnelName $TunnelName -BaseDir $BaseDir
+    $used = @()
+    if (Test-Path $serverConfig) {
+        foreach ($line in Get-Content $serverConfig) {
+            if ($line -match 'AllowedIPs\s*=\s*10\.66\.66\.(\d+)/32') {
+                $used += [int]$Matches[1]
+            }
+        }
+    }
+    for ($i = 2; $i -lt 255; $i++) {
+        if ($used -notcontains $i) { return $i }
+    }
+    throw "Aucune adresse VPN disponible dans 10.66.66.0/24."
+}
+
+function Add-DeviceFromConsole([string]$TunnelName, [int]$ListenPort, [string]$BaseDir) {
+    Assert-ProjectInstalled -TunnelName $TunnelName -BaseDir $BaseDir
+    $scriptPath = Join-Path $PSScriptRoot "scripts\Add-WireGuardPeer.ps1"
+    if (-not (Test-Path $scriptPath)) { throw "Script d'ajout introuvable : $scriptPath" }
+
+    Write-Host ""
+    Write-Host "Ajouter un appareil" -ForegroundColor Cyan
+    Write-Host "-------------------" -ForegroundColor DarkGray
+    $clientName = (Read-Host "Nom de l'appareil, ex: iphone, android, laptop").Trim()
+    if ([string]::IsNullOrWhiteSpace($clientName)) { throw "Nom d'appareil vide." }
+
+    $defaultEndpoint = Get-DefaultEndpoint -ListenPort $ListenPort -BaseDir $BaseDir
+    $endpointInput = (Read-Host "Endpoint public ou DNS [$defaultEndpoint]").Trim()
+    $endpoint = if ([string]::IsNullOrWhiteSpace($endpointInput)) { $defaultEndpoint } else { $endpointInput }
+
+    $clientNumber = Get-NextClientNumber -TunnelName $TunnelName -BaseDir $BaseDir
+    Write-Host "IP VPN attribuee automatiquement : 10.66.66.$clientNumber" -ForegroundColor DarkCyan
+
+    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -ClientName $clientName -Endpoint $endpoint -ClientNumber $clientNumber -ListenPort $ListenPort -TunnelName $TunnelName 2>&1
+    $code = $LASTEXITCODE
+    if ($output) { $output | Out-Host }
+    if ($code -ne 0) { throw "Echec de l'ajout de l'appareil '$clientName'." }
+
+    $clientDir = Join-Path $BaseDir "clients"
+    if (Test-Path $clientDir) { Start-Process explorer.exe $clientDir }
+    return "Appareil ajoute : $clientName. Fichier .conf genere dans $clientDir"
+}
+
+function Remove-DeviceFromConsole([string]$TunnelName, [string]$BaseDir) {
+    Assert-ProjectInstalled -TunnelName $TunnelName -BaseDir $BaseDir
+    $scriptPath = Join-Path $PSScriptRoot "scripts\Remove-WireGuardPeer.ps1"
+    if (-not (Test-Path $scriptPath)) { throw "Script de suppression introuvable : $scriptPath" }
+
+    $clientDir = Join-Path $BaseDir "clients"
+    $clients = @()
+    if (Test-Path $clientDir) { $clients = @(Get-ChildItem $clientDir -Filter "*.conf" -ErrorAction SilentlyContinue) }
+
+    Write-Host ""
+    Write-Host "Supprimer un appareil" -ForegroundColor Cyan
+    Write-Host "---------------------" -ForegroundColor DarkGray
+    if ($clients.Length -gt 0) {
+        for ($i = 0; $i -lt $clients.Length; $i++) {
+            Write-Host ("{0} - {1}" -f ($i + 1), $clients[$i].BaseName)
+        }
+        Write-Host ""
+        $choice = (Read-Host "Numero ou nom de l'appareil a supprimer").Trim()
+        if ($choice -match '^\d+$' -and [int]$choice -ge 1 -and [int]$choice -le $clients.Length) {
+            $clientName = $clients[[int]$choice - 1].BaseName
+        } else {
+            $clientName = $choice
+        }
+    } else {
+        $clientName = (Read-Host "Nom de l'appareil a supprimer").Trim()
+    }
+
+    if ([string]::IsNullOrWhiteSpace($clientName)) { throw "Nom d'appareil vide." }
+    $confirm = (Read-Host "Confirmer la suppression de '$clientName' ? [o/N]").Trim().ToLowerInvariant()
+    if ($confirm -notin @('o','oui','y','yes')) { return "Suppression annulee." }
+
+    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -ClientName $clientName -TunnelName $TunnelName 2>&1
+    $code = $LASTEXITCODE
+    if ($output) { $output | Out-Host }
+    if ($code -ne 0) { throw "Echec de la suppression de l'appareil '$clientName'." }
+    return "Appareil supprime : $clientName"
+}
+
 function Show-Status([string]$LastMessage = "") {
     Clear-Host
     Write-Host "WinWG OneClick Server - Console serveur unifiee" -ForegroundColor Green
@@ -285,6 +388,8 @@ function Show-MainMenu {
     Write-Host "A - Activer / demarrer le serveur VPN"
     Write-Host "D - Desactiver / arreter le serveur VPN"
     Write-Host "R - Redemarrer le serveur VPN"
+    Write-Host "N - Ajouter un nouvel appareil"
+    Write-Host "X - Supprimer un appareil"
     Write-Host "S - Rafraichir le statut"
     Write-Host "Q - Quitter"
     Write-Host ""
@@ -305,7 +410,9 @@ try {
             'r' { try { $lastMessage = Restart-Tunnel -TunnelName $TunnelName -BaseDir $BaseDir } catch { $lastMessage = "ERREUR redemarrage : $($_.Exception.Message)" } }
             's' { $lastMessage = "Statut rafraichi." }
             'q' { return }
-            default { $lastMessage = "Choix invalide. Utilise A, D, R, S ou Q." }
+            'n' { try { $lastMessage = Add-DeviceFromConsole -TunnelName $TunnelName -ListenPort $ListenPort -BaseDir $BaseDir } catch { $lastMessage = "ERREUR ajout appareil : $($_.Exception.Message)" } }
+            'x' { try { $lastMessage = Remove-DeviceFromConsole -TunnelName $TunnelName -BaseDir $BaseDir } catch { $lastMessage = "ERREUR suppression appareil : $($_.Exception.Message)" } }
+            default { $lastMessage = "Choix invalide. Utilise A, D, R, N, X, S ou Q." }
         }
     }
 } catch {

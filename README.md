@@ -192,7 +192,9 @@ Cette console permet de :
 - vérifier le pare-feu, le NAT et le port UDP ;
 - activer/démarrer le serveur VPN ;
 - désactiver/arrêter le serveur VPN sans supprimer les configurations ;
-- redémarrer le serveur VPN.
+- redémarrer le serveur VPN ;
+- ajouter un téléphone, une tablette ou un PC portable ;
+- supprimer un appareil existant.
 
 Menu disponible dans la console :
 
@@ -200,6 +202,8 @@ Menu disponible dans la console :
 A - Activer / démarrer le serveur VPN
 D - Désactiver / arrêter le serveur VPN
 R - Redémarrer le serveur VPN
+N - Ajouter un nouvel appareil
+X - Supprimer un appareil
 S - Rafraîchir le statut
 Q - Quitter la console
 ```
@@ -211,32 +215,32 @@ Si le désinstalleur a supprimé les configurations, la console ne peut plus ré
 > Note : l'ancien script séparé `WIREGUARD-SERVICE-TOGGLE.bat` a été retiré dans cette version de test, car ses fonctions sont maintenant intégrées dans `SERVER-CONSOLE.bat`.
 
 
-## Roadmap / idées prévues
 
-Fonctionnalité prévue pour une prochaine version :
+## Gestion des appareils depuis la console
+
+Depuis `SERVER-CONSOLE.bat`, tu peux maintenant gérer les appareils sans commande PowerShell manuelle :
 
 ```text
-Gestion facile des appareils directement depuis la console serveur
+N - Ajouter un nouvel appareil
+X - Supprimer un appareil
 ```
 
-Objectif : depuis `SERVER-CONSOLE.bat`, pouvoir ajouter ou supprimer un téléphone, une tablette ou un PC portable sans lancer de commande PowerShell manuelle.
+L'ajout d'appareil :
 
-Idées prévues :
+- demande le nom de l'appareil ;
+- propose automatiquement l'endpoint public/DNS déjà utilisé si possible ;
+- choisit automatiquement la prochaine IP VPN disponible ;
+- génère le fichier `.conf` à importer ;
+- ouvre le dossier contenant la configuration générée.
 
-- menu `Ajouter un appareil` ;
-- menu `Supprimer un appareil` ;
-- génération automatique d'une nouvelle IP VPN disponible ;
-- génération du fichier `.conf` pour l'appareil ;
-- affichage du chemin du fichier généré ;
-- éventuellement génération d'un QR code pour import mobile plus rapide ;
-- redémarrage/rechargement propre du tunnel après modification.
+La suppression d'appareil :
 
-Pour l'instant, l'ajout et la suppression restent disponibles via :
+- liste les fichiers `.conf` existants ;
+- demande confirmation ;
+- supprime le peer du serveur ;
+- supprime le fichier `.conf` local correspondant ;
+- recharge le service WireGuard.
 
-```powershell
-.\scripts\Add-WireGuardPeer.ps1 -ClientName "android" -Endpoint "home-vpn.duckdns.org"
-.\scripts\Remove-WireGuardPeer.ps1 -ClientName "android"
-```
 
 ## Utilisation
 

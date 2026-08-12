@@ -159,7 +159,9 @@ The console lets you:
 - check firewall, NAT and UDP port status;
 - enable/start the VPN server;
 - disable/stop the VPN server without deleting configurations;
-- restart the VPN server.
+- restart the VPN server;
+- add a phone, tablet, or laptop;
+- remove an existing device.
 
 Available menu inside the console:
 
@@ -167,6 +169,8 @@ Available menu inside the console:
 A - Enable / start the VPN server
 D - Disable / stop the VPN server
 R - Restart the VPN server
+N - Add a new device
+X - Remove a device
 S - Refresh status
 Q - Quit the console
 ```
@@ -192,32 +196,32 @@ In your router/Internet box admin panel:
 Tip: assign a static local IP to the Windows PC in your router, otherwise port-forwarding may break if the local IP changes.
 
 
-## Roadmap / planned ideas
 
-Planned feature for a future version:
+## Device management from the console
+
+From `SERVER-CONSOLE.bat`, you can now manage devices without manual PowerShell commands:
 
 ```text
-Easy device management directly from the server console
+N - Add a new device
+X - Remove a device
 ```
 
-Goal: from `SERVER-CONSOLE.bat`, add or remove a phone, tablet, or laptop without running manual PowerShell commands.
+Adding a device:
 
-Planned ideas:
+- asks for the device name;
+- suggests the already-used public/DNS endpoint when possible;
+- automatically selects the next available VPN IP;
+- generates the `.conf` file to import;
+- opens the folder containing the generated configuration.
 
-- `Add device` menu;
-- `Remove device` menu;
-- automatic selection of the next available VPN IP;
-- automatic `.conf` file generation for the device;
-- display of the generated file path;
-- optional QR code generation for faster mobile import;
-- clean tunnel reload/restart after changes.
+Removing a device:
 
-For now, adding and removing devices is available through:
+- lists existing `.conf` files;
+- asks for confirmation;
+- removes the peer from the server;
+- deletes the matching local `.conf` file;
+- reloads the WireGuard service.
 
-```powershell
-.\scripts\Add-WireGuardPeer.ps1 -ClientName "android" -Endpoint "home-vpn.duckdns.org"
-.\scripts\Remove-WireGuardPeer.ps1 -ClientName "android"
-```
 
 ## Usage
 

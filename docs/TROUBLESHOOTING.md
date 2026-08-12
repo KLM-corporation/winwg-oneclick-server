@@ -1,5 +1,40 @@
 # Dépannage WinWG OneClick Server
 
+
+## Bail DHCP statique / réservation DHCP recommandé
+
+Pour un serveur VPN à la maison, il vaut mieux éviter que l'adresse locale du PC Windows change.
+
+La méthode recommandée est de créer un **bail DHCP statique** dans la box/routeur :
+
+```text
+Adresse MAC du PC Windows -> IP LAN réservée
+```
+
+Exemple :
+
+```text
+D4:3A:2E:85:CA:DF -> 192.168.1.14
+```
+
+Ensuite, configure la redirection de port vers cette IP réservée :
+
+```text
+UDP 51820 -> 192.168.1.14 -> UDP 51820
+```
+
+Termes possibles selon les box :
+
+```text
+Baux DHCP statiques
+Réservation DHCP
+Static DHCP lease
+Address reservation
+IP statique DHCP
+```
+
+C'est plus propre qu'une IP fixe configurée directement dans Windows, car la box continue de gérer le DHCP et limite les risques de conflit d'adresse.
+
 ## 1. Le téléphone ne se connecte pas du tout
 
 Vérifie :

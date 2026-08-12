@@ -1,5 +1,7 @@
 # WinWG OneClick Server
 
+![Status](https://img.shields.io/badge/status-beta-orange) ![Platform](https://img.shields.io/badge/platform-Windows-blue) ![License](https://img.shields.io/badge/license-MIT-green)
+
 [English documentation](README.en.md) | Documentation française
 
 **One script. One click. Ton PC Windows devient un serveur VPN WireGuard.**
@@ -7,6 +9,13 @@
 Un projet Windows simple et propre pour transformer un PC Windows 10/11 en **serveur d’accès distant WireGuard** avec une installation en **un seul script / un seul double-clic**. Il génère aussi la configuration à importer sur ton téléphone, ta tablette ou ton PC portable.
 
 
+
+
+## Statut du projet
+
+WinWG OneClick Server est actuellement en **beta**. Il est utilisable, mais il doit encore être testé sur plusieurs machines Windows avant d'être considéré comme stable.
+
+À utiliser d'abord pour un usage personnel, home-lab ou test. Évite de l'installer directement sur une machine critique sans validation.
 
 ## Promesse du projet
 
@@ -53,6 +62,8 @@ Il tente aussi de créer automatiquement la redirection de port sur la box via U
 UDP 51820 -> IP locale du PC Windows -> UDP 51820
 ```
 
+Idéalement, cette IP locale doit être réservée via un **bail DHCP statique** dans la box/routeur.
+
 > Note : aucune installation ne peut contourner automatiquement le CG-NAT de ton opérateur. Si tu es derrière CG-NAT, il faut demander une IPv4 publique/full stack ou utiliser un VPS relais.
 
 > ⚠️ Important : pour se connecter depuis l'extérieur, il faut que le PC soit joignable depuis Internet. Dans la majorité des cas, cela veut dire :
@@ -80,6 +91,17 @@ UDP 51820 -> IP locale du PC Windows -> UDP 51820
   - iPhone : App Store.
 
 
+
+
+## Attribution
+
+Licence : MIT.
+
+Tu peux utiliser, copier, modifier, redistribuer et intégrer ce projet, y compris commercialement, à condition de conserver la notice de copyright et la licence.
+
+Projet original : **WinWG OneClick Server**  
+Auteur : **KLM-DEV**  
+Dépôt : `https://github.com/KLM-corporation/winwg-oneclick-server`
 
 ## Originalité, attribution et marque WireGuard
 
@@ -144,7 +166,27 @@ Dans l'interface de ta box/routeur :
 | IP locale cible | IP LAN du PC Windows |
 | Port interne | 51820 |
 
-Astuce : donne une IP fixe au PC Windows dans ta box, sinon la redirection peut casser si son IP locale change.
+Recommandation réseau : crée un **bail DHCP statique** / une **réservation DHCP** pour le PC Windows dans l'interface de ta box/routeur. L'objectif est que le serveur VPN garde toujours la même adresse LAN, par exemple `192.168.1.14`.
+
+Concrètement, dans la box, associe :
+
+```text
+Adresse MAC du PC Windows -> Adresse IP LAN fixe réservée
+```
+
+Exemple :
+
+```text
+D4:3A:2E:85:CA:DF -> 192.168.1.14
+```
+
+Ensuite, la redirection de port doit pointer vers cette IP réservée :
+
+```text
+UDP 51820 -> 192.168.1.14 -> UDP 51820
+```
+
+C'est préférable à une IP configurée manuellement dans Windows, car la box reste maître du plan d'adressage et évite les conflits DHCP.
 
 
 ## Désinstallation one-click
@@ -325,6 +367,20 @@ Get-ChildItem "C:\ProgramData\WireGuardPhoneServer\clients"
 ## Dépannage rapide
 
 Consulte [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md).
+
+
+## Avertissement sécurité
+
+Ce projet configure un serveur VPN et peut exposer un port UDP sur Internet. Tu es responsable de ta configuration réseau.
+
+Avant usage public ou prolongé :
+
+- garde Windows et WireGuard à jour ;
+- ne partage jamais les fichiers `.conf` générés ;
+- supprime immédiatement un appareil perdu ou compromis ;
+- vérifie ta redirection de port ;
+- comprends les limites CG-NAT ;
+- teste la désinstallation avant de dépendre du serveur.
 
 ## Sécurité
 

@@ -35,6 +35,10 @@ function Write-UiHost {
     )
 
     $text = [string]$Object
+    # Si le texte contient plusieurs lignes, on applique aussi la marge aux lignes suivantes.
+    # Sinon les lignes brutes comme "peer:" dans `wg show` peuvent commencer en colonne 0
+    # et etre coupees par certains terminaux Windows.
+    $text = $text -replace "`r?`n", ("`n" + $script:UiMargin)
     if ($NoNewline) {
         Microsoft.PowerShell.Utility\Write-Host ($script:UiMargin + $text) -ForegroundColor $ForegroundColor -NoNewline
     } else {

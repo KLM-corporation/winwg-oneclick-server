@@ -275,6 +275,7 @@ Menu disponible dans la console :
 4 / N - Ajouter un nouvel appareil
 5 / R - Retirer / supprimer un appareil
 6 / G - Générer un QR code pour un appareil
+7 / B - Paramètres bande passante
 S     - Rafraîchir le statut
 V     - Activer/désactiver le mode ultra verbeux
 Q     - Quitter la console
@@ -327,6 +328,38 @@ C:\ProgramData\WireGuardPhoneServer\logs
 
 C'est utile pour diagnostiquer les cas où l'appareil est bien créé/supprimé mais où le rechargement du service WireGuard retourne un avertissement.
 
+
+
+## Paramètres bande passante
+
+La console peut afficher une vitesse estimée par peer et une vitesse globale :
+
+```text
+Vitesse      : RX 120.50 KiB/s / TX 42.10 KiB/s
+Vitesse globale : RX 1.20 MiB/s / TX 800.00 KiB/s
+```
+
+Depuis `SERVER-CONSOLE.bat`, tu peux ouvrir les paramètres avec :
+
+```text
+7 / B - Paramètres bande passante
+```
+
+Tu peux définir :
+
+- une limite globale RX/TX en Mbps ;
+- une limite RX/TX par peer/appareil ;
+- supprimer une limite par peer ;
+- réinitialiser toutes les limites.
+
+Important : pour l’instant, il s’agit d’un mode **monitoring / alerte**. La console indique si une limite est proche ou dépassée, mais elle ne bride pas encore réellement le trafic au niveau réseau. Un bridage réel demanderait une intégration Windows QoS/WFP plus avancée et devra être testé séparément.
+
+Dans la console :
+
+```text
+RX = trafic reçu par le serveur depuis les peers
+TX = trafic envoyé par le serveur vers les peers
+```
 
 ## QR code WireGuard
 

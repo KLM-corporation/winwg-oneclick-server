@@ -349,11 +349,35 @@ This mode may expose sensitive files and actions. It can:
 - show raw `wg show` output;
 - open server, clients and QR code folders;
 - export a redacted diagnostic file;
-- precisely edit `AllowedIPs` in a client configuration;
+- edit advanced configuration: WireGuard port, client DNS and `AllowedIPs`;
 - open the server `wg-phone-server.conf` file in Notepad.
 
 Warning: the server configuration file contains the WireGuard private key. Never share this file, its content, or an unredacted screenshot.
 
+
+
+### Customizable advanced configuration
+
+Advanced mode also contains:
+
+```text
+6 - Edit advanced configuration (port, DNS, AllowedIPs)
+```
+
+Available options:
+
+- change the global WireGuard UDP port;
+- change DNS for all clients;
+- change DNS for a single client;
+- change client `AllowedIPs` mode for all clients;
+- edit `AllowedIPs` for a single client.
+
+Principle: when a setting affects clients, the console offers two levels whenever possible:
+
+```text
+Global = apply the same value to all clients
+Individual = customize only one client/device
+```
 
 ### Advanced example: edit AllowedIPs
 

@@ -762,6 +762,269 @@ function Edit-ClientAllowedIPsAdvanced([string]$BaseDir) {
     return "AllowedIPs modifie pour $clientName : $newAllowed`nIMPORTANT : reimporte ce fichier sur l'appareil, sinon il gardera l'ancienne configuration.`nFichier a reimporter : $clientConfigPath$qrMessage"
 }
 
+
+function Get-ServerListenPort([string]$ServerConfigPath) {
+    if (Test-Path $ServerConfigPath) {
+        $content = Get-Content $ServerConfigPath -Raw
+        if ($content -match '(?m)^ListenPort\s*=\s*(\d+)') { return [int]$Matches[1] }
+    }
+    return $ListenPort
+}
+
+function Get-ServerAddress([string]$ServerConfigPath) {
+    if (Test-Path $ServerConfigPath) {
+        $content = Get-Content $ServerConfigPath -Raw
+        if ($content -match '(?m)^Address\s*=\s*(.+)$') { return $Matches[1].Trim() }
+    }
+    return "10.66.66.1/24"
+}
+
+function Get-FirstClientDns([string]$BaseDir) {
+    $clientDir = Join-Path $BaseDir "clients"
+    if (Test-Path $clientDir) {
+        $first = Get-ChildItem $clientDir -Filter "*.conf" -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($first) {
+            $content = Get-Content $first.FullName -Raw
+            if ($content -match '(?m)^DNS\s*=\s*(.+)$') { return $Matches[1].Trim() }
+        }
+    }
+    return "1.1.1.1, 8.8.8.8"
+}
+
+function Get-FirstClientAllowedIPs([string]$BaseDir) {
+    $clientDir = Join-Path $BaseDir "clients"
+    if (Test-Path $clientDir) {
+        $first = Get-ChildItem $clientDir -Filter "*.conf" -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($first) { return (Get-ClientAllowedIPs -ClientConfigPath $first.FullName) }
+    }
+    return "0.0.0.0/0"
+}
+
+function Set-AllClientDns([string]$BaseDir, [string]$Dns) {
+    $clientDir = Join-Path $BaseDir "clients"
+    if (-not (Test-Path $clientDir)) { throw "Dossier clients introuvable : $clientDir" }
+    $clients = @(Get-ChildItem $clientDir -Filter "*.conf" -ErrorAction SilentlyContinue)
+    foreach ($client in $clients) {
+        $content = Get-Content $client.FullName -Raw
+        if ($content -match '(?m)^DNS\s*=') {
+            $content = [regex]::Replace($content, '(?m)^DNS\s*=\s*.+$', "DNS = $Dns", 1)
+        } else {
+            $content = [regex]::Replace($content, '(?m)^(Address\s*=\s*.+)$', "`$1`r`nDNS = $Dns", 1)
+        }
+        Set-Content -Path $client.FullName -Value $content -Encoding ASCII
+    }
+    return $clients.Count
+}
+
+
+function Get-ClientDns([string]$ClientConfigPath) {
+    if (-not (Test-Path $ClientConfigPath)) { throw "Configuration introuvable : $ClientConfigPath" }
+    $content = Get-Content $ClientConfigPath -Raw
+    if ($content -match '(?m)^DNS\s*=\s*(.+)$') { return $Matches[1].Trim() }
+    return ""
+}
+
+function Set-ClientDns([string]$ClientConfigPath, [string]$Dns) {
+    if (-not (Test-Path $ClientConfigPath)) { throw "Configuration introuvable : $ClientConfigPath" }
+    $content = Get-Content $ClientConfigPath -Raw
+    if ($content -match '(?m)^DNS\s*=') {
+        $content = [regex]::Replace($content, '(?m)^DNS\s*=\s*.+$', "DNS = $Dns", 1)
+    } else {
+        $content = [regex]::Replace($content, '(?m)^(Address\s*=\s*.+)$', "`$1`r`nDNS = $Dns", 1)
+    }
+    Set-Content -Path $ClientConfigPath -Value $content -Encoding ASCII
+}
+
+function Edit-ClientDnsAdvanced([string]$BaseDir) {
+    $clientName = Select-ClientConfigName -BaseDir $BaseDir -Title "Modifier DNS client"
+    if ([string]::IsNullOrWhiteSpace($clientName)) { return "Modification DNS annulee." }
+
+    $clientConfigPath = Join-Path $BaseDir "clients\$clientName.conf"
+    $current = Get-ClientDns -ClientConfigPath $clientConfigPath
+    if ([string]::IsNullOrWhiteSpace($current)) { $current = "aucun" }
+
+    Clear-Host
+    Write-UiHost "Modifier DNS - $clientName" -ForegroundColor Yellow
+    Write-UiHost "========================" -ForegroundColor DarkGray
+    Write-UiHost "DNS actuel : $current" -ForegroundColor Cyan
+    Write-UiHost ""
+    Write-UiHost "Exemples :" -ForegroundColor DarkGray
+    Write-UiHost "- Cloudflare/Google : 1.1.1.1, 8.8.8.8"
+    Write-UiHost "- DNS LAN maison    : 192.168.1.1"
+    Write-UiHost "- Aucun DNS         : laisse vide puis annule, ou modifie manuellement en mode expert"
+    Write-UiHost ""
+    $dns = (Read-UiHost "Nouveau DNS pour $clientName").Trim()
+    if ([string]::IsNullOrWhiteSpace($dns)) { return "Modification DNS annulee." }
+
+    Write-UiHost ""
+    Write-UiHost "IMPORTANT : apres modification, l'appareil ne sera PAS mis a jour automatiquement." -ForegroundColor Red
+    Write-UiHost "Tu devras reimporter le fichier .conf sur l'appareil ou rescanner le nouveau QR code." -ForegroundColor Red
+    $confirm = (Read-UiHost "Tape APPLIQUER pour modifier le fichier .conf").Trim()
+    if ($confirm -ne "APPLIQUER") { return "Modification DNS annulee." }
+
+    Set-ClientDns -ClientConfigPath $clientConfigPath -Dns $dns
+
+    $qrMessage = ""
+    if (Test-QrFeatureEnabled -BaseDir $BaseDir) {
+        try { $qrMessage = "`n" + (Generate-DeviceQrFromConsole -BaseDir $BaseDir -ClientName $clientName) } catch { $qrMessage = "`nQR non regenere : $($_.Exception.Message)" }
+    }
+
+    return "DNS modifie pour $clientName : $dns`nIMPORTANT : reimporte ce fichier sur l'appareil, sinon il gardera l'ancienne configuration.`nFichier a reimporter : $clientConfigPath$qrMessage"
+}
+
+function Set-AllClientAllowedIPs([string]$BaseDir, [string]$AllowedIPs) {
+    $clientDir = Join-Path $BaseDir "clients"
+    if (-not (Test-Path $clientDir)) { throw "Dossier clients introuvable : $clientDir" }
+    $clients = @(Get-ChildItem $clientDir -Filter "*.conf" -ErrorAction SilentlyContinue)
+    foreach ($client in $clients) {
+        Set-ClientAllowedIPs -ClientConfigPath $client.FullName -AllowedIPs $AllowedIPs
+    }
+    return $clients.Count
+}
+
+function Set-ServerListenPortAdvanced([string]$TunnelName, [string]$BaseDir, [int]$OldPort, [int]$NewPort) {
+    $serverConfig = Get-ServerConfigPath -TunnelName $TunnelName -BaseDir $BaseDir
+    if (-not (Test-Path $serverConfig)) { throw "Configuration serveur introuvable : $serverConfig" }
+    if ($NewPort -lt 1 -or $NewPort -gt 65535) { throw "Port invalide : $NewPort" }
+
+    $content = Get-Content $serverConfig -Raw
+    if ($content -notmatch '(?m)^ListenPort\s*=') { throw "ListenPort introuvable dans $serverConfig" }
+    $content = [regex]::Replace($content, '(?m)^ListenPort\s*=\s*\d+', "ListenPort = $NewPort", 1)
+    Set-Content -Path $serverConfig -Value $content -Encoding ASCII
+
+    $fwOld = "WireGuard Server UDP $OldPort"
+    Get-NetFirewallRule -DisplayName $fwOld -ErrorAction SilentlyContinue | Remove-NetFirewallRule
+    $fwNew = "WireGuard Server UDP $NewPort"
+    Get-NetFirewallRule -DisplayName $fwNew -ErrorAction SilentlyContinue | Remove-NetFirewallRule
+    New-NetFirewallRule -DisplayName $fwNew -Direction Inbound -Action Allow -Protocol UDP -LocalPort $NewPort | Out-Null
+
+    $clientDir = Join-Path $BaseDir "clients"
+    $updatedClients = 0
+    if (Test-Path $clientDir) {
+        foreach ($client in Get-ChildItem $clientDir -Filter "*.conf" -ErrorAction SilentlyContinue) {
+            $clientContent = Get-Content $client.FullName -Raw
+            $clientContent = [regex]::Replace($clientContent, '(?m)^(Endpoint\s*=\s*[^:\s]+:)\d+', "`${1}$NewPort", 1)
+            Set-Content -Path $client.FullName -Value $clientContent -Encoding ASCII
+            $updatedClients++
+        }
+    }
+
+    $restartMsg = Restart-Tunnel -TunnelName $TunnelName -BaseDir $BaseDir
+    return "Port WireGuard modifie : $OldPort -> $NewPort`nRegle pare-feu mise a jour.`nClients mis a jour : $updatedClients`nIMPORTANT : modifie aussi la redirection de port sur ta box vers UDP $NewPort.`n$restartMsg"
+}
+
+function Get-AllowedIPsPresetFromMenu([string]$BaseDir) {
+    Write-UiHost ""
+    Write-UiHost "Mode client AllowedIPs" -ForegroundColor Cyan
+    Write-UiHost "----------------------" -ForegroundColor DarkGray
+    Write-UiHost "1 - Full tunnel IPv4 : 0.0.0.0/0"
+    Write-UiHost "2 - VPN uniquement : 10.66.66.0/24"
+    Write-UiHost "3 - VPN + LAN maison : 10.66.66.0/24, 192.168.1.0/24"
+    Write-UiHost "4 - Valeur personnalisee"
+    Write-UiHost "0 - Annuler"
+    $choice = (Read-UiHost "Choix").Trim()
+    switch ($choice) {
+        '1' { return "0.0.0.0/0" }
+        '2' { return "10.66.66.0/24" }
+        '3' {
+            $lan = (Read-UiHost "CIDR LAN maison [192.168.1.0/24]").Trim()
+            if ([string]::IsNullOrWhiteSpace($lan)) { $lan = "192.168.1.0/24" }
+            return "10.66.66.0/24, $lan"
+        }
+        '4' {
+            $custom = (Read-UiHost "AllowedIPs personnalise").Trim()
+            if ([string]::IsNullOrWhiteSpace($custom)) { return $null }
+            return $custom
+        }
+        default { return $null }
+    }
+}
+
+function Show-DefaultConfigurationAdvanced([string]$TunnelName, [string]$BaseDir, [int]$ListenPort) {
+    $serverConfig = Get-ServerConfigPath -TunnelName $TunnelName -BaseDir $BaseDir
+    $serverAddress = Get-ServerAddress -ServerConfigPath $serverConfig
+    $serverIp = ($serverAddress -split '/')[0]
+    $vpnPrefix = if ($serverAddress -match '^10\.66\.66\.1/24$') { "10.66.66.0/24" } else { "derive de $serverAddress" }
+    $port = Get-ServerListenPort -ServerConfigPath $serverConfig
+    $dns = Get-FirstClientDns -BaseDir $BaseDir
+    $allowed = Get-FirstClientAllowedIPs -BaseDir $BaseDir
+
+    Write-UiHost ""
+    Write-UiHost "Configuration actuelle" -ForegroundColor Cyan
+    Write-UiHost "----------------------" -ForegroundColor DarkGray
+    Write-Line "Tunnel name" $TunnelName Cyan
+    Write-Line "WireGuard port" "$port/UDP" Cyan
+    Write-Line "VPN network" $vpnPrefix Cyan
+    Write-Line "VPN server IP" $serverIp Cyan
+    Write-Line "Client DNS" $dns Cyan
+    Write-Line "Client mode" "AllowedIPs = $allowed" Cyan
+}
+
+function Show-AdvancedDefaultConfigEditor([string]$TunnelName, [string]$BaseDir, [int]$ListenPort) {
+    while ($true) {
+        Clear-Host
+        Write-UiHost "WinWG - Configuration avancee" -ForegroundColor Yellow
+        Write-UiHost "=============================" -ForegroundColor DarkGray
+        Write-UiHost "ATTENTION : certaines options demandent de reimporter les configs client ou de changer la box." -ForegroundColor Red
+        Show-DefaultConfigurationAdvanced -TunnelName $TunnelName -BaseDir $BaseDir -ListenPort $ListenPort
+        Write-UiHost ""
+        Write-UiHost "Options globales:" -ForegroundColor Cyan
+        Write-UiHost "1 - Changer le port WireGuard global"
+        Write-UiHost "2 - Changer le DNS de TOUS les clients"
+        Write-UiHost "3 - Changer AllowedIPs de TOUS les clients"
+        Write-UiHost ""
+        Write-UiHost "Options par client/appareil:" -ForegroundColor Cyan
+        Write-UiHost "4 - Changer le DNS d'UN client"
+        Write-UiHost "5 - Changer AllowedIPs d'UN client"
+        Write-UiHost "Q - Retour"
+        Write-UiHost ""
+        $choice = (Read-UiHost "Choix").Trim().ToLowerInvariant()
+        switch ($choice) {
+            '1' {
+                $serverConfig = Get-ServerConfigPath -TunnelName $TunnelName -BaseDir $BaseDir
+                $oldPort = Get-ServerListenPort -ServerConfigPath $serverConfig
+                $newPortText = (Read-UiHost "Nouveau port UDP WireGuard [$oldPort]").Trim()
+                if ([string]::IsNullOrWhiteSpace($newPortText)) { continue }
+                $newPort = [int]$newPortText
+                Write-UiHost ""
+                Write-UiHost "IMPORTANT : il faudra aussi modifier la redirection de port sur la box." -ForegroundColor Red
+                $confirm = (Read-UiHost "Tape APPLIQUER pour changer le port").Trim()
+                if ($confirm -eq "APPLIQUER") {
+                    $msg = Set-ServerListenPortAdvanced -TunnelName $TunnelName -BaseDir $BaseDir -OldPort $oldPort -NewPort $newPort
+                    Pause-ConsoleAction $msg
+                }
+            }
+            '2' {
+                $current = Get-FirstClientDns -BaseDir $BaseDir
+                $dns = (Read-UiHost "Nouveau DNS clients [$current]").Trim()
+                if ([string]::IsNullOrWhiteSpace($dns)) { continue }
+                $count = Set-AllClientDns -BaseDir $BaseDir -Dns $dns
+                Pause-ConsoleAction "DNS modifie pour $count client(s). IMPORTANT : reimporte les .conf ou QR sur les appareils."
+            }
+            '3' {
+                $allowed = Get-AllowedIPsPresetFromMenu -BaseDir $BaseDir
+                if ([string]::IsNullOrWhiteSpace($allowed)) { continue }
+                Write-UiHost ""
+                Write-UiHost "IMPORTANT : tous les appareils devront reimporter leur .conf ou rescanner leur QR." -ForegroundColor Red
+                $confirm = (Read-UiHost "Tape APPLIQUER pour modifier tous les clients").Trim()
+                if ($confirm -eq "APPLIQUER") {
+                    $count = Set-AllClientAllowedIPs -BaseDir $BaseDir -AllowedIPs $allowed
+                    Pause-ConsoleAction "AllowedIPs modifie pour $count client(s) : $allowed`nIMPORTANT : reimporte les .conf ou QR sur les appareils."
+                }
+            }
+            '4' {
+                $msg = Edit-ClientDnsAdvanced -BaseDir $BaseDir
+                Pause-ConsoleAction $msg
+            }
+            '5' {
+                $msg = Edit-ClientAllowedIPsAdvanced -BaseDir $BaseDir
+                Pause-ConsoleAction $msg
+            }
+            'q' { return "Retour depuis la configuration avancee." }
+        }
+    }
+}
+
 function Show-AdvancedMenu([string]$TunnelName, [string]$BaseDir, [int]$ListenPort) {
     if (-not $script:AdvancedModeEnabled) {
         return Enable-AdvancedModeWithWarning
@@ -778,7 +1041,7 @@ function Show-AdvancedMenu([string]$TunnelName, [string]$BaseDir, [int]$ListenPo
         Write-UiHost "3 - Ouvrir le dossier clients"
         Write-UiHost "4 - Ouvrir le dossier QR codes"
         Write-UiHost "5 - Exporter un diagnostic redige"
-        Write-UiHost "6 - Modifier AllowedIPs d'un appareil"
+        Write-UiHost "6 - Modifier configuration avancee (port, DNS, AllowedIPs)"
         Write-UiHost "7 - Ouvrir wg-phone-server.conf dans Notepad (contient la cle privee)"
         Write-UiHost "8 - Desactiver le mode avance"
         Write-UiHost "Q - Retour"
@@ -808,7 +1071,7 @@ function Show-AdvancedMenu([string]$TunnelName, [string]$BaseDir, [int]$ListenPo
                 Pause-ConsoleAction $msg
             }
             '6' {
-                try { $msg = Edit-ClientAllowedIPsAdvanced -BaseDir $BaseDir } catch { $msg = "Erreur AllowedIPs : $($_.Exception.Message)" }
+                try { $msg = Show-AdvancedDefaultConfigEditor -TunnelName $TunnelName -BaseDir $BaseDir -ListenPort $ListenPort } catch { $msg = "Erreur configuration avancee : $($_.Exception.Message)" }
                 Pause-ConsoleAction $msg
             }
             '7' {

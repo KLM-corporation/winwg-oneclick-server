@@ -368,11 +368,35 @@ Ce mode peut donner accès à des fichiers et actions sensibles. Il permet notam
 - afficher `wg show` brut ;
 - ouvrir les dossiers serveur, clients et QR codes ;
 - exporter un diagnostic redigé ;
-- modifier précisément `AllowedIPs` dans une configuration client ;
+- modifier la configuration avancée : port WireGuard, DNS clients et `AllowedIPs` ;
 - ouvrir le fichier serveur `wg-phone-server.conf` dans Notepad.
 
 Attention : le fichier serveur contient la clé privée WireGuard. Ne partage jamais ce fichier, son contenu, ni une capture d'écran non redigée.
 
+
+
+### Configuration avancée personnalisable
+
+Le mode avancé contient aussi :
+
+```text
+6 - Modifier configuration avancée (port, DNS, AllowedIPs)
+```
+
+Options disponibles :
+
+- changer le port WireGuard UDP global ;
+- changer le DNS de tous les clients ;
+- changer le DNS d'un seul client ;
+- changer le mode client `AllowedIPs` de tous les clients ;
+- modifier `AllowedIPs` d'un seul client.
+
+Principe : quand un paramètre concerne les clients, la console propose autant que possible deux niveaux :
+
+```text
+Global = appliquer la même valeur à tous les clients
+Individuel = personnaliser uniquement un client/appareil
+```
 
 ### Exemple avancé : modifier AllowedIPs
 

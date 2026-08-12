@@ -21,6 +21,28 @@ $ErrorActionPreference = "SilentlyContinue"
 $OutputEncoding = [System.Text.Encoding]::UTF8
 $script:UltraVerboseMode = [bool]$UltraVerbose
 $script:LogFilePath = $null
+$script:UiMargin = "  "
+
+
+function Write-UiHost {
+    param(
+        [Parameter(Position=0)]
+        [object]$Object = "",
+        [ConsoleColor]$ForegroundColor = [ConsoleColor]::White,
+        [switch]$NoNewline
+    )
+
+    $text = [string]$Object
+    if ($NoNewline) {
+        Microsoft.PowerShell.Utility\Write-Host ($script:UiMargin + $text) -ForegroundColor $ForegroundColor -NoNewline
+    } else {
+        Microsoft.PowerShell.Utility\Write-Host ($script:UiMargin + $text) -ForegroundColor $ForegroundColor
+    }
+}
+
+function Read-UiHost([string]$Prompt) {
+    return Read-Host ($script:UiMargin + $Prompt)
+}
 
 function Assert-Admin {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -40,6 +62,7 @@ function Initialize-ConsoleLog([string]$BaseDir) {
         "WinWG OneClick Server console log - $(Get-Date -Format o)" | Out-File -FilePath $script:LogFilePath -Encoding UTF8
     } catch {
         $script:LogFilePath = $null
+$script:UiMargin = "  "
     }
 }
 
@@ -52,7 +75,7 @@ function Write-Log([string]$Message) {
 function Write-Ultra([string]$Message) {
     Write-Log $Message
     if ($script:UltraVerboseMode) {
-        Write-Host "[VERBOSE] $Message" -ForegroundColor DarkYellow
+        Write-UiHost "[VERBOSE] $Message" -ForegroundColor DarkYellow
     }
 }
 
@@ -216,17 +239,17 @@ function Get-WgPeerSummaries([string]$WgShowText, [hashtable]$PeerNameMap) {
 function Write-PeerDashboard([string]$WgShowText, [string]$ServerConfigPath) {
     $nameMap = Get-PeerNameMap -ServerConfigPath $ServerConfigPath
     $peers = @(Get-WgPeerSummaries -WgShowText $WgShowText -PeerNameMap $nameMap)
-    Write-Host "Telephones / peers" -ForegroundColor Cyan
-    Write-Host "------------------" -ForegroundColor DarkGray
-    if ($peers.Length -eq 0) { Write-Host "Aucun telephone/peer detecte dans wg show." -ForegroundColor Yellow; return }
+    Write-UiHost "Telephones / peers" -ForegroundColor Cyan
+    Write-UiHost "------------------" -ForegroundColor DarkGray
+    if ($peers.Length -eq 0) { Write-UiHost "Aucun telephone/peer detecte dans wg show." -ForegroundColor Yellow; return }
     foreach ($peer in $peers) {
         $color = if ($peer.Status -eq "connecte") { [ConsoleColor]::Green } else { [ConsoleColor]::Yellow }
-        Write-Host ("- " + $peer.Name + " : " + $peer.Status) -ForegroundColor $color
-        Write-Host ("  IP VPN       : " + $peer.AllowedIPs) -ForegroundColor DarkCyan
-        Write-Host ("  Endpoint     : " + $peer.Endpoint) -ForegroundColor DarkCyan
-        Write-Host ("  Handshake    : " + $peer.LatestHandshake) -ForegroundColor DarkCyan
-        Write-Host ("  Transfert    : " + $peer.Transfer) -ForegroundColor DarkCyan
-        Write-Host ("  Public key   : " + $peer.PublicKey.Substring(0, 12) + "...") -ForegroundColor DarkGray
+        Write-UiHost ("- " + $peer.Name + " : " + $peer.Status) -ForegroundColor $color
+        Write-UiHost ("  IP VPN       : " + $peer.AllowedIPs) -ForegroundColor DarkCyan
+        Write-UiHost ("  Endpoint     : " + $peer.Endpoint) -ForegroundColor DarkCyan
+        Write-UiHost ("  Handshake    : " + $peer.LatestHandshake) -ForegroundColor DarkCyan
+        Write-UiHost ("  Transfert    : " + $peer.Transfer) -ForegroundColor DarkCyan
+        Write-UiHost ("  Public key   : " + $peer.PublicKey.Substring(0, 12) + "...") -ForegroundColor DarkGray
     }
 }
 
@@ -242,8 +265,8 @@ function Get-PrimaryIPv4 {
 }
 
 function Write-Line([string]$Name, [string]$Value, [ConsoleColor]$Color = [ConsoleColor]::White) {
-    Write-Host ($Name.PadRight(28) + ": ") -NoNewline -ForegroundColor DarkGray
-    Write-Host $Value -ForegroundColor $Color
+    Write-UiHost ($Name.PadRight(28) + ": ") -NoNewline -ForegroundColor DarkGray
+    Write-UiHost $Value -ForegroundColor $Color
 }
 
 
@@ -319,18 +342,18 @@ function Add-DeviceFromConsole([string]$TunnelName, [int]$ListenPort, [string]$B
     $scriptPath = Join-Path $PSScriptRoot "scripts\Add-WireGuardPeer.ps1"
     if (-not (Test-Path $scriptPath)) { throw "Script d'ajout introuvable : $scriptPath" }
 
-    Write-Host ""
-    Write-Host "Ajouter un appareil" -ForegroundColor Cyan
-    Write-Host "-------------------" -ForegroundColor DarkGray
-    $clientName = (Read-Host "Nom de l'appareil, ex: iphone, android, laptop").Trim()
+    Write-UiHost ""
+    Write-UiHost "Ajouter un appareil" -ForegroundColor Cyan
+    Write-UiHost "-------------------" -ForegroundColor DarkGray
+    $clientName = (Read-UiHost "Nom de l'appareil, ex: iphone, android, laptop").Trim()
     if ([string]::IsNullOrWhiteSpace($clientName)) { throw "Nom d'appareil vide." }
 
     $defaultEndpoint = Get-DefaultEndpoint -ListenPort $ListenPort -BaseDir $BaseDir
-    $endpointInput = (Read-Host "Endpoint public ou DNS [$defaultEndpoint]").Trim()
+    $endpointInput = (Read-UiHost "Endpoint public ou DNS [$defaultEndpoint]").Trim()
     $endpoint = if ([string]::IsNullOrWhiteSpace($endpointInput)) { $defaultEndpoint } else { $endpointInput }
 
     $clientNumber = Get-NextClientNumber -TunnelName $TunnelName -BaseDir $BaseDir
-    Write-Host "IP VPN attribuee automatiquement : 10.66.66.$clientNumber" -ForegroundColor DarkCyan
+    Write-UiHost "IP VPN attribuee automatiquement : 10.66.66.$clientNumber" -ForegroundColor DarkCyan
     Write-Ultra "Ajout appareil: ClientName=$clientName Endpoint=$endpoint ClientNumber=$clientNumber ListenPort=$ListenPort TunnelName=$TunnelName Script=$scriptPath"
 
     $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -ClientName $clientName -Endpoint $endpoint -ClientNumber $clientNumber -ListenPort $ListenPort -TunnelName $TunnelName 2>&1
@@ -339,7 +362,7 @@ function Add-DeviceFromConsole([string]$TunnelName, [int]$ListenPort, [string]$B
     $outputText = ($output | Out-String).Trim()
     if (-not [string]::IsNullOrWhiteSpace($outputText)) {
         Write-Ultra "Sortie script ajout: $outputText"
-        Write-Host $outputText
+        Write-UiHost $outputText
     }
 
     $added = Test-DeviceAdded -ClientName $clientName -TunnelName $TunnelName -BaseDir $BaseDir
@@ -370,21 +393,21 @@ function Remove-DeviceFromConsole([string]$TunnelName, [string]$BaseDir) {
     $clients = @()
     if (Test-Path $clientDir) { $clients = @(Get-ChildItem $clientDir -Filter "*.conf" -ErrorAction SilentlyContinue) }
 
-    Write-Host ""
-    Write-Host "Supprimer un appareil" -ForegroundColor Cyan
-    Write-Host "---------------------" -ForegroundColor DarkGray
+    Write-UiHost ""
+    Write-UiHost "Supprimer un appareil" -ForegroundColor Cyan
+    Write-UiHost "---------------------" -ForegroundColor DarkGray
     if ($clients.Length -eq 1) {
         $clientName = $clients[0].BaseName
-        Write-Host "1 - $clientName" -ForegroundColor DarkCyan
-        Write-Host ""
-        Write-Host "Un seul appareil est configure. Selection automatique : $clientName" -ForegroundColor Yellow
+        Write-UiHost "1 - $clientName" -ForegroundColor DarkCyan
+        Write-UiHost ""
+        Write-UiHost "Un seul appareil est configure. Selection automatique : $clientName" -ForegroundColor Yellow
     } elseif ($clients.Length -gt 1) {
-        Write-Host "0 - Annuler"
+        Write-UiHost "0 - Annuler"
         for ($i = 0; $i -lt $clients.Length; $i++) {
-            Write-Host ("{0} - {1}" -f ($i + 1), $clients[$i].BaseName)
+            Write-UiHost ("{0} - {1}" -f ($i + 1), $clients[$i].BaseName)
         }
-        Write-Host ""
-        $choice = (Read-Host "Tape le numero de l'appareil a supprimer, ou son nom exact").Trim()
+        Write-UiHost ""
+        $choice = (Read-UiHost "Tape le numero de l'appareil a supprimer, ou son nom exact").Trim()
         if ($choice -eq '0') { return "Suppression annulee." }
         if ($choice -match '^\d+$' -and [int]$choice -ge 1 -and [int]$choice -le $clients.Length) {
             $clientName = $clients[[int]$choice - 1].BaseName
@@ -392,13 +415,13 @@ function Remove-DeviceFromConsole([string]$TunnelName, [string]$BaseDir) {
             $clientName = $choice
         }
     } else {
-        Write-Host "Aucun fichier .conf trouve dans $clientDir" -ForegroundColor Yellow
-        $clientName = (Read-Host "Nom exact de l'appareil a supprimer, ou laisse vide pour annuler").Trim()
+        Write-UiHost "Aucun fichier .conf trouve dans $clientDir" -ForegroundColor Yellow
+        $clientName = (Read-UiHost "Nom exact de l'appareil a supprimer, ou laisse vide pour annuler").Trim()
         if ([string]::IsNullOrWhiteSpace($clientName)) { return "Suppression annulee." }
     }
 
     if ([string]::IsNullOrWhiteSpace($clientName)) { return "Suppression annulee." }
-    $confirm = (Read-Host "Confirmer la suppression de '$clientName' ? Tape O pour confirmer [o/N]").Trim().ToLowerInvariant()
+    $confirm = (Read-UiHost "Confirmer la suppression de '$clientName' ? Tape O pour confirmer [o/N]").Trim().ToLowerInvariant()
     if ($confirm -notin @('o','oui','y','yes')) { return "Suppression annulee." }
 
     Write-Ultra "Suppression appareil: ClientName=$clientName TunnelName=$TunnelName Script=$scriptPath"
@@ -408,7 +431,7 @@ function Remove-DeviceFromConsole([string]$TunnelName, [string]$BaseDir) {
     $outputText = ($output | Out-String).Trim()
     if (-not [string]::IsNullOrWhiteSpace($outputText)) {
         Write-Ultra "Sortie script suppression: $outputText"
-        Write-Host $outputText
+        Write-UiHost $outputText
     }
 
     $removed = Test-DeviceRemoved -ClientName $clientName -TunnelName $TunnelName -BaseDir $BaseDir
@@ -426,18 +449,18 @@ function Remove-DeviceFromConsole([string]$TunnelName, [string]$BaseDir) {
 
 function Show-Status([string]$LastMessage = "") {
     Clear-Host
-    Write-Host "WinWG OneClick Server - Console serveur unifiee" -ForegroundColor Green
-    Write-Host "Surveillance + controle du service VPN dans une seule console." -ForegroundColor DarkGray
-    Write-Host "Menu interactif: pas de rafraichissement automatique." -ForegroundColor Cyan
+    Write-UiHost "WinWG OneClick Server - Console serveur unifiee" -ForegroundColor Green
+    Write-UiHost "Surveillance + controle du service VPN dans une seule console." -ForegroundColor DarkGray
+    Write-UiHost "Menu interactif: pas de rafraichissement automatique." -ForegroundColor Cyan
     $verboseText = if ($script:UltraVerboseMode) { "active" } else { "desactive" }
-    Write-Host "Mode ultra verbeux: $verboseText" -ForegroundColor DarkYellow
-    if ($script:UltraVerboseMode -and $script:LogFilePath) { Write-Host "Log: $script:LogFilePath" -ForegroundColor DarkGray }
-    Write-Host "============================================================" -ForegroundColor DarkGray
+    Write-UiHost "Mode ultra verbeux: $verboseText" -ForegroundColor DarkYellow
+    if ($script:UltraVerboseMode -and $script:LogFilePath) { Write-UiHost "Log: $script:LogFilePath" -ForegroundColor DarkGray }
+    Write-UiHost "============================================================" -ForegroundColor DarkGray
     if (-not [string]::IsNullOrWhiteSpace($LastMessage)) {
-        Write-Host ""
-        Write-Host $LastMessage -ForegroundColor Yellow
+        Write-UiHost ""
+        Write-UiHost $LastMessage -ForegroundColor Yellow
     }
-    Write-Host ""
+    Write-UiHost ""
 
     $serverConfig = Get-ServerConfigPath -TunnelName $TunnelName -BaseDir $BaseDir
     $clientDir = Join-Path $BaseDir "clients"
@@ -470,55 +493,55 @@ function Show-Status([string]$LastMessage = "") {
     if (Test-Path $clientDir) {
         $clients = @(Get-ChildItem $clientDir -Filter "*.conf" -ErrorAction SilentlyContinue)
         Write-Line "Configs telephone" "$($clients.Length) fichier(s)" Cyan
-        foreach ($c in $clients) { Write-Host "  - $($c.FullName)" -ForegroundColor DarkCyan }
+        foreach ($c in $clients) { Write-UiHost "  - $($c.FullName)" -ForegroundColor DarkCyan }
     } else {
         Write-Line "Configs telephone" "dossier introuvable" Yellow
     }
 
-    Write-Host ""
+    Write-UiHost ""
     if ($svc -and $svc.Status -eq 'Running' -and $installed) {
         $show = Get-WgShow -TunnelName $TunnelName
         if ([string]::IsNullOrWhiteSpace($show)) {
-            Write-Host "Aucune sortie wg show." -ForegroundColor Yellow
+            Write-UiHost "Aucune sortie wg show." -ForegroundColor Yellow
         } else {
             Write-PeerDashboard -WgShowText $show -ServerConfigPath $serverConfig
-            Write-Host ""
-            Write-Host "Details WireGuard bruts" -ForegroundColor Cyan
-            Write-Host "-----------------------" -ForegroundColor DarkGray
-            Write-Host $show
+            Write-UiHost ""
+            Write-UiHost "Details WireGuard bruts" -ForegroundColor Cyan
+            Write-UiHost "-----------------------" -ForegroundColor DarkGray
+            Write-UiHost $show
         }
     } else {
-        Write-Host "WireGuard n'est pas actif, aucun handshake a afficher." -ForegroundColor Yellow
+        Write-UiHost "WireGuard n'est pas actif, aucun handshake a afficher." -ForegroundColor Yellow
     }
 
-    Write-Host ""
-    Write-Host "Aide rapide" -ForegroundColor Cyan
-    Write-Host "- Si le telephone est connecte, il apparait dans 'Telephones / peers' avec un handshake recent."
+    Write-UiHost ""
+    Write-UiHost "Aide rapide" -ForegroundColor Cyan
+    Write-UiHost "- Si le telephone est connecte, il apparait dans 'Telephones / peers' avec un handshake recent."
 }
 
 function Show-MainMenu {
-    Write-Host ""
-    Write-Host "Actions" -ForegroundColor Cyan
-    Write-Host "-------" -ForegroundColor DarkGray
-    Write-Host "1 / A - Activer / demarrer le serveur VPN"
-    Write-Host "2 / D - Desactiver / arreter le serveur VPN"
-    Write-Host "3     - Redemarrer le serveur VPN"
-    Write-Host "4 / N - Ajouter un nouvel appareil"
-    Write-Host "5 / R - Retirer / supprimer un appareil"
-    Write-Host "S     - Rafraichir le statut"
-    Write-Host "V     - Activer/desactiver le mode ultra verbeux"
-    Write-Host "Q     - Quitter"
-    Write-Host ""
+    Write-UiHost ""
+    Write-UiHost "Actions" -ForegroundColor Cyan
+    Write-UiHost "-------" -ForegroundColor DarkGray
+    Write-UiHost "1 / A - Activer / demarrer le serveur VPN"
+    Write-UiHost "2 / D - Desactiver / arreter le serveur VPN"
+    Write-UiHost "3     - Redemarrer le serveur VPN"
+    Write-UiHost "4 / N - Ajouter un nouvel appareil"
+    Write-UiHost "5 / R - Retirer / supprimer un appareil"
+    Write-UiHost "S     - Rafraichir le statut"
+    Write-UiHost "V     - Activer/desactiver le mode ultra verbeux"
+    Write-UiHost "Q     - Quitter"
+    Write-UiHost ""
 }
 
 
 function Pause-ConsoleAction([string]$Message) {
     if (-not [string]::IsNullOrWhiteSpace($Message)) {
-        Write-Host ""
-        Write-Host $Message -ForegroundColor Yellow
+        Write-UiHost ""
+        Write-UiHost $Message -ForegroundColor Yellow
     }
-    Write-Host ""
-    [void](Read-Host "Appuie sur Entree pour revenir au menu")
+    Write-UiHost ""
+    [void](Read-UiHost "Appuie sur Entree pour revenir au menu")
 }
 
 try {
@@ -531,7 +554,7 @@ try {
         Show-Status -LastMessage $lastMessage
         $lastMessage = ""
         Show-MainMenu
-        $choice = (Read-Host "Choix").Trim().ToLowerInvariant()
+        $choice = (Read-UiHost "Choix").Trim().ToLowerInvariant()
         switch ($choice) {
             { $_ -in @('1','a') } {
                 try { $lastMessage = Enable-Tunnel -TunnelName $TunnelName -BaseDir $BaseDir } catch { $lastMessage = "ERREUR activation : $($_.Exception.Message)" }
@@ -570,8 +593,8 @@ try {
         }
     }
 } catch {
-    Write-Host "ERREUR : $($_.Exception.Message)" -ForegroundColor Red
-    Write-Host "Appuie sur une touche pour fermer..."
+    Write-UiHost "ERREUR : $($_.Exception.Message)" -ForegroundColor Red
+    Write-UiHost "Appuie sur une touche pour fermer..."
     [void][Console]::ReadKey($true)
     exit 1
 }

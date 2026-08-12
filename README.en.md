@@ -391,7 +391,7 @@ AllowedIPs = 10.66.66.0/24, 192.168.1.0/24
 
 VPN + home LAN: allows access to the VPN network and the home LAN.
 
-After changing this, re-import the `.conf` file or rescan the QR code on the device.
+After changing this, you must re-import the `.conf` file or rescan the new QR code on the device. Otherwise, the device will keep using the previous `AllowedIPs` configuration.
 
 
 ## WireGuard QR code

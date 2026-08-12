@@ -713,7 +713,9 @@ function Edit-ClientAllowedIPsAdvanced([string]$BaseDir) {
     Write-UiHost ""
     Write-UiHost "AllowedIPs cote client controle quelles routes passent dans le VPN." -ForegroundColor Yellow
     Write-UiHost "Une mauvaise valeur peut couper Internet sur l'appareil ou empecher l'acces au LAN." -ForegroundColor Yellow
-    Write-UiHost "Apres modification, il faudra reimporter le .conf ou rescanner le QR code sur l'appareil." -ForegroundColor Yellow
+    Write-UiHost "IMPORTANT : apres modification, l'appareil ne sera PAS mis a jour automatiquement." -ForegroundColor Red
+    Write-UiHost "Tu devras reimporter le fichier .conf sur l'appareil ou rescanner le nouveau QR code." -ForegroundColor Red
+    Write-UiHost "Sinon l'appareil continuera a utiliser l'ancienne configuration AllowedIPs." -ForegroundColor Yellow
     Write-UiHost ""
     Write-UiHost "1 - Full tunnel IPv4 : 0.0.0.0/0"
     Write-UiHost "2 - VPN uniquement : 10.66.66.0/24"
@@ -741,6 +743,8 @@ function Edit-ClientAllowedIPsAdvanced([string]$BaseDir) {
 
     Write-UiHost ""
     Write-UiHost "Nouvelle valeur : $newAllowed" -ForegroundColor Cyan
+    Write-UiHost ""
+    Write-UiHost "Rappel : apres APPLIQUER, pense a reimporter le .conf ou le QR sur l'appareil." -ForegroundColor Red
     $confirm = (Read-UiHost "Tape APPLIQUER pour modifier le fichier .conf").Trim()
     if ($confirm -ne "APPLIQUER") { return "Modification AllowedIPs annulee." }
 
@@ -751,7 +755,7 @@ function Edit-ClientAllowedIPsAdvanced([string]$BaseDir) {
         try { $qrMessage = "`n" + (Generate-DeviceQrFromConsole -BaseDir $BaseDir -ClientName $clientName) } catch { $qrMessage = "`nQR non regenere : $($_.Exception.Message)" }
     }
 
-    return "AllowedIPs modifie pour $clientName : $newAllowed`nFichier a reimporter : $clientConfigPath$qrMessage"
+    return "AllowedIPs modifie pour $clientName : $newAllowed`nIMPORTANT : reimporte ce fichier sur l'appareil, sinon il gardera l'ancienne configuration.`nFichier a reimporter : $clientConfigPath$qrMessage"
 }
 
 function Show-AdvancedMenu([string]$TunnelName, [string]$BaseDir, [int]$ListenPort) {

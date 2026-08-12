@@ -243,6 +243,7 @@ Available menu inside the console:
 6 / G - Generate a QR code for a device
 S     - Refresh status
 V     - Enable/disable ultra verbose mode
+M     - Advanced mode / expert tools
 Q     - Quit the console
 ```
 
@@ -327,6 +328,30 @@ C:\ProgramData\WireGuardPhoneServer\logs
 
 This is useful to diagnose cases where a device is correctly created/removed but the WireGuard service reload returns a warning.
 
+
+
+## Advanced mode / expert tools
+
+The console includes an advanced mode intended for users who already understand WireGuard.
+
+```text
+M - Advanced mode / expert tools
+```
+
+Before activation, the console displays a warning and asks you to type exactly:
+
+```text
+JE COMPRENDS
+```
+
+This mode may expose sensitive files and actions. It can:
+
+- show raw `wg show` output;
+- open server, clients and QR code folders;
+- export a redacted diagnostic file;
+- open the server `wg-phone-server.conf` file in Notepad.
+
+Warning: the server configuration file contains the WireGuard private key. Never share this file, its content, or an unredacted screenshot.
 
 ## WireGuard QR code
 

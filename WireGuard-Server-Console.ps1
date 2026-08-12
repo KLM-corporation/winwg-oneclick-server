@@ -247,114 +247,23 @@ function Format-BytesPerSecond([double]$BytesPerSecond) {
     return ("{0:N0} B/s" -f $BytesPerSecond)
 }
 
-
-function Get-BandwidthSettingsPath([string]$BaseDir) {
-    return (Join-Path $BaseDir "settings\bandwidth.json")
-}
-
-function New-DefaultBandwidthSettings {
-    return [pscustomobject]@{
-        Mode = "monitoring"
-        Global = [pscustomobject]@{ RxMbps = 0; TxMbps = 0 }
-        Peers = [pscustomobject]@{}
-    }
-}
-
-function Get-BandwidthSettings([string]$BaseDir) {
-    $path = Get-BandwidthSettingsPath -BaseDir $BaseDir
-    if (-not (Test-Path $path)) { return New-DefaultBandwidthSettings }
-    try {
-        $settings = Get-Content $path -Raw | ConvertFrom-Json
-        if (-not $settings.Global) { $settings | Add-Member -NotePropertyName Global -NotePropertyValue ([pscustomobject]@{ RxMbps = 0; TxMbps = 0 }) }
-        if (-not $settings.Peers) { $settings | Add-Member -NotePropertyName Peers -NotePropertyValue ([pscustomobject]@{}) }
-        return $settings
-    } catch {
-        Write-Ultra "Impossible de lire les parametres bande passante: $($_.Exception.Message)"
-        return New-DefaultBandwidthSettings
-    }
-}
-
-function Save-BandwidthSettings([string]$BaseDir, [object]$Settings) {
-    $settingsDir = Join-Path $BaseDir "settings"
-    if (-not (Test-Path $settingsDir)) { New-Item -ItemType Directory -Path $settingsDir -Force | Out-Null }
-    $path = Get-BandwidthSettingsPath -BaseDir $BaseDir
-    $Settings | ConvertTo-Json -Depth 8 | Set-Content -Path $path -Encoding UTF8
-    return $path
-}
-
-function Read-MbpsValue([string]$Prompt, [double]$Default = 0) {
-    $value = (Read-UiHost "$Prompt [$Default]").Trim().Replace(',', '.')
-    if ([string]::IsNullOrWhiteSpace($value)) { return $Default }
-    $parsed = 0.0
-    if (-not [double]::TryParse($value, [System.Globalization.NumberStyles]::Float, [System.Globalization.CultureInfo]::InvariantCulture, [ref]$parsed)) {
-        throw "Valeur Mbps invalide : $value"
-    }
-    if ($parsed -lt 0) { throw "La valeur Mbps ne peut pas etre negative." }
-    return $parsed
-}
-
-function Format-Mbps([double]$Mbps) {
-    if ($Mbps -le 0) { return "illimite" }
-    return ("{0:N2} Mbps" -f $Mbps)
-}
-
-function Convert-BpsToMbps([double]$BytesPerSecond) {
-    return (($BytesPerSecond * 8) / 1000000)
-}
-
-function Get-PeerLimitSettings([object]$Settings, [string]$PeerName) {
-    if (-not $Settings -or -not $Settings.Peers) { return $null }
-    $prop = $Settings.Peers.PSObject.Properties[$PeerName]
-    if ($prop) { return $prop.Value }
-    return $null
-}
-
-function Set-PeerLimitSettings([object]$Settings, [string]$PeerName, [double]$RxMbps, [double]$TxMbps) {
-    $limit = [pscustomobject]@{ RxMbps = $RxMbps; TxMbps = $TxMbps }
-    $prop = $Settings.Peers.PSObject.Properties[$PeerName]
-    if ($prop) {
-        $Settings.Peers.$PeerName = $limit
-    } else {
-        $Settings.Peers | Add-Member -NotePropertyName $PeerName -NotePropertyValue $limit
-    }
-}
-
-function Remove-PeerLimitSettings([object]$Settings, [string]$PeerName) {
-    $prop = $Settings.Peers.PSObject.Properties[$PeerName]
-    if ($prop) { $Settings.Peers.PSObject.Properties.Remove($PeerName) }
-}
-
-function Get-LimitStatusText([double]$CurrentMbps, [double]$LimitMbps) {
-    if ($LimitMbps -le 0) { return @{ Text = "illimite"; Color = [ConsoleColor]::DarkGray } }
-    $pct = if ($LimitMbps -gt 0) { ($CurrentMbps / $LimitMbps) * 100 } else { 0 }
-    if ($pct -ge 100) { return @{ Text = ("{0:N1}% - DEPASSE" -f $pct); Color = [ConsoleColor]::Red } }
-    if ($pct -ge 80) { return @{ Text = ("{0:N1}% - proche limite" -f $pct); Color = [ConsoleColor]::Yellow } }
-    return @{ Text = ("{0:N1}%" -f $pct); Color = [ConsoleColor]::Green }
-}
-
-function Get-PeerSpeedInfo([object]$Peer, [datetime]$Now) {
+function Get-PeerSpeedText([object]$Peer, [datetime]$Now) {
     if (-not $script:PeerTrafficSamples.ContainsKey($Peer.PublicKey)) {
-        return [pscustomobject]@{ Text = "calcul au prochain refresh"; RxBps = 0.0; TxBps = 0.0; HasSample = $false }
+        return "calcul au prochain refresh"
     }
 
     $previous = $script:PeerTrafficSamples[$Peer.PublicKey]
     $seconds = ($Now - $previous.Timestamp).TotalSeconds
-    if ($seconds -le 0.5) { return [pscustomobject]@{ Text = "delai trop court"; RxBps = 0.0; TxBps = 0.0; HasSample = $false } }
+    if ($seconds -le 0.5) { return "delai trop court" }
 
     $rxDelta = [double]($Peer.ReceivedBytes - $previous.ReceivedBytes)
     $txDelta = [double]($Peer.SentBytes - $previous.SentBytes)
     if ($rxDelta -lt 0) { $rxDelta = 0 }
     if ($txDelta -lt 0) { $txDelta = 0 }
 
-    $rxBps = $rxDelta / $seconds
-    $txBps = $txDelta / $seconds
-    $rxRate = Format-BytesPerSecond $rxBps
-    $txRate = Format-BytesPerSecond $txBps
-    return [pscustomobject]@{ Text = "RX $rxRate / TX $txRate"; RxBps = $rxBps; TxBps = $txBps; HasSample = $true }
-}
-
-function Get-PeerSpeedText([object]$Peer, [datetime]$Now) {
-    return (Get-PeerSpeedInfo -Peer $Peer -Now $Now).Text
+    $rxRate = Format-BytesPerSecond ($rxDelta / $seconds)
+    $txRate = Format-BytesPerSecond ($txDelta / $seconds)
+    return "RX $rxRate / TX $txRate"
 }
 
 function Get-WgPeerSummaries([string]$WgShowText, [hashtable]$PeerNameMap) {
@@ -385,41 +294,22 @@ function Get-WgPeerSummaries([string]$WgShowText, [hashtable]$PeerNameMap) {
     return @($peers)
 }
 
-function Write-PeerDashboard([string]$WgShowText, [string]$ServerConfigPath, [string]$BaseDir) {
+function Write-PeerDashboard([string]$WgShowText, [string]$ServerConfigPath) {
     $nameMap = Get-PeerNameMap -ServerConfigPath $ServerConfigPath
     $peers = @(Get-WgPeerSummaries -WgShowText $WgShowText -PeerNameMap $nameMap)
-    $bandwidthSettings = Get-BandwidthSettings -BaseDir $BaseDir
     Write-UiHost "Telephones / peers" -ForegroundColor Cyan
     Write-UiHost "------------------" -ForegroundColor DarkGray
     if ($peers.Length -eq 0) { Write-UiHost "Aucun telephone/peer detecte dans wg show." -ForegroundColor Yellow; return }
     $now = Get-Date
-    $globalRxBps = 0.0
-    $globalTxBps = 0.0
-    $hasAnySpeedSample = $false
-
     foreach ($peer in $peers) {
         $color = if ($peer.Status -eq "connecte") { [ConsoleColor]::Green } else { [ConsoleColor]::Yellow }
-        $speedInfo = Get-PeerSpeedInfo -Peer $peer -Now $now
-        if ($speedInfo.HasSample) {
-            $hasAnySpeedSample = $true
-            $globalRxBps += $speedInfo.RxBps
-            $globalTxBps += $speedInfo.TxBps
-        }
-
-        $peerLimit = Get-PeerLimitSettings -Settings $bandwidthSettings -PeerName $peer.Name
+        $speedText = Get-PeerSpeedText -Peer $peer -Now $now
         Write-UiHost ("- " + $peer.Name + " : " + $peer.Status) -ForegroundColor $color
         Write-UiHost ("  IP VPN       : " + $peer.AllowedIPs) -ForegroundColor DarkCyan
         Write-UiHost ("  Endpoint     : " + $peer.Endpoint) -ForegroundColor DarkCyan
         Write-UiHost ("  Handshake    : " + $peer.LatestHandshake) -ForegroundColor DarkCyan
         Write-UiHost ("  Transfert    : " + $peer.Transfer) -ForegroundColor DarkCyan
-        Write-UiHost ("  Vitesse      : " + $speedInfo.Text) -ForegroundColor Green
-        if ($peerLimit) {
-            $rxMbps = Convert-BpsToMbps $speedInfo.RxBps
-            $txMbps = Convert-BpsToMbps $speedInfo.TxBps
-            $rxStatus = Get-LimitStatusText -CurrentMbps $rxMbps -LimitMbps ([double]$peerLimit.RxMbps)
-            $txStatus = Get-LimitStatusText -CurrentMbps $txMbps -LimitMbps ([double]$peerLimit.TxMbps)
-            Write-UiHost ("  Limite peer  : RX " + (Format-Mbps ([double]$peerLimit.RxMbps)) + " (" + $rxStatus.Text + ") / TX " + (Format-Mbps ([double]$peerLimit.TxMbps)) + " (" + $txStatus.Text + ")") -ForegroundColor $rxStatus.Color
-        }
+        Write-UiHost ("  Vitesse      : " + $speedText) -ForegroundColor Green
         Write-UiHost ("  Public key   : " + $peer.PublicKey.Substring(0, 12) + "...") -ForegroundColor DarkGray
 
         $script:PeerTrafficSamples[$peer.PublicKey] = [pscustomobject]@{
@@ -427,23 +317,6 @@ function Write-PeerDashboard([string]$WgShowText, [string]$ServerConfigPath, [st
             ReceivedBytes = $peer.ReceivedBytes
             SentBytes = $peer.SentBytes
         }
-    }
-
-    Write-UiHost ""
-    if ($hasAnySpeedSample) {
-        $globalRxText = Format-BytesPerSecond $globalRxBps
-        $globalTxText = Format-BytesPerSecond $globalTxBps
-        Write-UiHost ("Vitesse globale : RX $globalRxText / TX $globalTxText") -ForegroundColor Green
-
-        $globalRxMbps = Convert-BpsToMbps $globalRxBps
-        $globalTxMbps = Convert-BpsToMbps $globalTxBps
-        $globalRxStatus = Get-LimitStatusText -CurrentMbps $globalRxMbps -LimitMbps ([double]$bandwidthSettings.Global.RxMbps)
-        $globalTxStatus = Get-LimitStatusText -CurrentMbps $globalTxMbps -LimitMbps ([double]$bandwidthSettings.Global.TxMbps)
-        if ([double]$bandwidthSettings.Global.RxMbps -gt 0 -or [double]$bandwidthSettings.Global.TxMbps -gt 0) {
-            Write-UiHost ("Limite globale : RX " + (Format-Mbps ([double]$bandwidthSettings.Global.RxMbps)) + " (" + $globalRxStatus.Text + ") / TX " + (Format-Mbps ([double]$bandwidthSettings.Global.TxMbps)) + " (" + $globalTxStatus.Text + ")") -ForegroundColor $globalRxStatus.Color
-        }
-    } else {
-        Write-UiHost "Vitesse globale : calcul au prochain refresh" -ForegroundColor Yellow
     }
 }
 
@@ -705,78 +578,6 @@ function Remove-DeviceFromConsole([string]$TunnelName, [string]$BaseDir) {
     return "Appareil supprime : $clientName"
 }
 
-
-function Show-BandwidthMenu([string]$BaseDir) {
-    $settings = Get-BandwidthSettings -BaseDir $BaseDir
-    while ($true) {
-        Clear-Host
-        Write-UiHost "WinWG - Parametres bande passante" -ForegroundColor Green
-        Write-UiHost "==================================" -ForegroundColor DarkGray
-        Write-UiHost "Mode actuel : monitoring uniquement (alerte/affichage, pas de bridage reseau dur)." -ForegroundColor Yellow
-        Write-UiHost "RX = trafic recu par le serveur depuis les peers. TX = trafic envoye par le serveur vers les peers." -ForegroundColor DarkGray
-        Write-UiHost ""
-        Write-UiHost ("Limite globale RX : " + (Format-Mbps ([double]$settings.Global.RxMbps))) -ForegroundColor Cyan
-        Write-UiHost ("Limite globale TX : " + (Format-Mbps ([double]$settings.Global.TxMbps))) -ForegroundColor Cyan
-        Write-UiHost ""
-        Write-UiHost "Limites par peer:" -ForegroundColor Cyan
-        $peerProps = @($settings.Peers.PSObject.Properties)
-        if ($peerProps.Count -eq 0) {
-            Write-UiHost "  aucune" -ForegroundColor DarkGray
-        } else {
-            foreach ($prop in $peerProps) {
-                Write-UiHost ("  " + $prop.Name + " -> RX " + (Format-Mbps ([double]$prop.Value.RxMbps)) + " / TX " + (Format-Mbps ([double]$prop.Value.TxMbps))) -ForegroundColor DarkCyan
-            }
-        }
-        Write-UiHost ""
-        Write-UiHost "1 - Definir limite globale"
-        Write-UiHost "2 - Definir limite pour un peer/appareil"
-        Write-UiHost "3 - Supprimer limite d'un peer/appareil"
-        Write-UiHost "4 - Reinitialiser toutes les limites"
-        Write-UiHost "Q - Retour"
-        Write-UiHost ""
-        $choice = (Read-UiHost "Choix").Trim().ToLowerInvariant()
-        switch ($choice) {
-            '1' {
-                $rx = Read-MbpsValue -Prompt "Limite globale RX en Mbps, 0 = illimite" -Default ([double]$settings.Global.RxMbps)
-                $tx = Read-MbpsValue -Prompt "Limite globale TX en Mbps, 0 = illimite" -Default ([double]$settings.Global.TxMbps)
-                $settings.Global.RxMbps = $rx
-                $settings.Global.TxMbps = $tx
-                Save-BandwidthSettings -BaseDir $BaseDir -Settings $settings | Out-Null
-            }
-            '2' {
-                $clientDir = Join-Path $BaseDir "clients"
-                $clients = @()
-                if (Test-Path $clientDir) { $clients = @(Get-ChildItem $clientDir -Filter "*.conf" -ErrorAction SilentlyContinue) }
-                if ($clients.Count -gt 0) {
-                    for ($i = 0; $i -lt $clients.Count; $i++) { Write-UiHost ("{0} - {1}" -f ($i + 1), $clients[$i].BaseName) }
-                }
-                $nameInput = (Read-UiHost "Nom du peer/appareil ou numero").Trim()
-                if ($nameInput -match '^\d+$' -and [int]$nameInput -ge 1 -and [int]$nameInput -le $clients.Count) { $peerName = $clients[[int]$nameInput - 1].BaseName } else { $peerName = $nameInput }
-                if ([string]::IsNullOrWhiteSpace($peerName)) { continue }
-                $current = Get-PeerLimitSettings -Settings $settings -PeerName $peerName
-                $defaultRx = if ($current) { [double]$current.RxMbps } else { 0 }
-                $defaultTx = if ($current) { [double]$current.TxMbps } else { 0 }
-                $rx = Read-MbpsValue -Prompt "Limite RX pour $peerName en Mbps, 0 = illimite" -Default $defaultRx
-                $tx = Read-MbpsValue -Prompt "Limite TX pour $peerName en Mbps, 0 = illimite" -Default $defaultTx
-                Set-PeerLimitSettings -Settings $settings -PeerName $peerName -RxMbps $rx -TxMbps $tx
-                Save-BandwidthSettings -BaseDir $BaseDir -Settings $settings | Out-Null
-            }
-            '3' {
-                $peerName = (Read-UiHost "Nom exact du peer/appareil").Trim()
-                if (-not [string]::IsNullOrWhiteSpace($peerName)) {
-                    Remove-PeerLimitSettings -Settings $settings -PeerName $peerName
-                    Save-BandwidthSettings -BaseDir $BaseDir -Settings $settings | Out-Null
-                }
-            }
-            '4' {
-                $settings = New-DefaultBandwidthSettings
-                Save-BandwidthSettings -BaseDir $BaseDir -Settings $settings | Out-Null
-            }
-            'q' { return "Parametres bande passante enregistres." }
-        }
-    }
-}
-
 function Show-Status([string]$LastMessage = "") {
     Clear-Host
     Write-UiHost "WinWG OneClick Server - Console serveur unifiee" -ForegroundColor Green
@@ -834,7 +635,7 @@ function Show-Status([string]$LastMessage = "") {
         if ([string]::IsNullOrWhiteSpace($show)) {
             Write-UiHost "Aucune sortie wg show." -ForegroundColor Yellow
         } else {
-            Write-PeerDashboard -WgShowText $show -ServerConfigPath $serverConfig -BaseDir $BaseDir
+            Write-PeerDashboard -WgShowText $show -ServerConfigPath $serverConfig
             Write-UiHost ""
             Write-UiHost "Details WireGuard bruts" -ForegroundColor Cyan
             Write-UiHost "-----------------------" -ForegroundColor DarkGray
@@ -922,9 +723,6 @@ try {
                     $lastMessage = "Option QR desactivee. Elle n'apparait pas dans le menu car la dependance QR n'a pas ete installee/activee."
                 }
             }
-            { $_ -in @('7','b') } {
-                try { $lastMessage = Show-BandwidthMenu -BaseDir $BaseDir } catch { $lastMessage = "ERREUR bande passante : $($_.Exception.Message)" }
-            }
             's' { $lastMessage = "Statut rafraichi." }
             'v' {
                 $script:UltraVerboseMode = -not $script:UltraVerboseMode
@@ -933,7 +731,7 @@ try {
                 Write-Log $lastMessage
             }
             'q' { return }
-            default { $lastMessage = "Choix invalide. Utilise 1/2/3/4/5/6/7, A/D/N/R/G/B, S, V ou Q." }
+            default { $lastMessage = "Choix invalide. Utilise 1/2/3/4/5/6, A/D/N/R/G, S, V ou Q." }
         }
     }
 } catch {

@@ -222,7 +222,6 @@ Available menu inside the console:
 4 / N - Add a new device
 5 / R - Remove a device
 6 / G - Generate a QR code for a device
-7 / B - Bandwidth settings
 S     - Refresh status
 V     - Enable/disable ultra verbose mode
 Q     - Quit the console
@@ -309,38 +308,6 @@ C:\ProgramData\WireGuardPhoneServer\logs
 
 This is useful to diagnose cases where a device is correctly created/removed but the WireGuard service reload returns a warning.
 
-
-
-## Bandwidth settings
-
-The console can display an estimated speed per peer and a global speed:
-
-```text
-Speed        : RX 120.50 KiB/s / TX 42.10 KiB/s
-Global speed : RX 1.20 MiB/s / TX 800.00 KiB/s
-```
-
-From `SERVER-CONSOLE.bat`, open the settings with:
-
-```text
-7 / B - Bandwidth settings
-```
-
-You can define:
-
-- a global RX/TX limit in Mbps;
-- an RX/TX limit per peer/device;
-- remove a peer limit;
-- reset all limits.
-
-Important: for now, this is a **monitoring / alerting** mode. The console shows when a limit is close or exceeded, but it does not hard-throttle network traffic yet. Real throttling would require a more advanced Windows QoS/WFP integration and must be tested separately.
-
-In the console:
-
-```text
-RX = traffic received by the server from peers
-TX = traffic sent by the server to peers
-```
 
 ## WireGuard QR code
 

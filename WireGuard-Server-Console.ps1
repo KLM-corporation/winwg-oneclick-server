@@ -889,6 +889,89 @@ function Edit-ClientDnsAdvanced([string]$BaseDir) {
     return "DNS modifie pour $clientName : $dns`nIMPORTANT : reimporte ce fichier sur l'appareil, sinon il gardera l'ancienne configuration.`nFichier a reimporter : $clientConfigPath$qrMessage"
 }
 
+
+function Get-ClientPersistentKeepalive([string]$ClientConfigPath) {
+    if (-not (Test-Path $ClientConfigPath)) { throw "Configuration introuvable : $ClientConfigPath" }
+    $content = Get-Content $ClientConfigPath -Raw
+    if ($content -match '(?m)^PersistentKeepalive\s*=\s*(\d+)') { return [int]$Matches[1] }
+    return 0
+}
+
+function Set-ClientPersistentKeepalive([string]$ClientConfigPath, [int]$Keepalive) {
+    if (-not (Test-Path $ClientConfigPath)) { throw "Configuration introuvable : $ClientConfigPath" }
+    if ($Keepalive -lt 0 -or $Keepalive -gt 65535) { throw "PersistentKeepalive invalide : $Keepalive" }
+    $content = Get-Content $ClientConfigPath -Raw
+    if ($content -match '(?m)^PersistentKeepalive\s*=') {
+        $content = [regex]::Replace($content, '(?m)^PersistentKeepalive\s*=\s*\d+', "PersistentKeepalive = $Keepalive", 1)
+    } else {
+        # Ajoute la ligne dans le bloc [Peer], idealement apres AllowedIPs.
+        if ($content -match '(?m)^AllowedIPs\s*=') {
+            $content = [regex]::Replace($content, '(?m)^(AllowedIPs\s*=\s*.+)$', "`$1`r`nPersistentKeepalive = $Keepalive", 1)
+        } else {
+            $content = $content.TrimEnd() + "`r`nPersistentKeepalive = $Keepalive`r`n"
+        }
+    }
+    Set-Content -Path $ClientConfigPath -Value $content -Encoding ASCII
+}
+
+function Set-AllClientPersistentKeepalive([string]$BaseDir, [int]$Keepalive) {
+    $clientDir = Join-Path $BaseDir "clients"
+    if (-not (Test-Path $clientDir)) { throw "Dossier clients introuvable : $clientDir" }
+    $clients = @(Get-ChildItem $clientDir -Filter "*.conf" -ErrorAction SilentlyContinue)
+    foreach ($client in $clients) {
+        Set-ClientPersistentKeepalive -ClientConfigPath $client.FullName -Keepalive $Keepalive
+    }
+    return $clients.Count
+}
+
+function Read-KeepaliveValue([int]$Default = 25) {
+    Write-UiHost ""
+    Write-UiHost "Valeurs courantes :" -ForegroundColor DarkGray
+    Write-UiHost "0  = desactive"
+    Write-UiHost "15 = reseaux mobiles/NAT tres stricts"
+    Write-UiHost "25 = recommande / defaut WireGuard"
+    Write-UiHost "60 = moins frequent"
+    Write-UiHost ""
+    $valueText = (Read-UiHost "PersistentKeepalive en secondes [$Default]").Trim()
+    if ([string]::IsNullOrWhiteSpace($valueText)) { return $Default }
+    $value = [int]$valueText
+    if ($value -lt 0 -or $value -gt 65535) { throw "PersistentKeepalive invalide : $value" }
+    return $value
+}
+
+function Edit-ClientPersistentKeepaliveAdvanced([string]$BaseDir) {
+    $clientName = Select-ClientConfigName -BaseDir $BaseDir -Title "Modifier PersistentKeepalive client"
+    if ([string]::IsNullOrWhiteSpace($clientName)) { return "Modification PersistentKeepalive annulee." }
+
+    $clientConfigPath = Join-Path $BaseDir "clients\$clientName.conf"
+    $current = Get-ClientPersistentKeepalive -ClientConfigPath $clientConfigPath
+
+    Clear-Host
+    Write-UiHost "Modifier PersistentKeepalive - $clientName" -ForegroundColor Yellow
+    Write-UiHost "=========================================" -ForegroundColor DarkGray
+    Write-UiHost "Valeur actuelle : $current" -ForegroundColor Cyan
+    Write-UiHost ""
+    Write-UiHost "PersistentKeepalive aide a garder ouvert le NAT cote client." -ForegroundColor Yellow
+    Write-UiHost "Utile pour telephone 4G/5G, Wi-Fi public ou routeur strict." -ForegroundColor Yellow
+    Write-UiHost "IMPORTANT : apres modification, l'appareil ne sera PAS mis a jour automatiquement." -ForegroundColor Red
+    Write-UiHost "Tu devras reimporter le fichier .conf sur l'appareil ou rescanner le nouveau QR code." -ForegroundColor Red
+
+    $keepalive = Read-KeepaliveValue -Default $current
+    Write-UiHost ""
+    Write-UiHost "Nouvelle valeur : $keepalive" -ForegroundColor Cyan
+    $confirm = (Read-UiHost "Tape APPLIQUER pour modifier le fichier .conf").Trim()
+    if ($confirm -ne "APPLIQUER") { return "Modification PersistentKeepalive annulee." }
+
+    Set-ClientPersistentKeepalive -ClientConfigPath $clientConfigPath -Keepalive $keepalive
+
+    $qrMessage = ""
+    if (Test-QrFeatureEnabled -BaseDir $BaseDir) {
+        try { $qrMessage = "`n" + (Generate-DeviceQrFromConsole -BaseDir $BaseDir -ClientName $clientName) } catch { $qrMessage = "`nQR non regenere : $($_.Exception.Message)" }
+    }
+
+    return "PersistentKeepalive modifie pour $clientName : $keepalive`nIMPORTANT : reimporte ce fichier sur l'appareil, sinon il gardera l'ancienne configuration.`nFichier a reimporter : $clientConfigPath$qrMessage"
+}
+
 function Set-AllClientAllowedIPs([string]$BaseDir, [string]$AllowedIPs) {
     $clientDir = Join-Path $BaseDir "clients"
     if (-not (Test-Path $clientDir)) { throw "Dossier clients introuvable : $clientDir" }
@@ -989,10 +1072,12 @@ function Show-AdvancedDefaultConfigEditor([string]$TunnelName, [string]$BaseDir,
         Write-UiHost "1 - Changer le port WireGuard global"
         Write-UiHost "2 - Changer le DNS de TOUS les clients"
         Write-UiHost "3 - Changer AllowedIPs de TOUS les clients"
+        Write-UiHost "4 - Changer PersistentKeepalive de TOUS les clients"
         Write-UiHost ""
         Write-UiHost "Options par client/appareil:" -ForegroundColor Cyan
-        Write-UiHost "4 - Changer le DNS d'UN client"
-        Write-UiHost "5 - Changer AllowedIPs d'UN client"
+        Write-UiHost "5 - Changer le DNS d'UN client"
+        Write-UiHost "6 - Changer AllowedIPs d'UN client"
+        Write-UiHost "7 - Changer PersistentKeepalive d'UN client"
         Write-UiHost "Q - Retour"
         Write-UiHost ""
         $choice = (Read-UiHost "Choix").Trim().ToLowerInvariant()
@@ -1030,11 +1115,26 @@ function Show-AdvancedDefaultConfigEditor([string]$TunnelName, [string]$BaseDir,
                 }
             }
             '4' {
+                $defaultKeepalive = 25
+                $keepalive = Read-KeepaliveValue -Default $defaultKeepalive
+                Write-UiHost ""
+                Write-UiHost "IMPORTANT : tous les appareils devront reimporter leur .conf ou rescanner leur QR." -ForegroundColor Red
+                $confirm = (Read-UiHost "Tape APPLIQUER pour modifier tous les clients").Trim()
+                if ($confirm -eq "APPLIQUER") {
+                    $count = Set-AllClientPersistentKeepalive -BaseDir $BaseDir -Keepalive $keepalive
+                    Pause-ConsoleAction "PersistentKeepalive modifie pour $count client(s) : $keepalive`nIMPORTANT : reimporte les .conf ou QR sur les appareils."
+                }
+            }
+            '5' {
                 $msg = Edit-ClientDnsAdvanced -BaseDir $BaseDir
                 Pause-ConsoleAction $msg
             }
-            '5' {
+            '6' {
                 $msg = Edit-ClientAllowedIPsAdvanced -BaseDir $BaseDir
+                Pause-ConsoleAction $msg
+            }
+            '7' {
+                $msg = Edit-ClientPersistentKeepaliveAdvanced -BaseDir $BaseDir
                 Pause-ConsoleAction $msg
             }
             'q' { return "Retour depuis la configuration avancee." }

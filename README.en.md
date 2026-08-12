@@ -373,7 +373,9 @@ Available options:
 - change DNS for all clients;
 - change DNS for a single client;
 - change client `AllowedIPs` mode for all clients;
-- edit `AllowedIPs` for a single client.
+- edit `AllowedIPs` for a single client;
+- change `PersistentKeepalive` for all clients;
+- change `PersistentKeepalive` for a single client.
 
 Principle: when a setting affects clients, the console offers two levels whenever possible:
 
@@ -381,6 +383,30 @@ Principle: when a setting affects clients, the console offers two levels wheneve
 Global = apply the same value to all clients
 Individual = customize only one client/device
 ```
+
+
+### Advanced example: edit PersistentKeepalive
+
+By default, client configurations use:
+
+```ini
+PersistentKeepalive = 25
+```
+
+This helps keep the client-side NAT mapping open, especially on 4G/5G phones, public Wi-Fi, or strict routers.
+
+Suggested values:
+
+```text
+0  = disabled
+15 = mobile networks / very strict NAT
+25 = recommended / WireGuard default
+60 = less frequent
+```
+
+As with DNS and `AllowedIPs`, the console can change this value globally for all clients or individually for a single device.
+
+After changing this, you must re-import the `.conf` file or rescan the new QR code on the device.
 
 ### Advanced example: edit AllowedIPs
 

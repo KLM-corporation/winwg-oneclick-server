@@ -653,6 +653,107 @@ function Export-AdvancedDiagnostic([string]$TunnelName, [string]$BaseDir, [int]$
     return "Diagnostic exporte : $path"
 }
 
+
+function Select-ClientConfigName([string]$BaseDir, [string]$Title = "Selection appareil") {
+    $clientDir = Join-Path $BaseDir "clients"
+    $clients = @()
+    if (Test-Path $clientDir) { $clients = @(Get-ChildItem $clientDir -Filter "*.conf" -ErrorAction SilentlyContinue) }
+    if ($clients.Length -eq 0) { throw "Aucune configuration .conf trouvee dans $clientDir" }
+
+    Write-UiHost ""
+    Write-UiHost $Title -ForegroundColor Cyan
+    Write-UiHost ("-" * $Title.Length) -ForegroundColor DarkGray
+
+    if ($clients.Length -eq 1) {
+        Write-UiHost "1 - $($clients[0].BaseName)" -ForegroundColor DarkCyan
+        Write-UiHost "Un seul appareil detecte : $($clients[0].BaseName)" -ForegroundColor Yellow
+        return $clients[0].BaseName
+    }
+
+    Write-UiHost "0 - Annuler"
+    for ($i = 0; $i -lt $clients.Length; $i++) {
+        Write-UiHost ("{0} - {1}" -f ($i + 1), $clients[$i].BaseName)
+    }
+    Write-UiHost ""
+    $choice = (Read-UiHost "Tape le numero de l'appareil, ou son nom exact").Trim()
+    if ($choice -eq '0' -or [string]::IsNullOrWhiteSpace($choice)) { return $null }
+    if ($choice -match '^\d+$' -and [int]$choice -ge 1 -and [int]$choice -le $clients.Length) {
+        return $clients[[int]$choice - 1].BaseName
+    }
+    return $choice
+}
+
+function Get-ClientAllowedIPs([string]$ClientConfigPath) {
+    if (-not (Test-Path $ClientConfigPath)) { throw "Configuration introuvable : $ClientConfigPath" }
+    $content = Get-Content $ClientConfigPath -Raw
+    if ($content -match '(?m)^AllowedIPs\s*=\s*(.+)$') { return $Matches[1].Trim() }
+    return ""
+}
+
+function Set-ClientAllowedIPs([string]$ClientConfigPath, [string]$AllowedIPs) {
+    if (-not (Test-Path $ClientConfigPath)) { throw "Configuration introuvable : $ClientConfigPath" }
+    $content = Get-Content $ClientConfigPath -Raw
+    if ($content -notmatch '(?m)^AllowedIPs\s*=') { throw "Ligne AllowedIPs introuvable dans $ClientConfigPath" }
+    $newContent = [regex]::Replace($content, '(?m)^AllowedIPs\s*=\s*.+$', "AllowedIPs = $AllowedIPs", 1)
+    Set-Content -Path $ClientConfigPath -Value $newContent -Encoding ASCII
+}
+
+function Edit-ClientAllowedIPsAdvanced([string]$BaseDir) {
+    $clientName = Select-ClientConfigName -BaseDir $BaseDir -Title "Modifier AllowedIPs client"
+    if ([string]::IsNullOrWhiteSpace($clientName)) { return "Modification AllowedIPs annulee." }
+
+    $clientConfigPath = Join-Path $BaseDir "clients\$clientName.conf"
+    $current = Get-ClientAllowedIPs -ClientConfigPath $clientConfigPath
+
+    Clear-Host
+    Write-UiHost "Modifier AllowedIPs - $clientName" -ForegroundColor Yellow
+    Write-UiHost "================================" -ForegroundColor DarkGray
+    Write-UiHost ""
+    Write-UiHost "AllowedIPs actuel : $current" -ForegroundColor Cyan
+    Write-UiHost ""
+    Write-UiHost "AllowedIPs cote client controle quelles routes passent dans le VPN." -ForegroundColor Yellow
+    Write-UiHost "Une mauvaise valeur peut couper Internet sur l'appareil ou empecher l'acces au LAN." -ForegroundColor Yellow
+    Write-UiHost "Apres modification, il faudra reimporter le .conf ou rescanner le QR code sur l'appareil." -ForegroundColor Yellow
+    Write-UiHost ""
+    Write-UiHost "1 - Full tunnel IPv4 : 0.0.0.0/0"
+    Write-UiHost "2 - VPN uniquement : 10.66.66.0/24"
+    Write-UiHost "3 - VPN + LAN maison : 10.66.66.0/24, 192.168.1.0/24"
+    Write-UiHost "4 - Valeur personnalisee"
+    Write-UiHost "0 - Annuler"
+    Write-UiHost ""
+    $choice = (Read-UiHost "Choix").Trim()
+
+    switch ($choice) {
+        '1' { $newAllowed = "0.0.0.0/0" }
+        '2' { $newAllowed = "10.66.66.0/24" }
+        '3' {
+            $lan = (Read-UiHost "CIDR LAN maison [192.168.1.0/24]").Trim()
+            if ([string]::IsNullOrWhiteSpace($lan)) { $lan = "192.168.1.0/24" }
+            $newAllowed = "10.66.66.0/24, $lan"
+        }
+        '4' {
+            $newAllowed = (Read-UiHost "Nouvelle valeur AllowedIPs, ex: 10.66.66.0/24, 192.168.1.0/24").Trim()
+            if ([string]::IsNullOrWhiteSpace($newAllowed)) { return "Modification AllowedIPs annulee." }
+        }
+        '0' { return "Modification AllowedIPs annulee." }
+        default { return "Choix invalide. Modification annulee." }
+    }
+
+    Write-UiHost ""
+    Write-UiHost "Nouvelle valeur : $newAllowed" -ForegroundColor Cyan
+    $confirm = (Read-UiHost "Tape APPLIQUER pour modifier le fichier .conf").Trim()
+    if ($confirm -ne "APPLIQUER") { return "Modification AllowedIPs annulee." }
+
+    Set-ClientAllowedIPs -ClientConfigPath $clientConfigPath -AllowedIPs $newAllowed
+
+    $qrMessage = ""
+    if (Test-QrFeatureEnabled -BaseDir $BaseDir) {
+        try { $qrMessage = "`n" + (Generate-DeviceQrFromConsole -BaseDir $BaseDir -ClientName $clientName) } catch { $qrMessage = "`nQR non regenere : $($_.Exception.Message)" }
+    }
+
+    return "AllowedIPs modifie pour $clientName : $newAllowed`nFichier a reimporter : $clientConfigPath$qrMessage"
+}
+
 function Show-AdvancedMenu([string]$TunnelName, [string]$BaseDir, [int]$ListenPort) {
     if (-not $script:AdvancedModeEnabled) {
         return Enable-AdvancedModeWithWarning
@@ -669,8 +770,9 @@ function Show-AdvancedMenu([string]$TunnelName, [string]$BaseDir, [int]$ListenPo
         Write-UiHost "3 - Ouvrir le dossier clients"
         Write-UiHost "4 - Ouvrir le dossier QR codes"
         Write-UiHost "5 - Exporter un diagnostic redige"
-        Write-UiHost "6 - Ouvrir wg-phone-server.conf dans Notepad (contient la cle privee)"
-        Write-UiHost "7 - Desactiver le mode avance"
+        Write-UiHost "6 - Modifier AllowedIPs d'un appareil"
+        Write-UiHost "7 - Ouvrir wg-phone-server.conf dans Notepad (contient la cle privee)"
+        Write-UiHost "8 - Desactiver le mode avance"
         Write-UiHost "Q - Retour"
         Write-UiHost ""
         $choice = (Read-UiHost "Choix").Trim().ToLowerInvariant()
@@ -698,6 +800,10 @@ function Show-AdvancedMenu([string]$TunnelName, [string]$BaseDir, [int]$ListenPo
                 Pause-ConsoleAction $msg
             }
             '6' {
+                try { $msg = Edit-ClientAllowedIPsAdvanced -BaseDir $BaseDir } catch { $msg = "Erreur AllowedIPs : $($_.Exception.Message)" }
+                Pause-ConsoleAction $msg
+            }
+            '7' {
                 Write-UiHost ""
                 Write-UiHost "ATTENTION : ce fichier contient la cle privee serveur." -ForegroundColor Red
                 Write-UiHost "Ne partage pas de capture ou de copie de ce fichier." -ForegroundColor Red
@@ -708,7 +814,7 @@ function Show-AdvancedMenu([string]$TunnelName, [string]$BaseDir, [int]$ListenPo
                     Pause-ConsoleAction "Ouverture annulee."
                 }
             }
-            '7' {
+            '8' {
                 $script:AdvancedModeEnabled = $false
                 return "Mode avance desactive."
             }

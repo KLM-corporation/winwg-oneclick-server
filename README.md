@@ -368,9 +368,50 @@ Ce mode peut donner accès à des fichiers et actions sensibles. Il permet notam
 - afficher `wg show` brut ;
 - ouvrir les dossiers serveur, clients et QR codes ;
 - exporter un diagnostic redigé ;
+- modifier précisément `AllowedIPs` dans une configuration client ;
 - ouvrir le fichier serveur `wg-phone-server.conf` dans Notepad.
 
 Attention : le fichier serveur contient la clé privée WireGuard. Ne partage jamais ce fichier, son contenu, ni une capture d'écran non redigée.
+
+
+### Exemple avancé : modifier AllowedIPs
+
+Par défaut, les configurations client utilisent :
+
+```ini
+AllowedIPs = 0.0.0.0/0
+```
+
+Cela signifie **full tunnel IPv4** : tout le trafic IPv4 de l'appareil passe par le VPN.
+
+Dans le mode avancé, tu peux modifier cette valeur pour un appareil :
+
+```text
+6 - Modifier AllowedIPs d'un appareil
+```
+
+Exemples utiles :
+
+```ini
+AllowedIPs = 0.0.0.0/0
+```
+
+Full tunnel : tout le trafic IPv4 passe par le VPN.
+
+```ini
+AllowedIPs = 10.66.66.0/24
+```
+
+VPN uniquement : utile pour une LAN party WireGuard ou accès entre peers sans faire passer tout Internet dans le VPN.
+
+```ini
+AllowedIPs = 10.66.66.0/24, 192.168.1.0/24
+```
+
+VPN + LAN maison : permet d'accéder au réseau VPN et au LAN maison.
+
+Après modification, il faut réimporter le `.conf` ou rescanner le QR code sur l'appareil.
+
 
 ## QR code WireGuard
 

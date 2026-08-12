@@ -4,6 +4,10 @@
 
 **One script. One click. Your Windows PC becomes a WireGuard VPN server.**
 
+
+> 💙 **Support the project**: WinWG OneClick Server is free and open source. Donations are optional.  
+> BTC: `bc1qp3lzycrpngpk00tecj85pfkhrqqr49gmslzmsg` — see [`DONATE.md`](DONATE.md).
+
 WinWG OneClick Server is a simple Windows project that turns a Windows 10/11 PC into a **WireGuard remote access server** with a **single script / single double-click** installation. It also generates the configuration file to import on your phone, tablet, or laptop.
 
 > ⚠️ Important: to connect from outside your local network, the Windows PC must be reachable from the Internet. In most home setups, this means:
@@ -75,6 +79,21 @@ Ideally, this local IP should be reserved through a **static DHCP lease** in the
   - Android: Google Play / F-Droid.
   - iPhone: App Store.
 
+
+
+## Optional donations
+
+WinWG OneClick Server is free and open source.
+
+Donations are fully optional and are never required to use, modify, redistribute, or contribute to the project.
+
+Bitcoin BTC address:
+
+```text
+bc1qp3lzycrpngpk00tecj85pfkhrqqr49gmslzmsg
+```
+
+More information: [`DONATE.md`](DONATE.md).
 
 ## Attribution
 
@@ -224,6 +243,7 @@ Available menu inside the console:
 6 / G - Generate a QR code for a device
 S     - Refresh status
 V     - Enable/disable ultra verbose mode
+M     - Advanced mode / expert tools
 Q     - Quit the console
 ```
 
@@ -307,6 +327,71 @@ C:\ProgramData\WireGuardPhoneServer\logs
 ```
 
 This is useful to diagnose cases where a device is correctly created/removed but the WireGuard service reload returns a warning.
+
+
+
+## Advanced mode / expert tools
+
+The console includes an advanced mode intended for users who already understand WireGuard.
+
+```text
+M - Advanced mode / expert tools
+```
+
+Before activation, the console displays a warning and asks you to type exactly:
+
+```text
+JE COMPRENDS
+```
+
+This mode may expose sensitive files and actions. It can:
+
+- show raw `wg show` output;
+- open server, clients and QR code folders;
+- export a redacted diagnostic file;
+- precisely edit `AllowedIPs` in a client configuration;
+- open the server `wg-phone-server.conf` file in Notepad.
+
+Warning: the server configuration file contains the WireGuard private key. Never share this file, its content, or an unredacted screenshot.
+
+
+### Advanced example: edit AllowedIPs
+
+By default, client configurations use:
+
+```ini
+AllowedIPs = 0.0.0.0/0
+```
+
+This means **IPv4 full tunnel**: all IPv4 traffic from the device goes through the VPN.
+
+In advanced mode, you can edit this value for a device:
+
+```text
+6 - Edit AllowedIPs for a device
+```
+
+Useful examples:
+
+```ini
+AllowedIPs = 0.0.0.0/0
+```
+
+Full tunnel: all IPv4 traffic goes through the VPN.
+
+```ini
+AllowedIPs = 10.66.66.0/24
+```
+
+VPN only: useful for WireGuard LAN party or peer-to-peer VPN access without routing all Internet traffic through the VPN.
+
+```ini
+AllowedIPs = 10.66.66.0/24, 192.168.1.0/24
+```
+
+VPN + home LAN: allows access to the VPN network and the home LAN.
+
+After changing this, you must re-import the `.conf` file or rescan the new QR code on the device. Otherwise, the device will keep using the previous `AllowedIPs` configuration.
 
 
 ## WireGuard QR code

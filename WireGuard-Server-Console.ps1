@@ -23,6 +23,7 @@ $script:UltraVerboseMode = [bool]$UltraVerbose
 $script:LogFilePath = $null
 $script:UiMargin = "  "
 $script:PeerTrafficSamples = @{}
+$script:AdvancedModeEnabled = $false
 
 
 function Write-UiHost {
@@ -34,6 +35,10 @@ function Write-UiHost {
     )
 
     $text = [string]$Object
+    # Si le texte contient plusieurs lignes, on applique aussi la marge aux lignes suivantes.
+    # Sinon les lignes brutes comme "peer:" dans `wg show` peuvent commencer en colonne 0
+    # et etre coupees par certains terminaux Windows.
+    $text = $text -replace "`r?`n", ("`n" + $script:UiMargin)
     if ($NoNewline) {
         Microsoft.PowerShell.Utility\Write-Host ($script:UiMargin + $text) -ForegroundColor $ForegroundColor -NoNewline
     } else {
@@ -65,6 +70,7 @@ function Initialize-ConsoleLog([string]$BaseDir) {
         $script:LogFilePath = $null
 $script:UiMargin = "  "
 $script:PeerTrafficSamples = @{}
+$script:AdvancedModeEnabled = $false
     }
 }
 
@@ -578,13 +584,263 @@ function Remove-DeviceFromConsole([string]$TunnelName, [string]$BaseDir) {
     return "Appareil supprime : $clientName"
 }
 
+
+function Redact-WinWGSecrets([string]$Text) {
+    if ([string]::IsNullOrWhiteSpace($Text)) { return $Text }
+    $redacted = $Text
+    $redacted = [regex]::Replace($redacted, '(?im)^(\s*PrivateKey\s*=\s*).+$', '$1<redacted>')
+    $redacted = [regex]::Replace($redacted, '(?im)^(\s*PresharedKey\s*=\s*).+$', '$1<redacted>')
+    return $redacted
+}
+
+function Enable-AdvancedModeWithWarning {
+    Clear-Host
+    Write-UiHost "WinWG OneClick Server - Mode avance" -ForegroundColor Yellow
+    Write-UiHost "====================================" -ForegroundColor DarkGray
+    Write-UiHost ""
+    Write-UiHost "ATTENTION" -ForegroundColor Red
+    Write-UiHost "Le mode avance est destine aux personnes qui connaissent deja WireGuard." -ForegroundColor Yellow
+    Write-UiHost "Il peut donner acces a des actions et fichiers sensibles." -ForegroundColor Yellow
+    Write-UiHost ""
+    Write-UiHost "Risques possibles :" -ForegroundColor Yellow
+    Write-UiHost "- casser la configuration serveur ;"
+    Write-UiHost "- exposer une cle privee si tu partages une capture ou un fichier ;"
+    Write-UiHost "- couper l'acces VPN a tes appareils ;"
+    Write-UiHost "- rendre le serveur inaccessible depuis l'exterieur."
+    Write-UiHost ""
+    Write-UiHost "Ne partage jamais les fichiers .conf, les QR codes, les cles privees ou les logs non relus." -ForegroundColor Red
+    Write-UiHost ""
+    $confirm = (Read-UiHost "Pour activer, tape exactement JE COMPRENDS").Trim()
+    if ($confirm -eq "JE COMPRENDS") {
+        $script:AdvancedModeEnabled = $true
+        return "Mode avance active. Sois prudent."
+    }
+    return "Mode avance non active."
+}
+
+function Export-AdvancedDiagnostic([string]$TunnelName, [string]$BaseDir, [int]$ListenPort) {
+    $logDir = Join-Path $BaseDir "logs"
+    if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
+    $path = Join-Path $logDir ("advanced-diagnostic-" + (Get-Date -Format "yyyyMMdd-HHmmss") + ".txt")
+    $serverConfig = Get-ServerConfigPath -TunnelName $TunnelName -BaseDir $BaseDir
+
+    $content = New-Object System.Collections.Generic.List[string]
+    $content.Add("WinWG OneClick Server - diagnostic avance")
+    $content.Add("Date: $(Get-Date -Format o)")
+    $content.Add("Tunnel: $TunnelName")
+    $content.Add("Port UDP: $ListenPort")
+    $content.Add("BaseDir: $BaseDir")
+    $content.Add("")
+    $content.Add("== Service ==")
+    $svc = Get-ServiceState -TunnelName $TunnelName
+    if ($svc) { $content.Add("$($svc.Name) - $($svc.Status)") } else { $content.Add("Service introuvable") }
+    $content.Add("")
+    $content.Add("== Firewall ==")
+    $fw = @(Get-NetFirewallRule -DisplayName "WireGuard Server UDP $ListenPort" -ErrorAction SilentlyContinue)
+    if ($fw.Length -gt 0) { $content.Add("Regle firewall presente") } else { $content.Add("Regle firewall manquante") }
+    $content.Add("")
+    $content.Add("== NAT ==")
+    $nat = Get-NetNat -Name "WireGuardPhoneServerNAT" -ErrorAction SilentlyContinue
+    if ($nat) { $content.Add("$($nat.Name) - $($nat.InternalIPInterfaceAddressPrefix)") } else { $content.Add("NAT introuvable") }
+    $content.Add("")
+    $content.Add("== wg show ==")
+    $content.Add((Get-WgShow -TunnelName $TunnelName))
+    $content.Add("")
+    $content.Add("== Server config redacted ==")
+    if (Test-Path $serverConfig) {
+        $content.Add((Redact-WinWGSecrets -Text (Get-Content $serverConfig -Raw)))
+    } else {
+        $content.Add("Configuration serveur introuvable: $serverConfig")
+    }
+
+    Set-Content -Path $path -Value $content -Encoding UTF8
+    return "Diagnostic exporte : $path"
+}
+
+
+function Select-ClientConfigName([string]$BaseDir, [string]$Title = "Selection appareil") {
+    $clientDir = Join-Path $BaseDir "clients"
+    $clients = @()
+    if (Test-Path $clientDir) { $clients = @(Get-ChildItem $clientDir -Filter "*.conf" -ErrorAction SilentlyContinue) }
+    if ($clients.Length -eq 0) { throw "Aucune configuration .conf trouvee dans $clientDir" }
+
+    Write-UiHost ""
+    Write-UiHost $Title -ForegroundColor Cyan
+    Write-UiHost ("-" * $Title.Length) -ForegroundColor DarkGray
+
+    if ($clients.Length -eq 1) {
+        Write-UiHost "1 - $($clients[0].BaseName)" -ForegroundColor DarkCyan
+        Write-UiHost "Un seul appareil detecte : $($clients[0].BaseName)" -ForegroundColor Yellow
+        return $clients[0].BaseName
+    }
+
+    Write-UiHost "0 - Annuler"
+    for ($i = 0; $i -lt $clients.Length; $i++) {
+        Write-UiHost ("{0} - {1}" -f ($i + 1), $clients[$i].BaseName)
+    }
+    Write-UiHost ""
+    $choice = (Read-UiHost "Tape le numero de l'appareil, ou son nom exact").Trim()
+    if ($choice -eq '0' -or [string]::IsNullOrWhiteSpace($choice)) { return $null }
+    if ($choice -match '^\d+$' -and [int]$choice -ge 1 -and [int]$choice -le $clients.Length) {
+        return $clients[[int]$choice - 1].BaseName
+    }
+    return $choice
+}
+
+function Get-ClientAllowedIPs([string]$ClientConfigPath) {
+    if (-not (Test-Path $ClientConfigPath)) { throw "Configuration introuvable : $ClientConfigPath" }
+    $content = Get-Content $ClientConfigPath -Raw
+    if ($content -match '(?m)^AllowedIPs\s*=\s*(.+)$') { return $Matches[1].Trim() }
+    return ""
+}
+
+function Set-ClientAllowedIPs([string]$ClientConfigPath, [string]$AllowedIPs) {
+    if (-not (Test-Path $ClientConfigPath)) { throw "Configuration introuvable : $ClientConfigPath" }
+    $content = Get-Content $ClientConfigPath -Raw
+    if ($content -notmatch '(?m)^AllowedIPs\s*=') { throw "Ligne AllowedIPs introuvable dans $ClientConfigPath" }
+    $newContent = [regex]::Replace($content, '(?m)^AllowedIPs\s*=\s*.+$', "AllowedIPs = $AllowedIPs", 1)
+    Set-Content -Path $ClientConfigPath -Value $newContent -Encoding ASCII
+}
+
+function Edit-ClientAllowedIPsAdvanced([string]$BaseDir) {
+    $clientName = Select-ClientConfigName -BaseDir $BaseDir -Title "Modifier AllowedIPs client"
+    if ([string]::IsNullOrWhiteSpace($clientName)) { return "Modification AllowedIPs annulee." }
+
+    $clientConfigPath = Join-Path $BaseDir "clients\$clientName.conf"
+    $current = Get-ClientAllowedIPs -ClientConfigPath $clientConfigPath
+
+    Clear-Host
+    Write-UiHost "Modifier AllowedIPs - $clientName" -ForegroundColor Yellow
+    Write-UiHost "================================" -ForegroundColor DarkGray
+    Write-UiHost ""
+    Write-UiHost "AllowedIPs actuel : $current" -ForegroundColor Cyan
+    Write-UiHost ""
+    Write-UiHost "AllowedIPs cote client controle quelles routes passent dans le VPN." -ForegroundColor Yellow
+    Write-UiHost "Une mauvaise valeur peut couper Internet sur l'appareil ou empecher l'acces au LAN." -ForegroundColor Yellow
+    Write-UiHost "IMPORTANT : apres modification, l'appareil ne sera PAS mis a jour automatiquement." -ForegroundColor Red
+    Write-UiHost "Tu devras reimporter le fichier .conf sur l'appareil ou rescanner le nouveau QR code." -ForegroundColor Red
+    Write-UiHost "Sinon l'appareil continuera a utiliser l'ancienne configuration AllowedIPs." -ForegroundColor Yellow
+    Write-UiHost ""
+    Write-UiHost "1 - Full tunnel IPv4 : 0.0.0.0/0"
+    Write-UiHost "2 - VPN uniquement : 10.66.66.0/24"
+    Write-UiHost "3 - VPN + LAN maison : 10.66.66.0/24, 192.168.1.0/24"
+    Write-UiHost "4 - Valeur personnalisee"
+    Write-UiHost "0 - Annuler"
+    Write-UiHost ""
+    $choice = (Read-UiHost "Choix").Trim()
+
+    switch ($choice) {
+        '1' { $newAllowed = "0.0.0.0/0" }
+        '2' { $newAllowed = "10.66.66.0/24" }
+        '3' {
+            $lan = (Read-UiHost "CIDR LAN maison [192.168.1.0/24]").Trim()
+            if ([string]::IsNullOrWhiteSpace($lan)) { $lan = "192.168.1.0/24" }
+            $newAllowed = "10.66.66.0/24, $lan"
+        }
+        '4' {
+            $newAllowed = (Read-UiHost "Nouvelle valeur AllowedIPs, ex: 10.66.66.0/24, 192.168.1.0/24").Trim()
+            if ([string]::IsNullOrWhiteSpace($newAllowed)) { return "Modification AllowedIPs annulee." }
+        }
+        '0' { return "Modification AllowedIPs annulee." }
+        default { return "Choix invalide. Modification annulee." }
+    }
+
+    Write-UiHost ""
+    Write-UiHost "Nouvelle valeur : $newAllowed" -ForegroundColor Cyan
+    Write-UiHost ""
+    Write-UiHost "Rappel : apres APPLIQUER, pense a reimporter le .conf ou le QR sur l'appareil." -ForegroundColor Red
+    $confirm = (Read-UiHost "Tape APPLIQUER pour modifier le fichier .conf").Trim()
+    if ($confirm -ne "APPLIQUER") { return "Modification AllowedIPs annulee." }
+
+    Set-ClientAllowedIPs -ClientConfigPath $clientConfigPath -AllowedIPs $newAllowed
+
+    $qrMessage = ""
+    if (Test-QrFeatureEnabled -BaseDir $BaseDir) {
+        try { $qrMessage = "`n" + (Generate-DeviceQrFromConsole -BaseDir $BaseDir -ClientName $clientName) } catch { $qrMessage = "`nQR non regenere : $($_.Exception.Message)" }
+    }
+
+    return "AllowedIPs modifie pour $clientName : $newAllowed`nIMPORTANT : reimporte ce fichier sur l'appareil, sinon il gardera l'ancienne configuration.`nFichier a reimporter : $clientConfigPath$qrMessage"
+}
+
+function Show-AdvancedMenu([string]$TunnelName, [string]$BaseDir, [int]$ListenPort) {
+    if (-not $script:AdvancedModeEnabled) {
+        return Enable-AdvancedModeWithWarning
+    }
+
+    while ($true) {
+        Clear-Host
+        Write-UiHost "WinWG OneClick Server - Outils avances" -ForegroundColor Yellow
+        Write-UiHost "======================================" -ForegroundColor DarkGray
+        Write-UiHost "Mode avance actif - attention aux cles et fichiers .conf" -ForegroundColor Red
+        Write-UiHost ""
+        Write-UiHost "1 - Afficher wg show brut"
+        Write-UiHost "2 - Ouvrir le dossier serveur"
+        Write-UiHost "3 - Ouvrir le dossier clients"
+        Write-UiHost "4 - Ouvrir le dossier QR codes"
+        Write-UiHost "5 - Exporter un diagnostic redige"
+        Write-UiHost "6 - Modifier AllowedIPs d'un appareil"
+        Write-UiHost "7 - Ouvrir wg-phone-server.conf dans Notepad (contient la cle privee)"
+        Write-UiHost "8 - Desactiver le mode avance"
+        Write-UiHost "Q - Retour"
+        Write-UiHost ""
+        $choice = (Read-UiHost "Choix").Trim().ToLowerInvariant()
+        $serverConfig = Get-ServerConfigPath -TunnelName $TunnelName -BaseDir $BaseDir
+        switch ($choice) {
+            '1' {
+                Write-UiHost ""
+                Write-UiHost (Get-WgShow -TunnelName $TunnelName)
+                Pause-ConsoleAction "wg show affiche."
+            }
+            '2' {
+                $dir = Split-Path $serverConfig -Parent
+                if (Test-Path $dir) { Start-Process explorer.exe $dir; Pause-ConsoleAction "Dossier serveur ouvert : $dir" } else { Pause-ConsoleAction "Dossier serveur introuvable : $dir" }
+            }
+            '3' {
+                $dir = Join-Path $BaseDir "clients"
+                if (Test-Path $dir) { Start-Process explorer.exe $dir; Pause-ConsoleAction "Dossier clients ouvert : $dir" } else { Pause-ConsoleAction "Dossier clients introuvable : $dir" }
+            }
+            '4' {
+                $dir = Join-Path $BaseDir "qrcodes"
+                if (Test-Path $dir) { Start-Process explorer.exe $dir; Pause-ConsoleAction "Dossier QR codes ouvert : $dir" } else { Pause-ConsoleAction "Dossier QR codes introuvable : $dir" }
+            }
+            '5' {
+                try { $msg = Export-AdvancedDiagnostic -TunnelName $TunnelName -BaseDir $BaseDir -ListenPort $ListenPort } catch { $msg = "Erreur diagnostic : $($_.Exception.Message)" }
+                Pause-ConsoleAction $msg
+            }
+            '6' {
+                try { $msg = Edit-ClientAllowedIPsAdvanced -BaseDir $BaseDir } catch { $msg = "Erreur AllowedIPs : $($_.Exception.Message)" }
+                Pause-ConsoleAction $msg
+            }
+            '7' {
+                Write-UiHost ""
+                Write-UiHost "ATTENTION : ce fichier contient la cle privee serveur." -ForegroundColor Red
+                Write-UiHost "Ne partage pas de capture ou de copie de ce fichier." -ForegroundColor Red
+                $confirm = (Read-UiHost "Tape OUVRIR pour confirmer").Trim()
+                if ($confirm -eq "OUVRIR") {
+                    if (Test-Path $serverConfig) { Start-Process notepad.exe $serverConfig; Pause-ConsoleAction "Fichier ouvert : $serverConfig" } else { Pause-ConsoleAction "Fichier introuvable : $serverConfig" }
+                } else {
+                    Pause-ConsoleAction "Ouverture annulee."
+                }
+            }
+            '8' {
+                $script:AdvancedModeEnabled = $false
+                return "Mode avance desactive."
+            }
+            'q' { return "Retour depuis les outils avances." }
+        }
+    }
+}
+
 function Show-Status([string]$LastMessage = "") {
     Clear-Host
     Write-UiHost "WinWG OneClick Server - Console serveur unifiee" -ForegroundColor Green
     Write-UiHost "Surveillance + controle du service VPN dans une seule console." -ForegroundColor DarkGray
     Write-UiHost "Menu interactif: pas de rafraichissement automatique." -ForegroundColor Cyan
     $verboseText = if ($script:UltraVerboseMode) { "active" } else { "desactive" }
+    $advancedText = if ($script:AdvancedModeEnabled) { "active" } else { "desactive" }
+    $advancedColor = if ($script:AdvancedModeEnabled) { [ConsoleColor]::Red } else { [ConsoleColor]::DarkRed }
     Write-UiHost "Mode ultra verbeux: $verboseText" -ForegroundColor DarkYellow
+    Write-UiHost "Mode avance: $advancedText" -ForegroundColor $advancedColor
     if ($script:UltraVerboseMode -and $script:LogFilePath) { Write-UiHost "Log: $script:LogFilePath" -ForegroundColor DarkGray }
     Write-UiHost "============================================================" -ForegroundColor DarkGray
     if (-not [string]::IsNullOrWhiteSpace($LastMessage)) {
@@ -663,6 +919,7 @@ function Show-MainMenu {
     if (Test-QrFeatureEnabled -BaseDir $BaseDir) { Write-UiHost "6 / G - Generer un QR code pour un appareil" }
     Write-UiHost "S     - Rafraichir le statut"
     Write-UiHost "V     - Activer/desactiver le mode ultra verbeux"
+    Write-UiHost "M     - Mode avance / outils experts"
     Write-UiHost "Q     - Quitter"
     Write-UiHost ""
 }
@@ -730,8 +987,11 @@ try {
                 $lastMessage = "Mode ultra verbeux $state. Log: $script:LogFilePath"
                 Write-Log $lastMessage
             }
+            'm' {
+                try { $lastMessage = Show-AdvancedMenu -TunnelName $TunnelName -BaseDir $BaseDir -ListenPort $ListenPort } catch { $lastMessage = "ERREUR mode avance : $($_.Exception.Message)" }
+            }
             'q' { return }
-            default { $lastMessage = "Choix invalide. Utilise 1/2/3/4/5/6, A/D/N/R/G, S, V ou Q." }
+            default { $lastMessage = "Choix invalide. Utilise 1/2/3/4/5/6, A/D/N/R/G, S, V, M ou Q." }
         }
     }
 } catch {

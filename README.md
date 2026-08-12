@@ -6,6 +6,10 @@
 
 **One script. One click. Ton PC Windows devient un serveur VPN WireGuard.**
 
+
+> 💙 **Soutenir le projet** : WinWG OneClick Server est gratuit et open source. Les dons sont optionnels.  
+> BTC : `bc1qp3lzycrpngpk00tecj85pfkhrqqr49gmslzmsg` — voir [`DONATE.md`](DONATE.md).
+
 Un projet Windows simple et propre pour transformer un PC Windows 10/11 en **serveur d’accès distant WireGuard** avec une installation en **un seul script / un seul double-clic**. Il génère aussi la configuration à importer sur ton téléphone, ta tablette ou ton PC portable.
 
 
@@ -92,6 +96,21 @@ Idéalement, cette IP locale doit être réservée via un **bail DHCP statique**
 
 
 
+
+
+## Donations optionnelles
+
+WinWG OneClick Server est gratuit et open source.
+
+Les dons sont totalement optionnels et ne sont jamais nécessaires pour utiliser, modifier, redistribuer ou contribuer au projet.
+
+Adresse Bitcoin BTC :
+
+```text
+bc1qp3lzycrpngpk00tecj85pfkhrqqr49gmslzmsg
+```
+
+Plus d'informations : [`DONATE.md`](DONATE.md).
 
 ## Attribution
 
@@ -277,6 +296,7 @@ Menu disponible dans la console :
 6 / G - Générer un QR code pour un appareil
 S     - Rafraîchir le statut
 V     - Activer/désactiver le mode ultra verbeux
+M     - Mode avancé / outils experts
 Q     - Quitter la console
 ```
 
@@ -326,6 +346,71 @@ C:\ProgramData\WireGuardPhoneServer\logs
 ```
 
 C'est utile pour diagnostiquer les cas où l'appareil est bien créé/supprimé mais où le rechargement du service WireGuard retourne un avertissement.
+
+
+
+## Mode avancé / outils experts
+
+La console contient un mode avancé destiné aux utilisateurs qui connaissent déjà WireGuard.
+
+```text
+M - Mode avancé / outils experts
+```
+
+Avant activation, la console affiche un avertissement et demande de taper exactement :
+
+```text
+JE COMPRENDS
+```
+
+Ce mode peut donner accès à des fichiers et actions sensibles. Il permet notamment :
+
+- afficher `wg show` brut ;
+- ouvrir les dossiers serveur, clients et QR codes ;
+- exporter un diagnostic redigé ;
+- modifier précisément `AllowedIPs` dans une configuration client ;
+- ouvrir le fichier serveur `wg-phone-server.conf` dans Notepad.
+
+Attention : le fichier serveur contient la clé privée WireGuard. Ne partage jamais ce fichier, son contenu, ni une capture d'écran non redigée.
+
+
+### Exemple avancé : modifier AllowedIPs
+
+Par défaut, les configurations client utilisent :
+
+```ini
+AllowedIPs = 0.0.0.0/0
+```
+
+Cela signifie **full tunnel IPv4** : tout le trafic IPv4 de l'appareil passe par le VPN.
+
+Dans le mode avancé, tu peux modifier cette valeur pour un appareil :
+
+```text
+6 - Modifier AllowedIPs d'un appareil
+```
+
+Exemples utiles :
+
+```ini
+AllowedIPs = 0.0.0.0/0
+```
+
+Full tunnel : tout le trafic IPv4 passe par le VPN.
+
+```ini
+AllowedIPs = 10.66.66.0/24
+```
+
+VPN uniquement : utile pour une LAN party WireGuard ou accès entre peers sans faire passer tout Internet dans le VPN.
+
+```ini
+AllowedIPs = 10.66.66.0/24, 192.168.1.0/24
+```
+
+VPN + LAN maison : permet d'accéder au réseau VPN et au LAN maison.
+
+Après modification, il faut obligatoirement réimporter le `.conf` ou rescanner le nouveau QR code sur l'appareil. Sinon, l'appareil continuera à utiliser l'ancienne configuration `AllowedIPs`.
 
 
 ## QR code WireGuard

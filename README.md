@@ -244,6 +244,8 @@ La suppression d'appareil :
 - supprime le fichier `.conf` local correspondant ;
 - recharge le service WireGuard.
 
+> Note : si la suppression retire bien le fichier `.conf` et le peer mais qu'un message d'erreur apparaît pendant le rechargement du service, la console le signale comme une suppression réussie avec avertissement. Tu peux ensuite utiliser `3` pour redémarrer le serveur VPN.
+
 
 ## Utilisation
 

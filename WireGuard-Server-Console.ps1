@@ -246,6 +246,21 @@ function Get-NextClientNumber([string]$TunnelName, [string]$BaseDir) {
     throw "Aucune adresse VPN disponible dans 10.66.66.0/24."
 }
 
+
+function Test-DeviceRemoved([string]$ClientName, [string]$TunnelName, [string]$BaseDir) {
+    $serverConfig = Get-ServerConfigPath -TunnelName $TunnelName -BaseDir $BaseDir
+    $clientConfig = Join-Path $BaseDir "clients\$ClientName.conf"
+
+    $clientFileRemoved = -not (Test-Path $clientConfig)
+    $peerRemoved = $true
+    if (Test-Path $serverConfig) {
+        $content = Get-Content $serverConfig -Raw -ErrorAction SilentlyContinue
+        if ($content -match "(?m)^#\s*$([regex]::Escape($ClientName))\s*$") { $peerRemoved = $false }
+    }
+
+    return ($clientFileRemoved -and $peerRemoved)
+}
+
 function Add-DeviceFromConsole([string]$TunnelName, [int]$ListenPort, [string]$BaseDir) {
     Assert-ProjectInstalled -TunnelName $TunnelName -BaseDir $BaseDir
     $scriptPath = Join-Path $PSScriptRoot "scripts\Add-WireGuardPeer.ps1"
@@ -317,7 +332,16 @@ function Remove-DeviceFromConsole([string]$TunnelName, [string]$BaseDir) {
     $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -ClientName $clientName -TunnelName $TunnelName 2>&1
     $code = $LASTEXITCODE
     if ($output) { $output | Out-Host }
-    if ($code -ne 0) { throw "Echec de la suppression de l'appareil '$clientName'." }
+
+    $removed = Test-DeviceRemoved -ClientName $clientName -TunnelName $TunnelName -BaseDir $BaseDir
+    if ($code -ne 0 -and -not $removed) {
+        throw "Echec de la suppression de l'appareil '$clientName'."
+    }
+
+    if ($code -ne 0 -and $removed) {
+        return "Appareil supprime : $clientName. Note : le script a retourne une erreur apres suppression, probablement pendant le rechargement du service. Si besoin, utilise 3 pour redemarrer le serveur VPN."
+    }
+
     return "Appareil supprime : $clientName"
 }
 

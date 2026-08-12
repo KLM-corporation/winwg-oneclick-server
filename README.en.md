@@ -225,6 +225,8 @@ Removing a device:
 - deletes the matching local `.conf` file;
 - reloads the WireGuard service.
 
+> Note: if removal deletes the `.conf` file and peer but an error appears while reloading the service, the console reports it as a successful removal with a warning. You can then use `3` to restart the VPN server.
+
 
 ## Usage
 

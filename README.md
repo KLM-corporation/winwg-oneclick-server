@@ -205,6 +205,7 @@ Menu disponible dans la console :
 4 / N - Ajouter un nouvel appareil
 5 / R - Retirer / supprimer un appareil
 S     - Rafraîchir le statut
+V     - Activer/désactiver le mode ultra verbeux
 Q     - Quitter la console
 ```
 
@@ -217,6 +218,32 @@ Si le désinstalleur a supprimé les configurations, la console ne peut plus ré
 > Note : l'ancien script séparé `WIREGUARD-SERVICE-TOGGLE.bat` a été retiré dans cette version de test, car ses fonctions sont maintenant intégrées dans `SERVER-CONSOLE.bat`.
 
 
+
+
+### Mode ultra verbeux
+
+Dans `SERVER-CONSOLE.bat`, appuie sur :
+
+```text
+V
+```
+
+Ce mode affiche davantage de détails pendant les actions sensibles, notamment :
+
+- script PowerShell appelé ;
+- paramètres utilisés ;
+- code retour ;
+- sortie complète du script ;
+- résultat de vérification après ajout/suppression d'appareil ;
+- chemin du fichier log.
+
+Un fichier log est aussi écrit dans :
+
+```text
+C:\ProgramData\WireGuardPhoneServer\logs
+```
+
+C'est utile pour diagnostiquer les cas où l'appareil est bien créé/supprimé mais où le rechargement du service WireGuard retourne un avertissement.
 
 ## Gestion des appareils depuis la console
 

@@ -11,13 +11,16 @@
 param(
     [string]$TunnelName = "wg-phone-server",
     [int]$ListenPort = 51820,
-    [string]$BaseDir = "$env:ProgramData\WireGuardPhoneServer"
+    [string]$BaseDir = "$env:ProgramData\WireGuardPhoneServer",
+    [switch]$UltraVerbose
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "SilentlyContinue"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
+$script:UltraVerboseMode = [bool]$UltraVerbose
+$script:LogFilePath = $null
 
 function Assert-Admin {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -27,7 +30,38 @@ function Assert-Admin {
     }
 }
 
+
+function Initialize-ConsoleLog([string]$BaseDir) {
+    $logDir = Join-Path $BaseDir "logs"
+    try {
+        if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
+        $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
+        $script:LogFilePath = Join-Path $logDir "server-console-$stamp.log"
+        "WinWG OneClick Server console log - $(Get-Date -Format o)" | Out-File -FilePath $script:LogFilePath -Encoding UTF8
+    } catch {
+        $script:LogFilePath = $null
+    }
+}
+
+function Write-Log([string]$Message) {
+    if ($script:LogFilePath) {
+        try { "[$(Get-Date -Format o)] $Message" | Out-File -FilePath $script:LogFilePath -Append -Encoding UTF8 } catch {}
+    }
+}
+
+function Write-Ultra([string]$Message) {
+    Write-Log $Message
+    if ($script:UltraVerboseMode) {
+        Write-Host "[VERBOSE] $Message" -ForegroundColor DarkYellow
+    }
+}
+
+function Format-CommandForLog([string]$FileName, [string[]]$Arguments) {
+    return ($FileName + " " + (($Arguments | ForEach-Object { if ($_ -match '\s') { '"' + $_ + '"' } else { $_ } }) -join ' '))
+}
+
 function Invoke-ExternalNoThrow([string]$FileName, [string[]]$Arguments) {
+    Write-Ultra ("Commande externe: " + (Format-CommandForLog -FileName $FileName -Arguments $Arguments))
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = $FileName
     $escapedArguments = $Arguments | ForEach-Object {
@@ -41,6 +75,9 @@ function Invoke-ExternalNoThrow([string]$FileName, [string[]]$Arguments) {
     $stdout = $process.StandardOutput.ReadToEnd()
     $stderr = $process.StandardError.ReadToEnd()
     $process.WaitForExit()
+    Write-Ultra "Code retour: $($process.ExitCode)"
+    if (-not [string]::IsNullOrWhiteSpace($stdout)) { Write-Ultra "STDOUT: $($stdout.Trim())" }
+    if (-not [string]::IsNullOrWhiteSpace($stderr)) { Write-Ultra "STDERR: $($stderr.Trim())" }
     return [pscustomobject]@{ ExitCode = $process.ExitCode; StdOut = $stdout; StdErr = $stderr }
 }
 
@@ -277,6 +314,7 @@ function Test-DeviceAdded([string]$ClientName, [string]$TunnelName, [string]$Bas
 }
 
 function Add-DeviceFromConsole([string]$TunnelName, [int]$ListenPort, [string]$BaseDir) {
+    Write-Ultra "Action: ajout appareil"
     Assert-ProjectInstalled -TunnelName $TunnelName -BaseDir $BaseDir
     $scriptPath = Join-Path $PSScriptRoot "scripts\Add-WireGuardPeer.ps1"
     if (-not (Test-Path $scriptPath)) { throw "Script d'ajout introuvable : $scriptPath" }
@@ -293,12 +331,18 @@ function Add-DeviceFromConsole([string]$TunnelName, [int]$ListenPort, [string]$B
 
     $clientNumber = Get-NextClientNumber -TunnelName $TunnelName -BaseDir $BaseDir
     Write-Host "IP VPN attribuee automatiquement : 10.66.66.$clientNumber" -ForegroundColor DarkCyan
+    Write-Ultra "Ajout appareil: ClientName=$clientName Endpoint=$endpoint ClientNumber=$clientNumber ListenPort=$ListenPort TunnelName=$TunnelName Script=$scriptPath"
 
     $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -ClientName $clientName -Endpoint $endpoint -ClientNumber $clientNumber -ListenPort $ListenPort -TunnelName $TunnelName 2>&1
     $code = $LASTEXITCODE
-    if ($output) { $output | Out-Host }
+    Write-Ultra "Code retour script ajout: $code"
+    if ($output) {
+        Write-Ultra "Sortie script ajout: $(($output | Out-String).Trim())"
+        $output | Out-Host
+    }
 
     $added = Test-DeviceAdded -ClientName $clientName -TunnelName $TunnelName -BaseDir $BaseDir
+    Write-Ultra "Verification ajout: added=$added clientConf=$(Join-Path $BaseDir "clients\$clientName.conf") serverConfig=$(Get-ServerConfigPath -TunnelName $TunnelName -BaseDir $BaseDir)"
     if ($code -ne 0 -and -not $added) {
         $details = ($output | Out-String).Trim()
         if ([string]::IsNullOrWhiteSpace($details)) { $details = "Aucun detail retourne par le script d'ajout." }
@@ -316,6 +360,7 @@ function Add-DeviceFromConsole([string]$TunnelName, [int]$ListenPort, [string]$B
 }
 
 function Remove-DeviceFromConsole([string]$TunnelName, [string]$BaseDir) {
+    Write-Ultra "Action: suppression appareil"
     Assert-ProjectInstalled -TunnelName $TunnelName -BaseDir $BaseDir
     $scriptPath = Join-Path $PSScriptRoot "scripts\Remove-WireGuardPeer.ps1"
     if (-not (Test-Path $scriptPath)) { throw "Script de suppression introuvable : $scriptPath" }
@@ -355,11 +400,17 @@ function Remove-DeviceFromConsole([string]$TunnelName, [string]$BaseDir) {
     $confirm = (Read-Host "Confirmer la suppression de '$clientName' ? Tape O pour confirmer [o/N]").Trim().ToLowerInvariant()
     if ($confirm -notin @('o','oui','y','yes')) { return "Suppression annulee." }
 
+    Write-Ultra "Suppression appareil: ClientName=$clientName TunnelName=$TunnelName Script=$scriptPath"
     $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -ClientName $clientName -TunnelName $TunnelName 2>&1
     $code = $LASTEXITCODE
-    if ($output) { $output | Out-Host }
+    Write-Ultra "Code retour script suppression: $code"
+    if ($output) {
+        Write-Ultra "Sortie script suppression: $(($output | Out-String).Trim())"
+        $output | Out-Host
+    }
 
     $removed = Test-DeviceRemoved -ClientName $clientName -TunnelName $TunnelName -BaseDir $BaseDir
+    Write-Ultra "Verification suppression: removed=$removed clientConf=$(Join-Path $BaseDir "clients\$clientName.conf") serverConfig=$(Get-ServerConfigPath -TunnelName $TunnelName -BaseDir $BaseDir)"
     if ($code -ne 0 -and -not $removed) {
         throw "Echec de la suppression de l'appareil '$clientName'."
     }
@@ -376,6 +427,9 @@ function Show-Status([string]$LastMessage = "") {
     Write-Host "WinWG OneClick Server - Console serveur unifiee" -ForegroundColor Green
     Write-Host "Surveillance + controle du service VPN dans une seule console." -ForegroundColor DarkGray
     Write-Host "Menu interactif: pas de rafraichissement automatique." -ForegroundColor Cyan
+    $verboseText = if ($script:UltraVerboseMode) { "active" } else { "desactive" }
+    Write-Host "Mode ultra verbeux: $verboseText" -ForegroundColor DarkYellow
+    if ($script:UltraVerboseMode -and $script:LogFilePath) { Write-Host "Log: $script:LogFilePath" -ForegroundColor DarkGray }
     Write-Host "============================================================" -ForegroundColor DarkGray
     if (-not [string]::IsNullOrWhiteSpace($LastMessage)) {
         Write-Host ""
@@ -450,6 +504,7 @@ function Show-MainMenu {
     Write-Host "4 / N - Ajouter un nouvel appareil"
     Write-Host "5 / R - Retirer / supprimer un appareil"
     Write-Host "S     - Rafraichir le statut"
+    Write-Host "V     - Activer/desactiver le mode ultra verbeux"
     Write-Host "Q     - Quitter"
     Write-Host ""
 }
@@ -466,6 +521,8 @@ function Pause-ConsoleAction([string]$Message) {
 
 try {
     Assert-Admin
+    Initialize-ConsoleLog -BaseDir $BaseDir
+    Write-Ultra "Console demarree. BaseDir=$BaseDir TunnelName=$TunnelName ListenPort=$ListenPort"
     $host.UI.RawUI.WindowTitle = "WinWG OneClick Server - Console serveur unifiee"
     $lastMessage = ""
     while ($true) {
@@ -500,8 +557,14 @@ try {
                 $lastMessage = ""
             }
             's' { $lastMessage = "Statut rafraichi." }
+            'v' {
+                $script:UltraVerboseMode = -not $script:UltraVerboseMode
+                $state = if ($script:UltraVerboseMode) { "active" } else { "desactive" }
+                $lastMessage = "Mode ultra verbeux $state. Log: $script:LogFilePath"
+                Write-Log $lastMessage
+            }
             'q' { return }
-            default { $lastMessage = "Choix invalide. Utilise 1/2/3/4/5, A/D/N/R, S ou Q." }
+            default { $lastMessage = "Choix invalide. Utilise 1/2/3/4/5, A/D/N/R, S, V ou Q." }
         }
     }
 } catch {

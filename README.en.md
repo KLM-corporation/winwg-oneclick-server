@@ -172,6 +172,7 @@ Available menu inside the console:
 4 / N - Add a new device
 5 / R - Remove a device
 S     - Refresh status
+V     - Enable/disable ultra verbose mode
 Q     - Quit the console
 ```
 
@@ -198,6 +199,32 @@ In your router/Internet box admin panel:
 Tip: assign a static local IP to the Windows PC in your router, otherwise port-forwarding may break if the local IP changes.
 
 
+
+
+### Ultra verbose mode
+
+Inside `SERVER-CONSOLE.bat`, press:
+
+```text
+V
+```
+
+This mode shows more details during sensitive actions, including:
+
+- called PowerShell script;
+- parameters used;
+- exit code;
+- full script output;
+- verification result after adding/removing a device;
+- log file path.
+
+A log file is also written to:
+
+```text
+C:\ProgramData\WireGuardPhoneServer\logs
+```
+
+This is useful to diagnose cases where a device is correctly created/removed but the WireGuard service reload returns a warning.
 
 ## Device management from the console
 

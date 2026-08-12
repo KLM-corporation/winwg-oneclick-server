@@ -336,9 +336,10 @@ function Add-DeviceFromConsole([string]$TunnelName, [int]$ListenPort, [string]$B
     $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -ClientName $clientName -Endpoint $endpoint -ClientNumber $clientNumber -ListenPort $ListenPort -TunnelName $TunnelName 2>&1
     $code = $LASTEXITCODE
     Write-Ultra "Code retour script ajout: $code"
-    if ($output) {
-        Write-Ultra "Sortie script ajout: $(($output | Out-String).Trim())"
-        $output | Out-Host
+    $outputText = ($output | Out-String).Trim()
+    if (-not [string]::IsNullOrWhiteSpace($outputText)) {
+        Write-Ultra "Sortie script ajout: $outputText"
+        Write-Host $outputText
     }
 
     $added = Test-DeviceAdded -ClientName $clientName -TunnelName $TunnelName -BaseDir $BaseDir
@@ -404,9 +405,10 @@ function Remove-DeviceFromConsole([string]$TunnelName, [string]$BaseDir) {
     $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -ClientName $clientName -TunnelName $TunnelName 2>&1
     $code = $LASTEXITCODE
     Write-Ultra "Code retour script suppression: $code"
-    if ($output) {
-        Write-Ultra "Sortie script suppression: $(($output | Out-String).Trim())"
-        $output | Out-Host
+    $outputText = ($output | Out-String).Trim()
+    if (-not [string]::IsNullOrWhiteSpace($outputText)) {
+        Write-Ultra "Sortie script suppression: $outputText"
+        Write-Host $outputText
     }
 
     $removed = Test-DeviceRemoved -ClientName $clientName -TunnelName $TunnelName -BaseDir $BaseDir

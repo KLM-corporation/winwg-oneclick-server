@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Supprime un client WireGuard du fichier serveur.
 #>
@@ -40,6 +40,45 @@ function Invoke-WireGuardNoThrow([string]$WireGuardExe, [string[]]$Arguments) {
     return [pscustomobject]@{ ExitCode = $process.ExitCode; StdOut = $stdout; StdErr = $stderr }
 }
 
+
+function Restart-WireGuardTunnelSafely([string]$WireGuardExe, [string]$TunnelName, [string]$ConfigPath) {
+    Write-Host "Rechargement du service WireGuard..."
+
+    if (-not (Test-Path $WireGuardExe)) {
+        Write-Warning "wireguard.exe introuvable, impossible de recharger le service automatiquement."
+        return $false
+    }
+
+    $remove = Invoke-WireGuardNoThrow -WireGuardExe $WireGuardExe -Arguments @('/uninstalltunnelservice', $TunnelName)
+    if ($remove.ExitCode -ne 0 -and $remove.StdErr -notmatch 'does not exist|n.existe pas|service.*introuvable|specified service') {
+        Write-Warning "Ancien tunnel non supprime proprement : $($remove.StdErr.Trim()) $($remove.StdOut.Trim())"
+    }
+
+    Start-Sleep -Seconds 2
+
+    $install = Invoke-WireGuardNoThrow -WireGuardExe $WireGuardExe -Arguments @('/installtunnelservice', $ConfigPath)
+    if ($install.ExitCode -eq 0) {
+        Write-Host "Service WireGuard recharge."
+        return $true
+    }
+
+    $msg = ($install.StdErr + $install.StdOut).Trim()
+    Write-Warning "Premier rechargement echoue : $msg"
+    Write-Warning "Nouvelle tentative dans 3 secondes..."
+    Start-Sleep -Seconds 3
+
+    $install2 = Invoke-WireGuardNoThrow -WireGuardExe $WireGuardExe -Arguments @('/installtunnelservice', $ConfigPath)
+    if ($install2.ExitCode -eq 0) {
+        Write-Host "Service WireGuard recharge apres deuxieme tentative."
+        return $true
+    }
+
+    $msg2 = ($install2.StdErr + $install2.StdOut).Trim()
+    Write-Warning "Configuration modifiee, mais le service WireGuard n'a pas pu etre recharge automatiquement : $msg2"
+    Write-Warning "Utilise SERVER-CONSOLE.bat puis l'action 3 pour redemarrer le serveur VPN."
+    return $false
+}
+
 Assert-Admin
 $wireguardExe = Join-Path $env:ProgramFiles "WireGuard\wireguard.exe"
 $baseDir = Join-Path $env:ProgramData "WireGuardPhoneServer"
@@ -59,9 +98,9 @@ if ($newConfig -eq $config) {
 Set-Content -Path $serverConfigPath -Value $newConfig -Encoding ASCII
 if (Test-Path $clientConfigPath) { Remove-Item $clientConfigPath -Force }
 
-$remove = Invoke-WireGuardNoThrow -WireGuardExe $wireguardExe -Arguments @('/uninstalltunnelservice', $TunnelName)
-if ($remove.ExitCode -ne 0 -and $remove.StdErr -notmatch 'does not exist|n.existe pas|service.*introuvable') { Write-Host "Ancien tunnel non supprimé : $($remove.StdErr.Trim())" -ForegroundColor Yellow }
-$install = Invoke-WireGuardNoThrow -WireGuardExe $wireguardExe -Arguments @('/installtunnelservice', $serverConfigPath)
-if ($install.ExitCode -ne 0) { throw (($install.StdErr + $install.StdOut).Trim()) }
+$reloadOk = Restart-WireGuardTunnelSafely -WireGuardExe $wireguardExe -TunnelName $TunnelName -ConfigPath $serverConfigPath
+if (-not $reloadOk) {
+    Write-Warning "L'operation sur le peer est faite, mais le service doit etre redemarre manuellement."
+}
 
 Write-Host "✅ Client supprimé : $ClientName" -ForegroundColor Green

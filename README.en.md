@@ -218,6 +218,7 @@ Available menu inside the console:
 3     - Restart the VPN server
 4 / N - Add a new device
 5 / R - Remove a device
+6 / G - Generate a QR code for a device
 S     - Refresh status
 V     - Enable/disable ultra verbose mode
 Q     - Quit the console
@@ -294,6 +295,29 @@ C:\ProgramData\WireGuardPhoneServer\logs
 ```
 
 This is useful to diagnose cases where a device is correctly created/removed but the WireGuard service reload returns a warning.
+
+
+## WireGuard QR code
+
+The WireGuard Android/iOS app can import a configuration by scanning a QR code.
+
+WinWG can now generate this QR locally from `SERVER-CONSOLE.bat`:
+
+```text
+6 / G - Generate a QR code for a device
+```
+
+After adding a new device, the console also tries to automatically generate its QR code.
+
+QR codes are stored here:
+
+```text
+C:\ProgramData\WireGuardPhoneServer\qrcodes
+```
+
+Important: a WireGuard QR code contains the device private key, exactly like the `.conf` file. Never share it publicly.
+
+To generate QR codes locally without sending configurations to a third-party service, WinWG downloads the open source .NET **QRCoder** library from NuGet if needed and uses it locally.
 
 ## Device management from the console
 

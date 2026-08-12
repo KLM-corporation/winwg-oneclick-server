@@ -464,6 +464,19 @@ function Generate-DeviceQrFromConsole([string]$BaseDir, [string]$ClientName = ""
     return "QR code genere pour : $ClientName"
 }
 
+
+function Get-DefaultClientDns([string]$BaseDir) {
+    $clientDir = Join-Path $BaseDir "clients"
+    if (Test-Path $clientDir) {
+        $firstClient = Get-ChildItem $clientDir -Filter "*.conf" -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($firstClient) {
+            $content = Get-Content $firstClient.FullName -Raw -ErrorAction SilentlyContinue
+            if ($content -match '(?m)^DNS\s*=\s*(.+)$') { return $Matches[1].Trim() }
+        }
+    }
+    return "1.1.1.1, 8.8.8.8"
+}
+
 function Add-DeviceFromConsole([string]$TunnelName, [int]$ListenPort, [string]$BaseDir) {
     Write-Ultra "Action: ajout appareil"
     Assert-ProjectInstalled -TunnelName $TunnelName -BaseDir $BaseDir
@@ -480,11 +493,15 @@ function Add-DeviceFromConsole([string]$TunnelName, [int]$ListenPort, [string]$B
     $endpointInput = (Read-UiHost "Endpoint public ou DNS [$defaultEndpoint]").Trim()
     $endpoint = if ([string]::IsNullOrWhiteSpace($endpointInput)) { $defaultEndpoint } else { $endpointInput }
 
+    $defaultDns = Get-DefaultClientDns -BaseDir $BaseDir
+    $dnsInput = (Read-UiHost "DNS pour cet appareil [$defaultDns]").Trim()
+    $clientDns = if ([string]::IsNullOrWhiteSpace($dnsInput)) { $defaultDns } else { $dnsInput }
+
     $clientNumber = Get-NextClientNumber -TunnelName $TunnelName -BaseDir $BaseDir
     Write-UiHost "IP VPN attribuee automatiquement : 10.66.66.$clientNumber" -ForegroundColor DarkCyan
-    Write-Ultra "Ajout appareil: ClientName=$clientName Endpoint=$endpoint ClientNumber=$clientNumber ListenPort=$ListenPort TunnelName=$TunnelName Script=$scriptPath"
+    Write-Ultra "Ajout appareil: ClientName=$clientName Endpoint=$endpoint Dns=$clientDns ClientNumber=$clientNumber ListenPort=$ListenPort TunnelName=$TunnelName Script=$scriptPath"
 
-    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -ClientName $clientName -Endpoint $endpoint -ClientNumber $clientNumber -ListenPort $ListenPort -TunnelName $TunnelName 2>&1
+    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -ClientName $clientName -Endpoint $endpoint -ClientNumber $clientNumber -ListenPort $ListenPort -Dns $clientDns -TunnelName $TunnelName 2>&1
     $code = $LASTEXITCODE
     Write-Ultra "Code retour script ajout: $code"
     $outputText = ($output | Out-String).Trim()

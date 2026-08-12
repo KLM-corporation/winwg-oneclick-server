@@ -332,6 +332,7 @@ try {
     $defaultEndpoint = Get-PublicEndpoint -Port $ListenPort
     $clientName = Ask-Text "WireGuard" "Nom du telephone/client" "telephone"
     $endpoint = Ask-Text "WireGuard" "IP publique ou DNS a utiliser cote telephone. Laisse la valeur detectee si tu n'as pas de DNS dynamique." $defaultEndpoint
+    $Dns = Ask-Text "WireGuard" "DNS a utiliser sur cet appareil. Exemples : 1.1.1.1, 8.8.8.8 ou l'IP DNS de ta box comme 192.168.1.1" $Dns
 
     $tools = @(Ensure-WireGuard)[-1]
     if (-not $tools -or -not $tools.PSObject.Properties["WgExe"] -or -not $tools.PSObject.Properties["WireGuardExe"]) { throw "Impossible de recuperer les chemins WireGuard apres installation." }

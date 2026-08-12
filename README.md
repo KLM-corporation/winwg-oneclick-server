@@ -49,6 +49,9 @@ Le projet configure automatiquement ce qui est normalement pénible à faire à 
 
 ## Installation one-click recommandée
 
+Pendant l’installation one-click, le DNS du premier appareil est aussi demandé. Tu peux garder la valeur par défaut `1.1.1.1, 8.8.8.8` ou mettre le DNS de ta box, par exemple `192.168.1.1`.
+
+
 Sur le PC Windows qui doit devenir serveur VPN :
 
 1. Télécharge/copie ce repo sur le PC.
@@ -474,6 +477,7 @@ L'ajout d'appareil :
 
 - demande le nom de l'appareil ;
 - propose automatiquement l'endpoint public/DNS déjà utilisé si possible ;
+- demande le DNS à utiliser pour cet appareil ;
 - choisit automatiquement la prochaine IP VPN disponible ;
 - génère le fichier `.conf` à importer ;
 - ouvre le dossier contenant la configuration générée.

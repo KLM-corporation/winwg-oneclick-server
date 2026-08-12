@@ -49,6 +49,9 @@ The project automatically configures what is usually painful to do manually:
 
 ## Recommended one-click installation
 
+During one-click installation, the first device DNS is also requested. You can keep the default `1.1.1.1, 8.8.8.8` or use your router DNS, for example `192.168.1.1`.
+
+
 On the Windows PC that should become the VPN server:
 
 1. Download/copy this repository to the PC.
@@ -455,6 +458,7 @@ Adding a device:
 
 - asks for the device name;
 - suggests the already-used public/DNS endpoint when possible;
+- asks which DNS should be used by this device;
 - automatically selects the next available VPN IP;
 - generates the `.conf` file to import;
 - opens the folder containing the generated configuration.

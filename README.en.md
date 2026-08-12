@@ -76,6 +76,21 @@ Ideally, this local IP should be reserved through a **static DHCP lease** in the
   - iPhone: App Store.
 
 
+
+## Optional donations
+
+WinWG OneClick Server is free and open source.
+
+Donations are fully optional and are never required to use, modify, redistribute, or contribute to the project.
+
+Bitcoin BTC address:
+
+```text
+bc1qp3lzycrpngpk00tecj85pfkhrqqr49gmslzmsg
+```
+
+More information: [`DONATE.md`](DONATE.md).
+
 ## Attribution
 
 License: MIT.

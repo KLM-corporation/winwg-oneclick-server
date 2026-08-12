@@ -93,6 +93,21 @@ Idéalement, cette IP locale doit être réservée via un **bail DHCP statique**
 
 
 
+
+## Donations optionnelles
+
+WinWG OneClick Server est gratuit et open source.
+
+Les dons sont totalement optionnels et ne sont jamais nécessaires pour utiliser, modifier, redistribuer ou contribuer au projet.
+
+Adresse Bitcoin BTC :
+
+```text
+bc1qp3lzycrpngpk00tecj85pfkhrqqr49gmslzmsg
+```
+
+Plus d'informations : [`DONATE.md`](DONATE.md).
+
 ## Attribution
 
 Licence : MIT.

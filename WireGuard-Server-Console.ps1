@@ -816,6 +816,62 @@ function Set-AllClientDns([string]$BaseDir, [string]$Dns) {
     return $clients.Count
 }
 
+
+function Get-ClientDns([string]$ClientConfigPath) {
+    if (-not (Test-Path $ClientConfigPath)) { throw "Configuration introuvable : $ClientConfigPath" }
+    $content = Get-Content $ClientConfigPath -Raw
+    if ($content -match '(?m)^DNS\s*=\s*(.+)$') { return $Matches[1].Trim() }
+    return ""
+}
+
+function Set-ClientDns([string]$ClientConfigPath, [string]$Dns) {
+    if (-not (Test-Path $ClientConfigPath)) { throw "Configuration introuvable : $ClientConfigPath" }
+    $content = Get-Content $ClientConfigPath -Raw
+    if ($content -match '(?m)^DNS\s*=') {
+        $content = [regex]::Replace($content, '(?m)^DNS\s*=\s*.+$', "DNS = $Dns", 1)
+    } else {
+        $content = [regex]::Replace($content, '(?m)^(Address\s*=\s*.+)$', "`$1`r`nDNS = $Dns", 1)
+    }
+    Set-Content -Path $ClientConfigPath -Value $content -Encoding ASCII
+}
+
+function Edit-ClientDnsAdvanced([string]$BaseDir) {
+    $clientName = Select-ClientConfigName -BaseDir $BaseDir -Title "Modifier DNS client"
+    if ([string]::IsNullOrWhiteSpace($clientName)) { return "Modification DNS annulee." }
+
+    $clientConfigPath = Join-Path $BaseDir "clients\$clientName.conf"
+    $current = Get-ClientDns -ClientConfigPath $clientConfigPath
+    if ([string]::IsNullOrWhiteSpace($current)) { $current = "aucun" }
+
+    Clear-Host
+    Write-UiHost "Modifier DNS - $clientName" -ForegroundColor Yellow
+    Write-UiHost "========================" -ForegroundColor DarkGray
+    Write-UiHost "DNS actuel : $current" -ForegroundColor Cyan
+    Write-UiHost ""
+    Write-UiHost "Exemples :" -ForegroundColor DarkGray
+    Write-UiHost "- Cloudflare/Google : 1.1.1.1, 8.8.8.8"
+    Write-UiHost "- DNS LAN maison    : 192.168.1.1"
+    Write-UiHost "- Aucun DNS         : laisse vide puis annule, ou modifie manuellement en mode expert"
+    Write-UiHost ""
+    $dns = (Read-UiHost "Nouveau DNS pour $clientName").Trim()
+    if ([string]::IsNullOrWhiteSpace($dns)) { return "Modification DNS annulee." }
+
+    Write-UiHost ""
+    Write-UiHost "IMPORTANT : apres modification, l'appareil ne sera PAS mis a jour automatiquement." -ForegroundColor Red
+    Write-UiHost "Tu devras reimporter le fichier .conf sur l'appareil ou rescanner le nouveau QR code." -ForegroundColor Red
+    $confirm = (Read-UiHost "Tape APPLIQUER pour modifier le fichier .conf").Trim()
+    if ($confirm -ne "APPLIQUER") { return "Modification DNS annulee." }
+
+    Set-ClientDns -ClientConfigPath $clientConfigPath -Dns $dns
+
+    $qrMessage = ""
+    if (Test-QrFeatureEnabled -BaseDir $BaseDir) {
+        try { $qrMessage = "`n" + (Generate-DeviceQrFromConsole -BaseDir $BaseDir -ClientName $clientName) } catch { $qrMessage = "`nQR non regenere : $($_.Exception.Message)" }
+    }
+
+    return "DNS modifie pour $clientName : $dns`nIMPORTANT : reimporte ce fichier sur l'appareil, sinon il gardera l'ancienne configuration.`nFichier a reimporter : $clientConfigPath$qrMessage"
+}
+
 function Set-AllClientAllowedIPs([string]$BaseDir, [string]$AllowedIPs) {
     $clientDir = Join-Path $BaseDir "clients"
     if (-not (Test-Path $clientDir)) { throw "Dossier clients introuvable : $clientDir" }
@@ -912,14 +968,17 @@ function Show-AdvancedDefaultConfigEditor([string]$TunnelName, [string]$BaseDir,
         Write-UiHost "ATTENTION : certaines options demandent de reimporter les configs client ou de changer la box." -ForegroundColor Red
         Show-DefaultConfigurationAdvanced -TunnelName $TunnelName -BaseDir $BaseDir -ListenPort $ListenPort
         Write-UiHost ""
-        Write-UiHost "Options modifiables maintenant:" -ForegroundColor Cyan
-        Write-UiHost "1 - Changer le port WireGuard"
-        Write-UiHost "2 - Changer le DNS de tous les clients"
-        Write-UiHost "3 - Changer le mode client AllowedIPs de tous les clients"
-        Write-UiHost "4 - Changer AllowedIPs d'un seul client"
+        Write-UiHost "Options globales:" -ForegroundColor Cyan
+        Write-UiHost "1 - Changer le port WireGuard global"
+        Write-UiHost "2 - Changer le DNS de TOUS les clients"
+        Write-UiHost "3 - Changer AllowedIPs de TOUS les clients"
+        Write-UiHost ""
+        Write-UiHost "Options par client/appareil:" -ForegroundColor Cyan
+        Write-UiHost "4 - Changer le DNS d'UN client"
+        Write-UiHost "5 - Changer AllowedIPs d'UN client"
         Write-UiHost ""
         Write-UiHost "Options structurelles:" -ForegroundColor Yellow
-        Write-UiHost "5 - Tunnel name / VPN network / VPN server IP : afficher avertissement"
+        Write-UiHost "6 - Tunnel name / VPN network / VPN server IP : afficher avertissement"
         Write-UiHost "Q - Retour"
         Write-UiHost ""
         $choice = (Read-UiHost "Choix").Trim().ToLowerInvariant()
@@ -957,10 +1016,14 @@ function Show-AdvancedDefaultConfigEditor([string]$TunnelName, [string]$BaseDir,
                 }
             }
             '4' {
-                $msg = Edit-ClientAllowedIPsAdvanced -BaseDir $BaseDir
+                $msg = Edit-ClientDnsAdvanced -BaseDir $BaseDir
                 Pause-ConsoleAction $msg
             }
             '5' {
+                $msg = Edit-ClientAllowedIPsAdvanced -BaseDir $BaseDir
+                Pause-ConsoleAction $msg
+            }
+            '6' {
                 $msg = "Tunnel name, VPN network et VPN server IP sont des options structurelles. Les changer proprement implique de regenerer/reaffecter les IP des peers, NAT, services, fichiers clients et QR codes. Pour l'instant, fais plutot une reinstall propre avec les futurs parametres avances d'installation."
                 Pause-ConsoleAction $msg
             }

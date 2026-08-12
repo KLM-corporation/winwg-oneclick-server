@@ -367,11 +367,19 @@ Advanced mode also contains:
 
 Available options:
 
-- change the WireGuard UDP port;
+- change the global WireGuard UDP port;
 - change DNS for all clients;
+- change DNS for a single client;
 - change client `AllowedIPs` mode for all clients;
 - edit `AllowedIPs` for a single client;
 - display a warning for structural options: tunnel name, VPN network, VPN server IP.
+
+Principle: when a setting affects clients, the console offers two levels whenever possible:
+
+```text
+Global = apply the same value to all clients
+Individual = customize only one client/device
+```
 
 Structural options are not automatically changed yet, because they require reconfiguring the Windows service, NAT, peers, client IPs, `.conf` files and QR codes. They should be handled later through a proper advanced reinstall/migration mode.
 

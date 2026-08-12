@@ -9,6 +9,7 @@
   - NAT Windows WireGuardPhoneServerNAT ;
   - redirection UPnP UDP 51820 si presente ;
   - fichiers de configuration dans C:\ProgramData\WireGuardPhoneServer ;
+  - dependance QR optionnelle QRCoder, QR codes generes et flags de fonctionnalite ;
   - optionnellement l'application WireGuard elle-meme.
 #>
 [CmdletBinding()]
@@ -178,7 +179,7 @@ function Remove-ConfigDirectory([string]$BaseDir) {
         return
     }
 
-    $removeConfigs = Ask-YesNo "Supprimer les fichiers de configuration et cles dans $BaseDir ?" $true
+    $removeConfigs = Ask-YesNo "Supprimer les fichiers de configuration, cles, QR codes et dependances optionnelles dans $BaseDir ?" $true
     if (-not $removeConfigs) {
         Write-Warn "Configurations conservees : $BaseDir"
         return
@@ -186,6 +187,7 @@ function Remove-ConfigDirectory([string]$BaseDir) {
 
     Remove-Item $BaseDir -Recurse -Force
     Write-Ok "Dossier supprime : $BaseDir"
+    Write-Ok "Configurations, cles, QR codes, flags de fonctionnalite et dependance QRCoder supprimes si presents"
 }
 
 function Uninstall-WireGuardAppIfRequested {

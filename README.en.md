@@ -178,6 +178,9 @@ The uninstaller removes:
 - the Windows NAT `WireGuardPhoneServerNAT`;
 - the UDP `51820` UPnP mapping if it was automatically created;
 - configurations and keys in `C:\ProgramData\WireGuardPhoneServer`;
+- generated QR codes in `qrcodes`;
+- optional QRCoder QR dependency in `tools`;
+- feature flags in `features`;
 - optionally the WireGuard application itself.
 
 If you manually created port-forwarding on your router, you must also remove it in the router admin UI.

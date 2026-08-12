@@ -229,6 +229,9 @@ Le désinstalleur supprime :
 - le NAT Windows `WireGuardPhoneServerNAT` ;
 - la redirection UPnP UDP `51820` si elle avait été créée automatiquement ;
 - les configurations et clés dans `C:\ProgramData\WireGuardPhoneServer` ;
+- les QR codes générés dans `qrcodes` ;
+- la dépendance QR optionnelle QRCoder dans `tools` ;
+- les flags de fonctionnalité dans `features` ;
 - optionnellement l'application WireGuard elle-même.
 
 Si tu avais créé une redirection de port manuelle sur ta box, il faut aussi la supprimer dans l'interface de la box.

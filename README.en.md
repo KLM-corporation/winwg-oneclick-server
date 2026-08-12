@@ -143,69 +143,47 @@ Advanced silent mode:
 .\Uninstall-WireGuard-Server.ps1 -Quiet -RemoveWireGuardApp
 ```
 
-## Enable or disable the VPN service
 
-To start, stop, restart, or view the WireGuard server status without deleting configurations, double-click:
+## Unified server console
 
-```text
-WIREGUARD-SERVICE-TOGGLE.bat
-```
-
-Available menu:
-
-```text
-1 - Enable / start the VPN server
-2 - Disable / stop the VPN server
-3 - Restart the VPN server
-4 - Refresh status
-```
-
-Disabling the service stops and removes the WireGuard tunnel service, but keeps all files in:
-
-```text
-C:\ProgramData\WireGuardPhoneServer
-```
-
-You can enable it again later without regenerating keys or re-importing the phone configuration.
-
-> Safety: if the uninstaller removed the configurations, this menu can no longer re-enable the VPN. It will show that the installation is missing and ask you to run `INSTALLER-ONE-CLICK.bat` again.
-
-Advanced PowerShell mode:
-
-```powershell
-.\Manage-WireGuard-Service.ps1 -Action Start
-.\Manage-WireGuard-Service.ps1 -Action Stop
-.\Manage-WireGuard-Service.ps1 -Action Restart
-.\Manage-WireGuard-Service.ps1 -Action Status
-```
-
-## Server monitoring console
-
-WireGuard for Windows runs as a background service. There is no visible server console by default.
-
-This project includes:
-
-```text
-SERVER-CONSOLE.bat
-WireGuard-Server-Console.ps1
-```
-
-The console displays:
-
-- WireGuard service status;
-- firewall rule status;
-- Windows NAT status;
-- generated phone/device configuration files;
-- a clear `Phones / peers` table with device name, VPN IP, endpoint, latest handshake and traffic;
-- raw `wg show` output for advanced diagnostics.
-
-After one-click installation, this console opens automatically. You can also start it manually:
+WireGuard for Windows runs as a background service. WinWG now combines monitoring and service control in a single console:
 
 ```text
 SERVER-CONSOLE.bat
 ```
 
-You can close the console without stopping the VPN: the WireGuard server continues running as a Windows service.
+The console lets you:
+
+- view the WireGuard service status;
+- view connected phones/devices and their handshakes;
+- check firewall, NAT and UDP port status;
+- enable/start the VPN server;
+- disable/stop the VPN server without deleting configurations;
+- restart the VPN server;
+- add a phone, tablet, or laptop;
+- remove an existing device.
+
+Available menu inside the console:
+
+```text
+1 / A - Enable / start the VPN server
+2 / D - Disable / stop the VPN server
+3     - Restart the VPN server
+4 / N - Add a new device
+5 / R - Remove a device
+S     - Refresh status
+V     - Enable/disable ultra verbose mode
+Q     - Quit the console
+```
+
+The console does not auto-refresh every 5 seconds anymore: it waits for your keyboard choice, which avoids input issues and constantly moving output.
+
+In this version, `R` means `Remove a device`. To restart the VPN server, use number `3`, to avoid confusion between restart and remove.
+
+If the uninstaller removed the configurations, the console cannot re-enable the VPN and will ask you to run `INSTALLER-ONE-CLICK.bat` again.
+
+> Note: the old separate `WIREGUARD-SERVICE-TOGGLE.bat` script has been removed in this test version because its functions are now integrated into `SERVER-CONSOLE.bat`.
+
 
 ## Router port-forwarding
 
@@ -221,32 +199,63 @@ In your router/Internet box admin panel:
 Tip: assign a static local IP to the Windows PC in your router, otherwise port-forwarding may break if the local IP changes.
 
 
-## Roadmap / planned ideas
 
-Planned feature for a future version:
+
+### Ultra verbose mode
+
+Inside `SERVER-CONSOLE.bat`, press:
 
 ```text
-Easy device management directly from the server console
+V
 ```
 
-Goal: from `SERVER-CONSOLE.bat`, add or remove a phone, tablet, or laptop without running manual PowerShell commands.
+This mode shows more details during sensitive actions, including:
 
-Planned ideas:
+- called PowerShell script;
+- parameters used;
+- exit code;
+- full script output;
+- verification result after adding/removing a device;
+- log file path.
 
-- `Add device` menu;
-- `Remove device` menu;
-- automatic selection of the next available VPN IP;
-- automatic `.conf` file generation for the device;
-- display of the generated file path;
-- optional QR code generation for faster mobile import;
-- clean tunnel reload/restart after changes.
+A log file is also written to:
 
-For now, adding and removing devices is available through:
-
-```powershell
-.\scripts\Add-WireGuardPeer.ps1 -ClientName "android" -Endpoint "home-vpn.duckdns.org"
-.\scripts\Remove-WireGuardPeer.ps1 -ClientName "android"
+```text
+C:\ProgramData\WireGuardPhoneServer\logs
 ```
+
+This is useful to diagnose cases where a device is correctly created/removed but the WireGuard service reload returns a warning.
+
+## Device management from the console
+
+From `SERVER-CONSOLE.bat`, you can now manage devices without manual PowerShell commands:
+
+```text
+N - Add a new device
+X - Remove a device
+```
+
+Adding a device:
+
+- asks for the device name;
+- suggests the already-used public/DNS endpoint when possible;
+- automatically selects the next available VPN IP;
+- generates the `.conf` file to import;
+- opens the folder containing the generated configuration.
+
+> Note: if adding creates the `.conf` file and peer but an error appears while reloading the service, the console reports it as a successful addition with a warning. You can then use `3` to restart the VPN server.
+
+Removing a device:
+
+- lists existing `.conf` files;
+- if there is only one device, selects it automatically;
+- asks for confirmation;
+- removes the peer from the server;
+- deletes the matching local `.conf` file;
+- reloads the WireGuard service.
+
+> Note: if removal deletes the `.conf` file and peer but an error appears while reloading the service, the console reports it as a successful removal with a warning. You can then use `3` to restart the VPN server.
+
 
 ## Usage
 

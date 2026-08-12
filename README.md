@@ -176,97 +176,105 @@ Mode silencieux avancé :
 
 
 
-## Activer ou désactiver le service VPN
 
-Pour démarrer, arrêter ou redémarrer le serveur WireGuard sans supprimer les configurations, double-clique :
+## Console serveur unifiée
 
-```text
-WIREGUARD-SERVICE-TOGGLE.bat
-```
-
-Menu disponible :
-
-```text
-1 - Activer / démarrer le serveur VPN
-2 - Désactiver / arrêter le serveur VPN
-3 - Redémarrer le serveur VPN
-4 - Rafraîchir le statut
-```
-
-La désactivation arrête et retire le service tunnel WireGuard, mais conserve les fichiers dans :
-
-```text
-C:\ProgramData\WireGuardPhoneServer
-```
-
-Tu peux donc le réactiver plus tard sans régénérer les clés.
-
-> Sécurité : si le désinstalleur a supprimé les configurations, ce menu ne peut plus réactiver le VPN. Il affichera que l'installation est absente et demandera de relancer `INSTALLER-ONE-CLICK.bat`.
-
-Mode PowerShell avancé :
-
-```powershell
-.\Manage-WireGuard-Service.ps1 -Action Start
-.\Manage-WireGuard-Service.ps1 -Action Stop
-.\Manage-WireGuard-Service.ps1 -Action Restart
-.\Manage-WireGuard-Service.ps1 -Action Status
-```
-
-## Console serveur de supervision
-
-WireGuard Windows tourne comme un service en arrière-plan. Il n'y a donc pas de console serveur visible par défaut.
-
-Sur la branche de test `test-server-console`, le projet ajoute :
-
-```text
-SERVER-CONSOLE.bat
-WireGuard-Server-Console.ps1
-```
-
-Cette console affiche :
-
-- l'état du service WireGuard ;
-- la présence de la règle pare-feu ;
-- le NAT Windows ;
-- les fichiers de configuration téléphone ;
-- un tableau clair `Telephones / peers` avec le nom du téléphone, son IP VPN, son endpoint, son dernier handshake et le trafic ;
-- la sortie brute `wg show` pour diagnostic avancé.
-
-Après l'installation one-click, cette console s'ouvre automatiquement. Tu peux aussi la lancer manuellement avec :
+WireGuard Windows tourne comme un service en arrière-plan. WinWG regroupe maintenant la supervision et le contrôle du serveur dans une seule console :
 
 ```text
 SERVER-CONSOLE.bat
 ```
 
-Tu peux fermer cette console sans couper le VPN : le serveur WireGuard continue en service Windows.
+Cette console permet de :
 
+- voir l'état du service WireGuard ;
+- voir les téléphones/appareils connectés et leurs handshakes ;
+- vérifier le pare-feu, le NAT et le port UDP ;
+- activer/démarrer le serveur VPN ;
+- désactiver/arrêter le serveur VPN sans supprimer les configurations ;
+- redémarrer le serveur VPN ;
+- ajouter un téléphone, une tablette ou un PC portable ;
+- supprimer un appareil existant.
 
-## Roadmap / idées prévues
-
-Fonctionnalité prévue pour une prochaine version :
+Menu disponible dans la console :
 
 ```text
-Gestion facile des appareils directement depuis la console serveur
+1 / A - Activer / démarrer le serveur VPN
+2 / D - Désactiver / arrêter le serveur VPN
+3     - Redémarrer le serveur VPN
+4 / N - Ajouter un nouvel appareil
+5 / R - Retirer / supprimer un appareil
+S     - Rafraîchir le statut
+V     - Activer/désactiver le mode ultra verbeux
+Q     - Quitter la console
 ```
 
-Objectif : depuis `SERVER-CONSOLE.bat`, pouvoir ajouter ou supprimer un téléphone, une tablette ou un PC portable sans lancer de commande PowerShell manuelle.
+La console ne se rafraîchit pas automatiquement toutes les 5 secondes : elle attend ton choix au clavier, ce qui évite les problèmes de saisie et l’affichage qui bouge tout seul.
 
-Idées prévues :
+Dans cette version, `R` veut dire `Retirer un appareil`. Pour redémarrer le serveur VPN, utilise le numéro `3`, afin d’éviter la confusion entre `redémarrer` et `retirer`.
 
-- menu `Ajouter un appareil` ;
-- menu `Supprimer un appareil` ;
-- génération automatique d'une nouvelle IP VPN disponible ;
-- génération du fichier `.conf` pour l'appareil ;
-- affichage du chemin du fichier généré ;
-- éventuellement génération d'un QR code pour import mobile plus rapide ;
-- redémarrage/rechargement propre du tunnel après modification.
+Si le désinstalleur a supprimé les configurations, la console ne peut plus réactiver le VPN et demandera de relancer `INSTALLER-ONE-CLICK.bat`.
 
-Pour l'instant, l'ajout et la suppression restent disponibles via :
+> Note : l'ancien script séparé `WIREGUARD-SERVICE-TOGGLE.bat` a été retiré dans cette version de test, car ses fonctions sont maintenant intégrées dans `SERVER-CONSOLE.bat`.
 
-```powershell
-.\scripts\Add-WireGuardPeer.ps1 -ClientName "android" -Endpoint "home-vpn.duckdns.org"
-.\scripts\Remove-WireGuardPeer.ps1 -ClientName "android"
+
+
+
+### Mode ultra verbeux
+
+Dans `SERVER-CONSOLE.bat`, appuie sur :
+
+```text
+V
 ```
+
+Ce mode affiche davantage de détails pendant les actions sensibles, notamment :
+
+- script PowerShell appelé ;
+- paramètres utilisés ;
+- code retour ;
+- sortie complète du script ;
+- résultat de vérification après ajout/suppression d'appareil ;
+- chemin du fichier log.
+
+Un fichier log est aussi écrit dans :
+
+```text
+C:\ProgramData\WireGuardPhoneServer\logs
+```
+
+C'est utile pour diagnostiquer les cas où l'appareil est bien créé/supprimé mais où le rechargement du service WireGuard retourne un avertissement.
+
+## Gestion des appareils depuis la console
+
+Depuis `SERVER-CONSOLE.bat`, tu peux maintenant gérer les appareils sans commande PowerShell manuelle :
+
+```text
+N - Ajouter un nouvel appareil
+X - Supprimer un appareil
+```
+
+L'ajout d'appareil :
+
+- demande le nom de l'appareil ;
+- propose automatiquement l'endpoint public/DNS déjà utilisé si possible ;
+- choisit automatiquement la prochaine IP VPN disponible ;
+- génère le fichier `.conf` à importer ;
+- ouvre le dossier contenant la configuration générée.
+
+> Note : si l'ajout crée bien le fichier `.conf` et le peer mais qu'un message d'erreur apparaît pendant le rechargement du service, la console le signale comme un ajout réussi avec avertissement. Tu peux ensuite utiliser `3` pour redémarrer le serveur VPN.
+
+La suppression d'appareil :
+
+- liste les fichiers `.conf` existants ;
+- s’il n’y a qu’un seul appareil, le sélectionne automatiquement ;
+- demande confirmation ;
+- supprime le peer du serveur ;
+- supprime le fichier `.conf` local correspondant ;
+- recharge le service WireGuard.
+
+> Note : si la suppression retire bien le fichier `.conf` et le peer mais qu'un message d'erreur apparaît pendant le rechargement du service, la console le signale comme une suppression réussie avec avertissement. Tu peux ensuite utiliser `3` pour redémarrer le serveur VPN.
+
 
 ## Utilisation
 

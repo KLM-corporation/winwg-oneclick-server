@@ -96,16 +96,20 @@ C:\ProgramData\WireGuardPhoneServer\server\wg-phone-server.conf
 
 ## 7. The service is running but I want to stop the VPN temporarily
 
-Use:
+Use the unified console:
 
 ```text
-WIREGUARD-SERVICE-TOGGLE.bat
+SERVER-CONSOLE.bat
 ```
 
-Choose:
+Then press:
 
 ```text
-2 - Disable / stop the VPN server
+D
 ```
 
-This does not delete keys or configurations. You can enable it again later from the same menu.
+This disables/stops the VPN server without deleting keys or configurations. You can enable it again later from the same console with:
+
+```text
+A
+```

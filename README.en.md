@@ -62,6 +62,8 @@ It also tries to create the router port-forwarding automatically via UPnP. If yo
 UDP 51820 -> Windows PC local IP -> UDP 51820
 ```
 
+Ideally, this local IP should be reserved through a **static DHCP lease** in the router/Internet box.
+
 > Note: no local installer can bypass your ISP CG-NAT. If you are behind CG-NAT, ask your ISP for a public/full-stack IPv4 address or use a relay/VPS.
 
 ## Requirements
@@ -216,7 +218,27 @@ In your router/Internet box admin panel:
 | Local target IP | Windows PC LAN IP |
 | Internal port | 51820 |
 
-Tip: assign a static local IP to the Windows PC in your router, otherwise port-forwarding may break if the local IP changes.
+Network recommendation: create a **static DHCP lease** / **DHCP reservation** for the Windows PC in your router/Internet box. The goal is for the VPN server to always keep the same LAN address, for example `192.168.1.14`.
+
+In practice, bind:
+
+```text
+Windows PC MAC address -> reserved LAN IP address
+```
+
+Example:
+
+```text
+D4:3A:2E:85:CA:DF -> 192.168.1.14
+```
+
+Then point the port-forwarding rule to that reserved IP:
+
+```text
+UDP 51820 -> 192.168.1.14 -> UDP 51820
+```
+
+This is usually better than manually configuring a static IP inside Windows, because the router remains in charge of the address plan and avoids DHCP conflicts.
 
 
 

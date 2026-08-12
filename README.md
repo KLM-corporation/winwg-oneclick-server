@@ -62,6 +62,8 @@ Il tente aussi de créer automatiquement la redirection de port sur la box via U
 UDP 51820 -> IP locale du PC Windows -> UDP 51820
 ```
 
+Idéalement, cette IP locale doit être réservée via un **bail DHCP statique** dans la box/routeur.
+
 > Note : aucune installation ne peut contourner automatiquement le CG-NAT de ton opérateur. Si tu es derrière CG-NAT, il faut demander une IPv4 publique/full stack ou utiliser un VPS relais.
 
 > ⚠️ Important : pour se connecter depuis l'extérieur, il faut que le PC soit joignable depuis Internet. Dans la majorité des cas, cela veut dire :
@@ -164,7 +166,27 @@ Dans l'interface de ta box/routeur :
 | IP locale cible | IP LAN du PC Windows |
 | Port interne | 51820 |
 
-Astuce : donne une IP fixe au PC Windows dans ta box, sinon la redirection peut casser si son IP locale change.
+Recommandation réseau : crée un **bail DHCP statique** / une **réservation DHCP** pour le PC Windows dans l'interface de ta box/routeur. L'objectif est que le serveur VPN garde toujours la même adresse LAN, par exemple `192.168.1.14`.
+
+Concrètement, dans la box, associe :
+
+```text
+Adresse MAC du PC Windows -> Adresse IP LAN fixe réservée
+```
+
+Exemple :
+
+```text
+D4:3A:2E:85:CA:DF -> 192.168.1.14
+```
+
+Ensuite, la redirection de port doit pointer vers cette IP réservée :
+
+```text
+UDP 51820 -> 192.168.1.14 -> UDP 51820
+```
+
+C'est préférable à une IP configurée manuellement dans Windows, car la box reste maître du plan d'adressage et évite les conflits DHCP.
 
 
 ## Désinstallation one-click

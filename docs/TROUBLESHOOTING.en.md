@@ -1,5 +1,40 @@
 # WinWG OneClick Server — Troubleshooting
 
+
+## Static DHCP lease / DHCP reservation recommended
+
+For a home VPN server, you should avoid having the Windows PC local IP address change.
+
+The recommended method is to create a **static DHCP lease** in the router/Internet box:
+
+```text
+Windows PC MAC address -> reserved LAN IP
+```
+
+Example:
+
+```text
+D4:3A:2E:85:CA:DF -> 192.168.1.14
+```
+
+Then configure port-forwarding to that reserved IP:
+
+```text
+UDP 51820 -> 192.168.1.14 -> UDP 51820
+```
+
+Possible names depending on the router UI:
+
+```text
+Static DHCP lease
+DHCP reservation
+Address reservation
+Static lease
+Reserved IP
+```
+
+This is cleaner than manually setting a static IP inside Windows, because the router keeps managing DHCP and reduces the risk of IP address conflicts.
+
 ## 1. The phone does not connect at all
 
 Check:

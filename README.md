@@ -263,7 +263,7 @@ Si tu avais créé une redirection de port manuelle sur ta box, il faut aussi la
 Mode silencieux avancé :
 
 ```powershell
-.\Uninstall-WireGuard-Server.ps1 -Quiet -RemoveWireGuardApp
+.\scripts\Uninstall-WireGuard-Server.ps1 -Quiet -RemoveWireGuardApp
 ```
 
 

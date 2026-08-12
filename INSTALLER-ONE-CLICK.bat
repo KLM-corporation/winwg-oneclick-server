@@ -14,7 +14,7 @@ if %errorlevel% neq 0 (
 )
 
 cd /d "%~dp0"
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0OneClick-WireGuard-Server.ps1"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\OneClick-WireGuard-Server.ps1"
 
 echo.
 echo Termine. Tu peux fermer cette fenetre.

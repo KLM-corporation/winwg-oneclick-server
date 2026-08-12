@@ -212,7 +212,7 @@ If you manually created port-forwarding on your router, you must also remove it 
 Advanced silent mode:
 
 ```powershell
-.\Uninstall-WireGuard-Server.ps1 -Quiet -RemoveWireGuardApp
+.\scripts\Uninstall-WireGuard-Server.ps1 -Quiet -RemoveWireGuardApp
 ```
 
 

@@ -14,4 +14,4 @@ if %errorlevel% neq 0 (
 )
 
 cd /d "%~dp0"
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0WireGuard-Server-Console.ps1"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\WireGuard-Server-Console.ps1"

@@ -337,7 +337,14 @@ function Test-DeviceAdded([string]$ClientName, [string]$TunnelName, [string]$Bas
 }
 
 
+
+function Test-QrFeatureEnabled([string]$BaseDir) {
+    $enabledFlag = Join-Path $BaseDir "features\qr-enabled.flag"
+    return (Test-Path $enabledFlag)
+}
+
 function Generate-DeviceQrFromConsole([string]$BaseDir, [string]$ClientName = "") {
+    if (-not (Test-QrFeatureEnabled -BaseDir $BaseDir)) { throw "Fonctionnalite QR desactivee. Relance l'installation et accepte la dependance QR pour l'activer." }
     $scriptPath = Join-Path $PSScriptRoot "scripts\Generate-WireGuardClientQr.ps1"
     if (-not (Test-Path $scriptPath)) { throw "Script QR introuvable : $scriptPath" }
 
@@ -425,10 +432,12 @@ function Add-DeviceFromConsole([string]$TunnelName, [int]$ListenPort, [string]$B
     if (Test-Path $clientDir) { Start-Process explorer.exe $clientDir }
 
     $qrMessage = ""
-    try {
-        $qrMessage = "`n" + (Generate-DeviceQrFromConsole -BaseDir $BaseDir -ClientName $clientName)
-    } catch {
-        $qrMessage = "`nQR non genere automatiquement : $($_.Exception.Message)"
+    if (Test-QrFeatureEnabled -BaseDir $BaseDir) {
+        try {
+            $qrMessage = "`n" + (Generate-DeviceQrFromConsole -BaseDir $BaseDir -ClientName $clientName)
+        } catch {
+            $qrMessage = "`nQR non genere automatiquement : $($_.Exception.Message)"
+        }
     }
 
     if ($code -ne 0 -and $added) {
@@ -583,7 +592,7 @@ function Show-MainMenu {
     Write-UiHost "3     - Redemarrer le serveur VPN"
     Write-UiHost "4 / N - Ajouter un nouvel appareil"
     Write-UiHost "5 / R - Retirer / supprimer un appareil"
-    Write-UiHost "6 / Qr- Generer un QR code pour un appareil"
+    if (Test-QrFeatureEnabled -BaseDir $BaseDir) { Write-UiHost "6 / G - Generer un QR code pour un appareil" }
     Write-UiHost "S     - Rafraichir le statut"
     Write-UiHost "V     - Activer/desactiver le mode ultra verbeux"
     Write-UiHost "Q     - Quitter"
@@ -638,9 +647,13 @@ try {
                 $lastMessage = ""
             }
             { $_ -in @('6','g') } {
-                try { $lastMessage = Generate-DeviceQrFromConsole -BaseDir $BaseDir } catch { $lastMessage = "ERREUR QR code : $($_.Exception.Message)" }
-                Pause-ConsoleAction $lastMessage
-                $lastMessage = ""
+                if (Test-QrFeatureEnabled -BaseDir $BaseDir) {
+                    try { $lastMessage = Generate-DeviceQrFromConsole -BaseDir $BaseDir } catch { $lastMessage = "ERREUR QR code : $($_.Exception.Message)" }
+                    Pause-ConsoleAction $lastMessage
+                    $lastMessage = ""
+                } else {
+                    $lastMessage = "Option QR desactivee. Elle n'apparait pas dans le menu car la dependance QR n'a pas ete installee/activee."
+                }
             }
             's' { $lastMessage = "Statut rafraichi." }
             'v' {

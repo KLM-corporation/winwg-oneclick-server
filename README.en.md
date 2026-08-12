@@ -301,13 +301,15 @@ This is useful to diagnose cases where a device is correctly created/removed but
 
 The WireGuard Android/iOS app can import a configuration by scanning a QR code.
 
-WinWG can now generate this QR locally from `SERVER-CONSOLE.bat`:
+During installation, WinWG asks whether you want to install the optional QR code generation dependency. If you decline, the QR option is hidden from the console.
+
+If enabled, WinWG can generate this QR locally from `SERVER-CONSOLE.bat`:
 
 ```text
 6 / G - Generate a QR code for a device
 ```
 
-After adding a new device, the console also tries to automatically generate its QR code.
+After adding a new device, the console also tries to automatically generate its QR code only if the QR feature was enabled during installation.
 
 QR codes are stored here:
 

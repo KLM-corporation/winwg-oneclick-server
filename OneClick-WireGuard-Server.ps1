@@ -60,6 +60,24 @@ function Ask-Text([string]$Title, [string]$Prompt, [string]$Default) {
     }
 }
 
+
+function Ask-YesNo([string]$Title, [string]$Prompt, [bool]$DefaultYes = $true) {
+    $defaultText = if ($DefaultYes) { "oui" } else { "non" }
+    try {
+        Add-Type -AssemblyName Microsoft.VisualBasic -ErrorAction Stop
+        $value = [Microsoft.VisualBasic.Interaction]::InputBox("$Prompt`n`nReponds par oui ou non.", $Title, $defaultText)
+        if ([string]::IsNullOrWhiteSpace($value)) { return $DefaultYes }
+        $v = $value.Trim().ToLowerInvariant()
+        return ($v -in @('o','oui','y','yes','1','true'))
+    } catch {
+        $suffix = if ($DefaultYes) { "O/n" } else { "o/N" }
+        $value = Read-Host "$Prompt [$suffix]"
+        if ([string]::IsNullOrWhiteSpace($value)) { return $DefaultYes }
+        $v = $value.Trim().ToLowerInvariant()
+        return ($v -in @('o','oui','y','yes','1','true'))
+    }
+}
+
 function Get-PublicEndpoint([int]$Port) {
     $services = @(
         "https://api.ipify.org",
@@ -230,6 +248,61 @@ function Invoke-WireGuardNoThrow([string]$WireGuardExe, [string[]]$Arguments) {
     }
 }
 
+
+function Set-QrFeaturePreference([string]$BaseDir, [bool]$Enabled) {
+    $featureDir = Join-Path $BaseDir "features"
+    Ensure-Directory $featureDir
+    $enabledFlag = Join-Path $featureDir "qr-enabled.flag"
+    $disabledFlag = Join-Path $featureDir "qr-disabled.flag"
+    if ($Enabled) {
+        Set-Content -Path $enabledFlag -Value "enabled" -Encoding ASCII
+        Remove-Item $disabledFlag -Force -ErrorAction SilentlyContinue
+    } else {
+        Set-Content -Path $disabledFlag -Value "disabled" -Encoding ASCII
+        Remove-Item $enabledFlag -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Install-QrDependency([string]$BaseDir) {
+    $toolsDir = Join-Path $BaseDir "tools"
+    $qrDir = Join-Path $toolsDir "QRCoder"
+    $dllCandidates = @(
+        (Join-Path $qrDir "lib\netstandard2.0\QRCoder.dll"),
+        (Join-Path $qrDir "lib\net6.0\QRCoder.dll"),
+        (Join-Path $qrDir "lib\net5.0\QRCoder.dll"),
+        (Join-Path $qrDir "lib\net40\QRCoder.dll")
+    )
+
+    foreach ($dll in $dllCandidates) {
+        if (Test-Path $dll) {
+            Write-Ok "Dependance QR deja presente : QRCoder"
+            return $dll
+        }
+    }
+
+    Ensure-Directory $toolsDir
+    Ensure-Directory $qrDir
+
+    $nupkg = Join-Path $toolsDir "QRCoder.nupkg"
+    $zip = Join-Path $toolsDir "QRCoder.zip"
+    $url = "https://www.nuget.org/api/v2/package/QRCoder"
+
+    Write-Step "Installation de la dependance optionnelle QR code"
+    Write-Host "Telechargement de QRCoder depuis NuGet. Les configurations WireGuard ne sont pas envoyees a Internet." -ForegroundColor Yellow
+    Invoke-WebRequest -Uri $url -OutFile $nupkg -UseBasicParsing
+    Copy-Item $nupkg $zip -Force
+    Expand-Archive -Path $zip -DestinationPath $qrDir -Force
+
+    foreach ($dll in $dllCandidates) {
+        if (Test-Path $dll) {
+            Write-Ok "Dependance QR installee : QRCoder"
+            return $dll
+        }
+    }
+
+    throw "Impossible d'installer la dependance QR QRCoder."
+}
+
 function Install-Tunnel([string]$WireGuardExe, [string]$TunnelName, [string]$ConfigPath) {
     Write-Step "Installation/redemarrage du tunnel WireGuard"
 
@@ -270,6 +343,21 @@ try {
     $clientDir = Join-Path $baseDir "clients"
     Ensure-Directory $serverDir
     Ensure-Directory $clientDir
+
+    $enableQrFeature = Ask-YesNo "WinWG QR Code" "Installer le generateur de QR code integre ? Cela permet d'importer la configuration dans l'app WireGuard mobile en scannant un QR code. La dependance QRCoder sera telechargee depuis NuGet, mais tes cles/configurations ne sont pas envoyees a Internet." $true
+    if ($enableQrFeature) {
+        try {
+            Install-QrDependency -BaseDir $baseDir | Out-Null
+            Set-QrFeaturePreference -BaseDir $baseDir -Enabled $true
+        } catch {
+            Write-Host "Installation QR impossible : $($_.Exception.Message)" -ForegroundColor Yellow
+            Write-Host "La fonctionnalite QR sera desactivee. Tu pourras toujours importer le fichier .conf manuellement." -ForegroundColor Yellow
+            Set-QrFeaturePreference -BaseDir $baseDir -Enabled $false
+        }
+    } else {
+        Set-QrFeaturePreference -BaseDir $baseDir -Enabled $false
+        Write-Host "Fonctionnalite QR desactivee par choix utilisateur." -ForegroundColor Yellow
+    }
 
     Write-Step "Generation des cles et configurations"
     $serverPrivateKey = New-WgPrivateKey $wgExe

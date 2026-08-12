@@ -201,14 +201,16 @@ Menu disponible dans la console :
 ```text
 1 / A - Activer / démarrer le serveur VPN
 2 / D - Désactiver / arrêter le serveur VPN
-3 / R - Redémarrer le serveur VPN
+3     - Redémarrer le serveur VPN
 4 / N - Ajouter un nouvel appareil
-5 / X - Supprimer un appareil
+5 / R - Retirer / supprimer un appareil
 S     - Rafraîchir le statut
 Q     - Quitter la console
 ```
 
 La console ne se rafraîchit pas automatiquement toutes les 5 secondes : elle attend ton choix au clavier, ce qui évite les problèmes de saisie et l’affichage qui bouge tout seul.
+
+Dans cette version, `R` veut dire `Retirer un appareil`. Pour redémarrer le serveur VPN, utilise le numéro `3`, afin d’éviter la confusion entre `redémarrer` et `retirer`.
 
 Si le désinstalleur a supprimé les configurations, la console ne peut plus réactiver le VPN et demandera de relancer `INSTALLER-ONE-CLICK.bat`.
 

@@ -387,9 +387,9 @@ function Show-MainMenu {
     Write-Host "-------" -ForegroundColor DarkGray
     Write-Host "1 / A - Activer / demarrer le serveur VPN"
     Write-Host "2 / D - Desactiver / arreter le serveur VPN"
-    Write-Host "3 / R - Redemarrer le serveur VPN"
+    Write-Host "3     - Redemarrer le serveur VPN"
     Write-Host "4 / N - Ajouter un nouvel appareil"
-    Write-Host "5 / X - Supprimer un appareil"
+    Write-Host "5 / R - Retirer / supprimer un appareil"
     Write-Host "S     - Rafraichir le statut"
     Write-Host "Q     - Quitter"
     Write-Host ""
@@ -425,7 +425,7 @@ try {
                 Pause-ConsoleAction $lastMessage
                 $lastMessage = ""
             }
-            { $_ -in @('3','r') } {
+            { $_ -in @('3') } {
                 try { $lastMessage = Restart-Tunnel -TunnelName $TunnelName -BaseDir $BaseDir } catch { $lastMessage = "ERREUR redemarrage : $($_.Exception.Message)" }
                 Pause-ConsoleAction $lastMessage
                 $lastMessage = ""
@@ -435,14 +435,14 @@ try {
                 Pause-ConsoleAction $lastMessage
                 $lastMessage = ""
             }
-            { $_ -in @('5','x') } {
+            { $_ -in @('5','r','x') } {
                 try { $lastMessage = Remove-DeviceFromConsole -TunnelName $TunnelName -BaseDir $BaseDir } catch { $lastMessage = "ERREUR suppression appareil : $($_.Exception.Message)" }
                 Pause-ConsoleAction $lastMessage
                 $lastMessage = ""
             }
             's' { $lastMessage = "Statut rafraichi." }
             'q' { return }
-            default { $lastMessage = "Choix invalide. Utilise 1/2/3/4/5, A/D/R/N/X, S ou Q." }
+            default { $lastMessage = "Choix invalide. Utilise 1/2/3/4/5, A/D/N/R, S ou Q." }
         }
     }
 } catch {

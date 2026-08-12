@@ -138,6 +138,31 @@ C:\ProgramData\WireGuardPhoneServer\clients\iphone.conf
 
 Copy this file to your phone and import it into the WireGuard app.
 
+
+## GitHub Actions / CI
+
+The repository contains two GitHub Actions workflows:
+
+```text
+.github/workflows/ci.yml
+.github/workflows/release-package.yml
+```
+
+The CI workflow checks:
+
+- PowerShell syntax with Windows PowerShell 5.1;
+- PowerShell syntax with PowerShell 7;
+- PSScriptAnalyzer errors;
+- absence of generated sensitive files (`.conf`, `.key`, `.psk`, `.env`, etc.);
+- presence of important public-facing files;
+- broken relative Markdown links.
+
+The release workflow can generate a clean ZIP package through `workflow_dispatch` or a `v*` tag, for example:
+
+```text
+v0.1.0-beta
+```
+
 ## One-click uninstall
 
 To cleanly remove everything configured by this project from the Windows PC, double-click:

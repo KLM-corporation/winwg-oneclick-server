@@ -1,0 +1,54 @@
+name: Release package
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: Build ZIP package
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare package folder
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $packageName = "winwg-oneclick-server-${{ github.ref_name }}"
+          if ('${{ github.ref_type }}' -ne 'tag') {
+            $packageName = "winwg-oneclick-server-manual"
+          }
+
+          New-Item -ItemType Directory -Path dist | Out-Null
+          New-Item -ItemType Directory -Path "dist/$packageName" | Out-Null
+
+          $excludeDirs = @('.git', '.github', 'dist')
+          $excludePatterns = @('*.conf', '*.key', '*.psk', '.env', '*.pem', '*.p12', '*.log')
+
+          Get-ChildItem -Path . -Force | Where-Object {
+            $_.Name -notin $excludeDirs
+          } | ForEach-Object {
+            Copy-Item -Path $_.FullName -Destination "dist/$packageName" -Recurse -Force
+          }
+
+          foreach ($pattern in $excludePatterns) {
+            Get-ChildItem -Path "dist/$packageName" -Recurse -Force -Filter $pattern -ErrorAction SilentlyContinue |
+              Remove-Item -Force -ErrorAction SilentlyContinue
+          }
+
+          Compress-Archive -Path "dist/$packageName/*" -DestinationPath "dist/$packageName.zip" -Force
+          "PACKAGE_NAME=$packageName" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PACKAGE_NAME }}
+          path: dist/${{ env.PACKAGE_NAME }}.zip
+          if-no-files-found: error

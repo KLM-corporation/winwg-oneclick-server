@@ -189,6 +189,31 @@ UDP 51820 -> 192.168.1.14 -> UDP 51820
 C'est préférable à une IP configurée manuellement dans Windows, car la box reste maître du plan d'adressage et évite les conflits DHCP.
 
 
+
+## GitHub Actions / CI
+
+Le dépôt contient deux workflows GitHub Actions :
+
+```text
+.github/workflows/ci.yml
+.github/workflows/release-package.yml
+```
+
+Le workflow CI vérifie :
+
+- la syntaxe PowerShell sous Windows PowerShell 5.1 ;
+- la syntaxe PowerShell sous PowerShell 7 ;
+- les erreurs PSScriptAnalyzer ;
+- l'absence de fichiers sensibles générés (`.conf`, `.key`, `.psk`, `.env`, etc.) ;
+- la présence des fichiers publics importants ;
+- les liens Markdown relatifs cassés.
+
+Le workflow release permet de générer un ZIP propre du projet via `workflow_dispatch` ou via un tag `v*`, par exemple :
+
+```text
+v0.1.0-beta
+```
+
 ## Désinstallation one-click
 
 Pour supprimer proprement tout ce que le projet a configuré sur le PC Windows, double-clique :

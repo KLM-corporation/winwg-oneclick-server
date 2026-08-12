@@ -1,0 +1,164 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  powershell-syntax:
+    name: PowerShell syntax (${{ matrix.shell_name }})
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shell_name: Windows PowerShell 5.1
+            shell: powershell
+          - shell_name: PowerShell 7
+            shell: pwsh
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check PowerShell parser errors
+        shell: ${{ matrix.shell }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $files = Get-ChildItem -Path . -Recurse -Filter *.ps1 |
+            Where-Object { $_.FullName -notmatch '\\.git\\' }
+
+          if (-not $files) {
+            throw 'No PowerShell files found.'
+          }
+
+          foreach ($file in $files) {
+            Write-Host "Checking $($file.FullName)"
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count -gt 0) {
+              $errors | Format-List | Out-String | Write-Error
+              throw "PowerShell parser errors found in $($file.FullName)"
+            }
+          }
+
+  script-analyzer:
+    name: PSScriptAnalyzer
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+          Install-Module PSScriptAnalyzer -Scope CurrentUser -Force
+
+      - name: Run PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $files = Get-ChildItem -Path . -Recurse -Filter *.ps1 |
+            Where-Object { $_.FullName -notmatch '\\.git\\' }
+
+          $results = foreach ($file in $files) {
+            Invoke-ScriptAnalyzer -Path $file.FullName -Severity Error
+          }
+
+          if ($results) {
+            $results | Format-Table -AutoSize | Out-String | Write-Error
+            throw 'PSScriptAnalyzer found errors.'
+          }
+
+  repository-hygiene:
+    name: Repository hygiene
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Ensure generated secrets are not committed
+        shell: bash
+        run: |
+          set -euo pipefail
+          forbidden=$(find . \
+            -path './.git' -prune -o \
+            -type f \( \
+              -name '*.conf' -o \
+              -name '*.key' -o \
+              -name '*.psk' -o \
+              -name '.env' -o \
+              -name '*.pem' -o \
+              -name '*.p12' \
+            \) -print)
+
+          if [ -n "$forbidden" ]; then
+            echo "Forbidden generated/secret-like files found:"
+            echo "$forbidden"
+            exit 1
+          fi
+
+      - name: Check required public files
+        shell: bash
+        run: |
+          set -euo pipefail
+          required=(
+            README.md
+            README.en.md
+            LICENSE
+            SECURITY.md
+            CONTRIBUTING.md
+            CHANGELOG.md
+            INSTALLER-ONE-CLICK.bat
+            SERVER-CONSOLE.bat
+            UNINSTALLER-ONE-CLICK.bat
+            OneClick-WireGuard-Server.ps1
+            WireGuard-Server-Console.ps1
+            Uninstall-WireGuard-Server.ps1
+            docs/TROUBLESHOOTING.md
+            docs/TROUBLESHOOTING.en.md
+            docs/PUBLIC_RELEASE_CHECKLIST.md
+          )
+
+          for file in "${required[@]}"; do
+            if [ ! -f "$file" ]; then
+              echo "Missing required file: $file"
+              exit 1
+            fi
+          done
+
+      - name: Check relative Markdown links
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $markdownFiles = Get-ChildItem -Path . -Recurse -Filter *.md |
+            Where-Object { $_.FullName -notmatch '\.git' }
+
+          $missing = @()
+          foreach ($file in $markdownFiles) {
+            $content = Get-Content $file.FullName -Raw
+            $matches = [regex]::Matches($content, '\[[^\]]+\]\(([^)]+)\)')
+            foreach ($match in $matches) {
+              $target = $match.Groups[1].Value
+              if ($target -match '^(https?:|mailto:|#)') { continue }
+              $targetPath = ($target -split '#')[0]
+              if ([string]::IsNullOrWhiteSpace($targetPath)) { continue }
+              $resolved = Join-Path $file.Directory.FullName $targetPath
+              if (-not (Test-Path $resolved)) {
+                $missing += "$($file.FullName) -> $target"
+              }
+            }
+          }
+
+          if ($missing.Count -gt 0) {
+            $missing | ForEach-Object { Write-Error $_ }
+            throw 'Missing relative Markdown links.'
+          }

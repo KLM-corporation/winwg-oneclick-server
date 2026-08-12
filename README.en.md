@@ -178,6 +178,9 @@ The uninstaller removes:
 - the Windows NAT `WireGuardPhoneServerNAT`;
 - the UDP `51820` UPnP mapping if it was automatically created;
 - configurations and keys in `C:\ProgramData\WireGuardPhoneServer`;
+- generated QR codes in `qrcodes`;
+- optional QRCoder QR dependency in `tools`;
+- feature flags in `features`;
 - optionally the WireGuard application itself.
 
 If you manually created port-forwarding on your router, you must also remove it in the router admin UI.
@@ -218,6 +221,7 @@ Available menu inside the console:
 3     - Restart the VPN server
 4 / N - Add a new device
 5 / R - Remove a device
+6 / G - Generate a QR code for a device
 S     - Refresh status
 V     - Enable/disable ultra verbose mode
 Q     - Quit the console
@@ -294,6 +298,31 @@ C:\ProgramData\WireGuardPhoneServer\logs
 ```
 
 This is useful to diagnose cases where a device is correctly created/removed but the WireGuard service reload returns a warning.
+
+
+## WireGuard QR code
+
+The WireGuard Android/iOS app can import a configuration by scanning a QR code.
+
+During installation, WinWG asks whether you want to install the optional QR code generation dependency. If you decline, the QR option is hidden from the console.
+
+If enabled, WinWG can generate this QR locally from `SERVER-CONSOLE.bat`:
+
+```text
+6 / G - Generate a QR code for a device
+```
+
+After adding a new device, the console also tries to automatically generate its QR code only if the QR feature was enabled during installation.
+
+QR codes are stored here:
+
+```text
+C:\ProgramData\WireGuardPhoneServer\qrcodes
+```
+
+Important: a WireGuard QR code contains the device private key, exactly like the `.conf` file. Never share it publicly.
+
+To generate QR codes locally without sending configurations to a third-party service, WinWG downloads the open source .NET **QRCoder** library from NuGet if needed and uses it locally.
 
 ## Device management from the console
 

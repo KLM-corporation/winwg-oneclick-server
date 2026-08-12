@@ -229,6 +229,9 @@ Le désinstalleur supprime :
 - le NAT Windows `WireGuardPhoneServerNAT` ;
 - la redirection UPnP UDP `51820` si elle avait été créée automatiquement ;
 - les configurations et clés dans `C:\ProgramData\WireGuardPhoneServer` ;
+- les QR codes générés dans `qrcodes` ;
+- la dépendance QR optionnelle QRCoder dans `tools` ;
+- les flags de fonctionnalité dans `features` ;
 - optionnellement l'application WireGuard elle-même.
 
 Si tu avais créé une redirection de port manuelle sur ta box, il faut aussi la supprimer dans l'interface de la box.
@@ -271,6 +274,7 @@ Menu disponible dans la console :
 3     - Redémarrer le serveur VPN
 4 / N - Ajouter un nouvel appareil
 5 / R - Retirer / supprimer un appareil
+6 / G - Générer un QR code pour un appareil
 S     - Rafraîchir le statut
 V     - Activer/désactiver le mode ultra verbeux
 Q     - Quitter la console
@@ -313,6 +317,31 @@ C:\ProgramData\WireGuardPhoneServer\logs
 ```
 
 C'est utile pour diagnostiquer les cas où l'appareil est bien créé/supprimé mais où le rechargement du service WireGuard retourne un avertissement.
+
+
+## QR code WireGuard
+
+L'application WireGuard Android/iOS peut importer une configuration en scannant un QR code.
+
+Pendant l'installation, WinWG demande si tu veux installer la dépendance optionnelle de génération QR code. Si tu refuses, l'option QR n'apparait pas dans la console.
+
+Si l'option est activée, WinWG peut générer ce QR localement depuis `SERVER-CONSOLE.bat` :
+
+```text
+6 / G - Générer un QR code pour un appareil
+```
+
+Après l'ajout d'un nouvel appareil, la console essaie aussi de générer automatiquement son QR code uniquement si la fonctionnalité QR a été activée à l'installation.
+
+Les QR codes sont stockés ici :
+
+```text
+C:\ProgramData\WireGuardPhoneServer\qrcodes
+```
+
+Important : un QR code WireGuard contient la clé privée de l'appareil, exactement comme le fichier `.conf`. Ne le partage jamais publiquement.
+
+Pour générer les QR codes localement sans envoyer les configurations à un service tiers, WinWG télécharge si besoin la bibliothèque .NET open source **QRCoder** depuis NuGet et l'utilise localement.
 
 ## Gestion des appareils depuis la console
 

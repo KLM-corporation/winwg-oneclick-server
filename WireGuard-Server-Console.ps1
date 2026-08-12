@@ -336,6 +336,61 @@ function Test-DeviceAdded([string]$ClientName, [string]$TunnelName, [string]$Bas
     return ($clientFilePresent -and $peerPresent)
 }
 
+
+
+function Test-QrFeatureEnabled([string]$BaseDir) {
+    $enabledFlag = Join-Path $BaseDir "features\qr-enabled.flag"
+    return (Test-Path $enabledFlag)
+}
+
+function Generate-DeviceQrFromConsole([string]$BaseDir, [string]$ClientName = "") {
+    if (-not (Test-QrFeatureEnabled -BaseDir $BaseDir)) { throw "Fonctionnalite QR desactivee. Relance l'installation et accepte la dependance QR pour l'activer." }
+    $scriptPath = Join-Path $PSScriptRoot "scripts\Generate-WireGuardClientQr.ps1"
+    if (-not (Test-Path $scriptPath)) { throw "Script QR introuvable : $scriptPath" }
+
+    $clientDir = Join-Path $BaseDir "clients"
+    $clients = @()
+    if (Test-Path $clientDir) { $clients = @(Get-ChildItem $clientDir -Filter "*.conf" -ErrorAction SilentlyContinue) }
+
+    if ([string]::IsNullOrWhiteSpace($ClientName)) {
+        Write-UiHost ""
+        Write-UiHost "Generer un QR code WireGuard" -ForegroundColor Cyan
+        Write-UiHost "----------------------------" -ForegroundColor DarkGray
+
+        if ($clients.Length -eq 0) {
+            throw "Aucune configuration .conf trouvee dans $clientDir"
+        } elseif ($clients.Length -eq 1) {
+            $ClientName = $clients[0].BaseName
+            Write-UiHost "Un seul appareil detecte : $ClientName" -ForegroundColor Yellow
+        } else {
+            Write-UiHost "0 - Annuler"
+            for ($i = 0; $i -lt $clients.Length; $i++) {
+                Write-UiHost ("{0} - {1}" -f ($i + 1), $clients[$i].BaseName)
+            }
+            Write-UiHost ""
+            $choice = (Read-UiHost "Tape le numero de l'appareil, ou son nom exact").Trim()
+            if ($choice -eq '0' -or [string]::IsNullOrWhiteSpace($choice)) { return "Generation QR annulee." }
+            if ($choice -match '^\d+$' -and [int]$choice -ge 1 -and [int]$choice -le $clients.Length) {
+                $ClientName = $clients[[int]$choice - 1].BaseName
+            } else {
+                $ClientName = $choice
+            }
+        }
+    }
+
+    Write-Ultra "Generation QR: ClientName=$ClientName Script=$scriptPath"
+    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -ClientName $ClientName -BaseDir $BaseDir -Open 2>&1
+    $code = $LASTEXITCODE
+    $outputText = ($output | Out-String).Trim()
+    if (-not [string]::IsNullOrWhiteSpace($outputText)) {
+        Write-Ultra "Sortie script QR: $outputText"
+        Write-UiHost $outputText
+    }
+    if ($code -ne 0) { throw "Echec de generation du QR code pour '$ClientName'." }
+
+    return "QR code genere pour : $ClientName"
+}
+
 function Add-DeviceFromConsole([string]$TunnelName, [int]$ListenPort, [string]$BaseDir) {
     Write-Ultra "Action: ajout appareil"
     Assert-ProjectInstalled -TunnelName $TunnelName -BaseDir $BaseDir
@@ -376,11 +431,20 @@ function Add-DeviceFromConsole([string]$TunnelName, [int]$ListenPort, [string]$B
     $clientDir = Join-Path $BaseDir "clients"
     if (Test-Path $clientDir) { Start-Process explorer.exe $clientDir }
 
-    if ($code -ne 0 -and $added) {
-        return "Appareil ajoute : $clientName. Note : le script a retourne une erreur apres creation, probablement pendant le rechargement du service. Fichier .conf genere dans $clientDir. Si besoin, utilise 3 pour redemarrer le serveur VPN."
+    $qrMessage = ""
+    if (Test-QrFeatureEnabled -BaseDir $BaseDir) {
+        try {
+            $qrMessage = "`n" + (Generate-DeviceQrFromConsole -BaseDir $BaseDir -ClientName $clientName)
+        } catch {
+            $qrMessage = "`nQR non genere automatiquement : $($_.Exception.Message)"
+        }
     }
 
-    return "Appareil ajoute : $clientName. Fichier .conf genere dans $clientDir"
+    if ($code -ne 0 -and $added) {
+        return "Appareil ajoute : $clientName. Note : le script a retourne une erreur apres creation, probablement pendant le rechargement du service. Fichier .conf genere dans $clientDir. Si besoin, utilise 3 pour redemarrer le serveur VPN.$qrMessage"
+    }
+
+    return "Appareil ajoute : $clientName. Fichier .conf genere dans $clientDir.$qrMessage"
 }
 
 function Remove-DeviceFromConsole([string]$TunnelName, [string]$BaseDir) {
@@ -528,6 +592,7 @@ function Show-MainMenu {
     Write-UiHost "3     - Redemarrer le serveur VPN"
     Write-UiHost "4 / N - Ajouter un nouvel appareil"
     Write-UiHost "5 / R - Retirer / supprimer un appareil"
+    if (Test-QrFeatureEnabled -BaseDir $BaseDir) { Write-UiHost "6 / G - Generer un QR code pour un appareil" }
     Write-UiHost "S     - Rafraichir le statut"
     Write-UiHost "V     - Activer/desactiver le mode ultra verbeux"
     Write-UiHost "Q     - Quitter"
@@ -581,6 +646,15 @@ try {
                 Pause-ConsoleAction $lastMessage
                 $lastMessage = ""
             }
+            { $_ -in @('6','g') } {
+                if (Test-QrFeatureEnabled -BaseDir $BaseDir) {
+                    try { $lastMessage = Generate-DeviceQrFromConsole -BaseDir $BaseDir } catch { $lastMessage = "ERREUR QR code : $($_.Exception.Message)" }
+                    Pause-ConsoleAction $lastMessage
+                    $lastMessage = ""
+                } else {
+                    $lastMessage = "Option QR desactivee. Elle n'apparait pas dans le menu car la dependance QR n'a pas ete installee/activee."
+                }
+            }
             's' { $lastMessage = "Statut rafraichi." }
             'v' {
                 $script:UltraVerboseMode = -not $script:UltraVerboseMode
@@ -589,7 +663,7 @@ try {
                 Write-Log $lastMessage
             }
             'q' { return }
-            default { $lastMessage = "Choix invalide. Utilise 1/2/3/4/5, A/D/N/R, S, V ou Q." }
+            default { $lastMessage = "Choix invalide. Utilise 1/2/3/4/5/6, A/D/N/R/G, S, V ou Q." }
         }
     }
 } catch {

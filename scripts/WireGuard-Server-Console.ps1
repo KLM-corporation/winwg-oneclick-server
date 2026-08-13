@@ -255,12 +255,12 @@ function Format-BytesPerSecond([double]$BytesPerSecond) {
 
 function Get-PeerSpeedText([object]$Peer, [datetime]$Now) {
     if (-not $script:PeerTrafficSamples.ContainsKey($Peer.PublicKey)) {
-        return "calcul au prochain refresh"
+        return (Get-WinWGText $script:Language "SpeedNextRefresh")
     }
 
     $previous = $script:PeerTrafficSamples[$Peer.PublicKey]
     $seconds = ($Now - $previous.Timestamp).TotalSeconds
-    if ($seconds -le 0.5) { return "delai trop court" }
+    if ($seconds -le 0.5) { return (Get-WinWGText $script:Language "DelayTooShort") }
 
     $rxDelta = [double]($Peer.ReceivedBytes - $previous.ReceivedBytes)
     $txDelta = [double]($Peer.SentBytes - $previous.SentBytes)
@@ -280,14 +280,14 @@ function Get-WgPeerSummaries([string]$WgShowText, [hashtable]$PeerNameMap) {
         if ($line -match '^peer:\s*(\S+)') {
             if ($current) { $peers += [pscustomobject]$current }
             $pub = $Matches[1]
-            $name = if ($PeerNameMap.ContainsKey($pub)) { $PeerNameMap[$pub] } else { "telephone inconnu" }
-            $current = [ordered]@{ Name=$name; PublicKey=$pub; Endpoint="-"; AllowedIPs="-"; LatestHandshake="jamais"; Transfer="-"; ReceivedBytes=[int64]0; SentBytes=[int64]0; Status="hors ligne" }
+            $name = if ($PeerNameMap.ContainsKey($pub)) { $PeerNameMap[$pub] } else { Get-WinWGText $script:Language "UnknownDevice" }
+            $current = [ordered]@{ Name=$name; PublicKey=$pub; Endpoint="-"; AllowedIPs="-"; LatestHandshake=(Get-WinWGText $script:Language "Never"); Transfer="-"; ReceivedBytes=[int64]0; SentBytes=[int64]0; Status=(Get-WinWGText $script:Language "Offline") }
             continue
         }
         if (-not $current) { continue }
         if ($line -match '^endpoint:\s*(.+)$') { $current.Endpoint = $Matches[1].Trim(); continue }
         if ($line -match '^allowed ips:\s*(.+)$') { $current.AllowedIPs = $Matches[1].Trim(); continue }
-        if ($line -match '^latest handshake:\s*(.+)$') { $current.LatestHandshake = $Matches[1].Trim(); $current.Status = "connecte"; continue }
+        if ($line -match '^latest handshake:\s*(.+)$') { $current.LatestHandshake = $Matches[1].Trim(); $current.Status = (Get-WinWGText $script:Language "Online"); continue }
         if ($line -match '^transfer:\s*(.+)$') {
             $current.Transfer = $Matches[1].Trim()
             $bytes = Get-WgTransferBytes -TransferText $current.Transfer
@@ -303,20 +303,20 @@ function Get-WgPeerSummaries([string]$WgShowText, [hashtable]$PeerNameMap) {
 function Write-PeerDashboard([string]$WgShowText, [string]$ServerConfigPath) {
     $nameMap = Get-PeerNameMap -ServerConfigPath $ServerConfigPath
     $peers = @(Get-WgPeerSummaries -WgShowText $WgShowText -PeerNameMap $nameMap)
-    Write-UiHost "Telephones / peers" -ForegroundColor Cyan
+    Write-UiHost (Get-WinWGText $script:Language "PhonesPeers") -ForegroundColor Cyan
     Write-UiHost "------------------" -ForegroundColor DarkGray
-    if ($peers.Length -eq 0) { Write-UiHost "Aucun telephone/peer detecte dans wg show." -ForegroundColor Yellow; return }
+    if ($peers.Length -eq 0) { Write-UiHost (Get-WinWGText $script:Language "NoPeerDetected") -ForegroundColor Yellow; return }
     $now = Get-Date
     foreach ($peer in $peers) {
-        $color = if ($peer.Status -eq "connecte") { [ConsoleColor]::Green } else { [ConsoleColor]::Yellow }
+        $color = if ($peer.Status -eq (Get-WinWGText $script:Language "Online")) { [ConsoleColor]::Green } else { [ConsoleColor]::Yellow }
         $speedText = Get-PeerSpeedText -Peer $peer -Now $now
         Write-UiHost ("- " + $peer.Name + " : " + $peer.Status) -ForegroundColor $color
-        Write-UiHost ("  IP VPN       : " + $peer.AllowedIPs) -ForegroundColor DarkCyan
-        Write-UiHost ("  Endpoint     : " + $peer.Endpoint) -ForegroundColor DarkCyan
-        Write-UiHost ("  Handshake    : " + $peer.LatestHandshake) -ForegroundColor DarkCyan
-        Write-UiHost ("  Transfert    : " + $peer.Transfer) -ForegroundColor DarkCyan
-        Write-UiHost ("  Vitesse      : " + $speedText) -ForegroundColor Green
-        Write-UiHost ("  Public key   : " + $peer.PublicKey.Substring(0, 12) + "...") -ForegroundColor DarkGray
+        Write-UiHost ("  " + (Get-WinWGText $script:Language "VpnIp").PadRight(12) + ": " + $peer.AllowedIPs) -ForegroundColor DarkCyan
+        Write-UiHost ("  Endpoint".PadRight(14) + ": " + $peer.Endpoint) -ForegroundColor DarkCyan
+        Write-UiHost ("  " + (Get-WinWGText $script:Language "Handshake").PadRight(12) + ": " + $peer.LatestHandshake) -ForegroundColor DarkCyan
+        Write-UiHost ("  " + (Get-WinWGText $script:Language "Transfer").PadRight(12) + ": " + $peer.Transfer) -ForegroundColor DarkCyan
+        Write-UiHost ("  " + (Get-WinWGText $script:Language "Speed").PadRight(12) + ": " + $speedText) -ForegroundColor Green
+        Write-UiHost ("  " + (Get-WinWGText $script:Language "PublicKey").PadRight(12) + ": " + $peer.PublicKey.Substring(0, 12) + "...") -ForegroundColor DarkGray
 
         $script:PeerTrafficSamples[$peer.PublicKey] = [pscustomobject]@{
             Timestamp = $now
@@ -1216,8 +1216,8 @@ function Show-Status([string]$LastMessage = "") {
     Write-UiHost (Get-WinWGText $script:Language "ConsoleTitle") -ForegroundColor Green
     Write-UiHost (Get-WinWGText $script:Language "ConsoleSubtitle") -ForegroundColor DarkGray
     Write-UiHost (Get-WinWGText $script:Language "MenuNoAutoRefresh") -ForegroundColor Cyan
-    $verboseText = if ($script:UltraVerboseMode) { "active" } else { "desactive" }
-    $advancedText = if ($script:AdvancedModeEnabled) { "active" } else { "desactive" }
+    $verboseText = if ($script:UltraVerboseMode) { Get-WinWGText $script:Language "Enabled" } else { Get-WinWGText $script:Language "Disabled" }
+    $advancedText = if ($script:AdvancedModeEnabled) { Get-WinWGText $script:Language "Enabled" } else { Get-WinWGText $script:Language "Disabled" }
     $advancedColor = if ($script:AdvancedModeEnabled) { [ConsoleColor]::Red } else { [ConsoleColor]::DarkRed }
     Write-UiHost ((Get-WinWGText $script:Language "VerboseMode") + ": $verboseText") -ForegroundColor DarkYellow
     Write-UiHost ((Get-WinWGText $script:Language "AdvancedMode") + ": $advancedText") -ForegroundColor $advancedColor
@@ -1234,13 +1234,13 @@ function Show-Status([string]$LastMessage = "") {
     $installed = Test-ProjectInstalled -TunnelName $TunnelName -BaseDir $BaseDir
     $svc = Get-ServiceState -TunnelName $TunnelName
 
-    if ($installed) { Write-Line (Get-WinWGText $script:Language "Installation") "presente" Green } else { Write-Line (Get-WinWGText $script:Language "Installation") "absente / desinstallee" Yellow }
+    if ($installed) { Write-Line (Get-WinWGText $script:Language "Installation") (Get-WinWGText $script:Language "Present") Green } else { Write-Line (Get-WinWGText $script:Language "Installation") (Get-WinWGText $script:Language "AbsentUninstalled") Yellow }
     if ($svc) {
         $color = if ($svc.Status -eq 'Running') { [ConsoleColor]::Green } else { [ConsoleColor]::Yellow }
         Write-Line (Get-WinWGText $script:Language "Service") "$($svc.Name) - $($svc.Status)" $color
         if (-not $installed) { Write-Line "Attention" "service residuel sans configuration" Yellow }
     } else {
-        Write-Line (Get-WinWGText $script:Language "Service") "introuvable / desactive" Yellow
+        Write-Line (Get-WinWGText $script:Language "Service") (Get-WinWGText $script:Language "NotInstalledDisabled") Yellow
     }
 
     Write-Line (Get-WinWGText $script:Language "Tunnel") $TunnelName Cyan
@@ -1249,20 +1249,20 @@ function Show-Status([string]$LastMessage = "") {
     Write-Line (Get-WinWGText $script:Language "ServerConfig") $serverConfig Cyan
 
     $fw = @(Get-NetFirewallRule -DisplayName "WireGuard Server UDP $ListenPort" -ErrorAction SilentlyContinue)
-    if ($fw.Length -gt 0) { Write-Line (Get-WinWGText $script:Language "Firewall") "regle presente" Green } else { Write-Line (Get-WinWGText $script:Language "Firewall") "regle manquante" Red }
+    if ($fw.Length -gt 0) { Write-Line (Get-WinWGText $script:Language "Firewall") (Get-WinWGText $script:Language "FirewallPresent") Green } else { Write-Line (Get-WinWGText $script:Language "Firewall") (Get-WinWGText $script:Language "FirewallMissing") Red }
 
     $nat = Get-NetNat -Name "WireGuardPhoneServerNAT" -ErrorAction SilentlyContinue
-    if ($nat) { Write-Line (Get-WinWGText $script:Language "Nat") "$($nat.InternalIPInterfaceAddressPrefix)" Green } else { Write-Line (Get-WinWGText $script:Language "Nat") "manquant" Yellow }
+    if ($nat) { Write-Line (Get-WinWGText $script:Language "Nat") "$($nat.InternalIPInterfaceAddressPrefix)" Green } else { Write-Line (Get-WinWGText $script:Language "Nat") (Get-WinWGText $script:Language "Missing") Yellow }
 
     $udp = @(Get-NetUDPEndpoint -LocalPort $ListenPort -ErrorAction SilentlyContinue)
-    if ($udp.Length -gt 0) { Write-Line (Get-WinWGText $script:Language "UdpEndpoint") "present" Green } else { Write-Line (Get-WinWGText $script:Language "UdpEndpoint") "non visible / normal selon driver" Yellow }
+    if ($udp.Length -gt 0) { Write-Line (Get-WinWGText $script:Language "UdpEndpoint") (Get-WinWGText $script:Language "UdpPresent") Green } else { Write-Line (Get-WinWGText $script:Language "UdpEndpoint") (Get-WinWGText $script:Language "UdpNotVisible") Yellow }
 
     if (Test-Path $clientDir) {
         $clients = @(Get-ChildItem $clientDir -Filter "*.conf" -ErrorAction SilentlyContinue)
-        Write-Line (Get-WinWGText $script:Language "PhoneConfigs") "$($clients.Length) fichier(s)" Cyan
+        Write-Line (Get-WinWGText $script:Language "PhoneConfigs") ("$($clients.Length) " + (Get-WinWGText $script:Language "FileCount")) Cyan
         foreach ($c in $clients) { Write-UiHost "  - $($c.FullName)" -ForegroundColor DarkCyan }
     } else {
-        Write-Line (Get-WinWGText $script:Language "PhoneConfigs") "dossier introuvable" Yellow
+        Write-Line (Get-WinWGText $script:Language "PhoneConfigs") (Get-WinWGText $script:Language "FolderMissing") Yellow
     }
 
     Write-UiHost ""
@@ -1273,12 +1273,12 @@ function Show-Status([string]$LastMessage = "") {
         } else {
             Write-PeerDashboard -WgShowText $show -ServerConfigPath $serverConfig
             Write-UiHost ""
-            Write-UiHost "Details WireGuard bruts" -ForegroundColor Cyan
+            Write-UiHost (Get-WinWGText $script:Language "RawWireGuardDetails") -ForegroundColor Cyan
             Write-UiHost "-----------------------" -ForegroundColor DarkGray
             Write-UiHost $show
         }
     } else {
-        Write-UiHost "WireGuard n'est pas actif, aucun handshake a afficher." -ForegroundColor Yellow
+        Write-UiHost (Get-WinWGText $script:Language "NoActiveTunnel") -ForegroundColor Yellow
     }
 
     Write-UiHost ""
@@ -1359,13 +1359,13 @@ try {
                     Pause-ConsoleAction $lastMessage
                     $lastMessage = ""
                 } else {
-                    $lastMessage = "Option QR desactivee. Elle n'apparait pas dans le menu car la dependance QR n'a pas ete installee/activee."
+                    $lastMessage = Get-WinWGText $script:Language "QrDisabled"
                 }
             }
-            's' { $lastMessage = "Statut rafraichi." }
+            's' { $lastMessage = Get-WinWGText $script:Language "StatusRefreshed" }
             'v' {
                 $script:UltraVerboseMode = -not $script:UltraVerboseMode
-                $state = if ($script:UltraVerboseMode) { "active" } else { "desactive" }
+                $state = if ($script:UltraVerboseMode) { Get-WinWGText $script:Language "Enabled" } else { Get-WinWGText $script:Language "Disabled" }
                 $lastMessage = "Mode ultra verbeux $state. Log: $script:LogFilePath"
                 Write-Log $lastMessage
             }
@@ -1381,7 +1381,7 @@ try {
                 }
             }
             'q' { return }
-            default { $lastMessage = "Choix invalide. Utilise 1/2/3/4/5/6, A/D/N/R/G, S, V, M, L ou Q." }
+            default { $lastMessage = Get-WinWGText $script:Language "InvalidChoiceMain" }
         }
     }
 } catch {

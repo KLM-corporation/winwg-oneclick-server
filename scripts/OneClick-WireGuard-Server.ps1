@@ -362,6 +362,24 @@ function Install-Tunnel([string]$WireGuardExe, [string]$TunnelName, [string]$Con
 }
 
 
+
+function Save-DeviceMetadata([string]$BaseDir, [string]$DeviceName, [string]$VpnIp) {
+    $deviceDir = Join-Path $BaseDir "devices"
+    if (-not (Test-Path $deviceDir)) { New-Item -ItemType Directory -Path $deviceDir -Force | Out-Null }
+    $path = Join-Path $deviceDir "$DeviceName.meta.json"
+    $metadata = [ordered]@{
+        name = $DeviceName
+        type = 'permanent'
+        temporary = $false
+        createdAt = (Get-Date).ToUniversalTime().ToString('o')
+        expiresAt = $null
+        vpnIp = $VpnIp
+        configPath = (Join-Path $deviceDir "$DeviceName.conf")
+    }
+    [pscustomobject]$metadata | ConvertTo-Json -Depth 5 | Set-Content -Path $path -Encoding UTF8
+    return $path
+}
+
 function Get-ExistingServerListenPort([string]$ServerConfigPath, [int]$DefaultPort) {
     if (Test-Path $ServerConfigPath) {
         $content = Get-Content $ServerConfigPath -Raw -ErrorAction SilentlyContinue
@@ -612,7 +630,9 @@ PersistentKeepalive = 25
 
     Set-Content -Path $serverConfigPath -Value $serverConfig -Encoding ASCII
     Set-Content -Path $deviceConfigPath -Value $deviceConfig -Encoding ASCII
-    Write-Ok (TInstall "Configuration appareil creee : $deviceConfigPath" "Config appareiliguration created: $deviceConfigPath")
+    $metaPath = Save-DeviceMetadata -BaseDir $baseDir -DeviceName $safeDeviceName -VpnIp $ClientVpnIp
+    Write-Ok (TInstall "Configuration appareil creee : $deviceConfigPath" "Device configuration created: $deviceConfigPath")
+    Write-Ok (TInstall "Metadonnees appareil creees : $metaPath" "Device metadata created: $metaPath")
 
     if ($enableQrFeature) {
         $generateFirstQrPrompt = TInstall "Generer un QR code pour ce premier appareil ? Tape oui ou non ; laisser le champ vide n'est pas accepte." "Generate a QR code for this first device? Please type yes or no; leaving the field empty is not accepted."

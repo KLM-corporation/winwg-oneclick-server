@@ -123,6 +123,24 @@ function Invoke-WireGuardNoThrow([string]$WireGuardExe, [string[]]$Arguments) {
     return [pscustomobject]@{ ExitCode = $process.ExitCode; StdOut = $stdout; StdErr = $stderr }
 }
 
+
+function Save-DeviceMetadata([string]$BaseDir, [string]$DeviceName, [string]$VpnIp) {
+    $deviceDir = Join-Path $BaseDir "devices"
+    if (-not (Test-Path $deviceDir)) { New-Item -ItemType Directory -Path $deviceDir -Force | Out-Null }
+    $path = Join-Path $deviceDir "$DeviceName.meta.json"
+    $metadata = [ordered]@{
+        name = $DeviceName
+        type = 'permanent'
+        temporary = $false
+        createdAt = (Get-Date).ToUniversalTime().ToString('o')
+        expiresAt = $null
+        vpnIp = $VpnIp
+        configPath = (Join-Path $deviceDir "$DeviceName.conf")
+    }
+    [pscustomobject]$metadata | ConvertTo-Json -Depth 5 | Set-Content -Path $path -Encoding UTF8
+    return $path
+}
+
 Assert-Admin
 $tools = @(Ensure-WireGuard)[-1]
 if (-not $tools -or -not $tools.PSObject.Properties["WgExe"] -or -not $tools.PSObject.Properties["WireGuardExe"]) { throw "Impossible de recuperer les chemins WireGuard apres installation." }
@@ -173,6 +191,8 @@ PersistentKeepalive = 25
 
 Set-Content -Path $serverConfigPath -Value $serverConfig -Encoding ASCII
 Set-Content -Path $deviceConfigPath -Value $deviceConfig -Encoding ASCII
+$metaPath = Save-DeviceMetadata -BaseDir $baseDir -DeviceName $DeviceName -VpnIp ($FirstDeviceVpnIp -replace '/32$', '')
+Write-Host "Metadonnees appareil creees : $metaPath"
 
 Write-Host "Activation du routage IPv4 Windows..."
 Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -Name IPEnableRouter -Value 1

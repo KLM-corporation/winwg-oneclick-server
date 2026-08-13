@@ -427,21 +427,21 @@ function Generate-DeviceQrFromConsole([string]$BaseDir, [string]$ClientName = ""
 
     if ([string]::IsNullOrWhiteSpace($ClientName)) {
         Write-UiHost ""
-        Write-UiHost "Generer un QR code WireGuard" -ForegroundColor Cyan
+        Write-UiHost (Get-WinWGText $script:Language "GenerateQrTitle") -ForegroundColor Cyan
         Write-UiHost "----------------------------" -ForegroundColor DarkGray
 
         if ($clients.Length -eq 0) {
             throw "Aucune configuration .conf trouvee dans $clientDir"
         } elseif ($clients.Length -eq 1) {
             $ClientName = $clients[0].BaseName
-            Write-UiHost "Un seul appareil detecte : $ClientName" -ForegroundColor Yellow
+            Write-UiHost ((Get-WinWGText $script:Language "SingleDeviceDetected") + " : $ClientName") -ForegroundColor Yellow
         } else {
-            Write-UiHost "0 - Annuler"
+            Write-UiHost ("0 - " + (Get-WinWGText $script:Language "Cancel"))
             for ($i = 0; $i -lt $clients.Length; $i++) {
                 Write-UiHost ("{0} - {1}" -f ($i + 1), $clients[$i].BaseName)
             }
             Write-UiHost ""
-            $choice = (Read-UiHost "Tape le numero de l'appareil, ou son nom exact").Trim()
+            $choice = (Read-UiHost (Get-WinWGText $script:Language "TypeNumberOrExactName")).Trim()
             if ($choice -eq '0' -or [string]::IsNullOrWhiteSpace($choice)) { return "Generation QR annulee." }
             if ($choice -match '^\d+$' -and [int]$choice -ge 1 -and [int]$choice -le $clients.Length) {
                 $ClientName = $clients[[int]$choice - 1].BaseName
@@ -548,20 +548,20 @@ function Remove-DeviceFromConsole([string]$TunnelName, [string]$BaseDir) {
     if (Test-Path $clientDir) { $clients = @(Get-ChildItem $clientDir -Filter "*.conf" -ErrorAction SilentlyContinue) }
 
     Write-UiHost ""
-    Write-UiHost "Supprimer un appareil" -ForegroundColor Cyan
+    Write-UiHost (Get-WinWGText $script:Language "RemoveDeviceTitle") -ForegroundColor Cyan
     Write-UiHost "---------------------" -ForegroundColor DarkGray
     if ($clients.Length -eq 1) {
         $clientName = $clients[0].BaseName
         Write-UiHost "1 - $clientName" -ForegroundColor DarkCyan
         Write-UiHost ""
-        Write-UiHost "Un seul appareil est configure. Selection automatique : $clientName" -ForegroundColor Yellow
+        Write-UiHost ((Get-WinWGText $script:Language "SingleDeviceAuto") + " : $clientName") -ForegroundColor Yellow
     } elseif ($clients.Length -gt 1) {
-        Write-UiHost "0 - Annuler"
+        Write-UiHost ("0 - " + (Get-WinWGText $script:Language "Cancel"))
         for ($i = 0; $i -lt $clients.Length; $i++) {
             Write-UiHost ("{0} - {1}" -f ($i + 1), $clients[$i].BaseName)
         }
         Write-UiHost ""
-        $choice = (Read-UiHost "Tape le numero de l'appareil a supprimer, ou son nom exact").Trim()
+        $choice = (Read-UiHost (Get-WinWGText $script:Language "TypeNumberOrExactNameRemove")).Trim()
         if ($choice -eq '0') { return "Suppression annulee." }
         if ($choice -match '^\d+$' -and [int]$choice -ge 1 -and [int]$choice -le $clients.Length) {
             $clientName = $clients[[int]$choice - 1].BaseName
@@ -575,11 +575,11 @@ function Remove-DeviceFromConsole([string]$TunnelName, [string]$BaseDir) {
     }
 
     if ([string]::IsNullOrWhiteSpace($clientName)) { return "Suppression annulee." }
-    $confirm = (Read-UiHost "Confirmer la suppression de '$clientName' ? Tape O pour confirmer [o/N]").Trim().ToLowerInvariant()
+    $confirm = (Read-UiHost ((Get-WinWGText $script:Language "ConfirmRemove") + " '$clientName' ? " + (Get-WinWGText $script:Language "TypeOConfirm") + " [o/N]")).Trim().ToLowerInvariant()
     if ($confirm -notin @('o','oui','y','yes')) { return "Suppression annulee." }
 
     Write-Ultra "Suppression appareil: ClientName=$clientName TunnelName=$TunnelName Script=$scriptPath"
-    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -ClientName $clientName -TunnelName $TunnelName 2>&1
+    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -ClientName $clientName -TunnelName $TunnelName -Language $script:Language 2>&1
     $code = $LASTEXITCODE
     Write-Ultra "Code retour script suppression: $code"
     $outputText = ($output | Out-String).Trim()
@@ -595,10 +595,10 @@ function Remove-DeviceFromConsole([string]$TunnelName, [string]$BaseDir) {
     }
 
     if ($code -ne 0 -and $removed) {
-        return "Appareil supprime : $clientName. Note : le script a retourne une erreur apres suppression, probablement pendant le rechargement du service. Si besoin, utilise 3 pour redemarrer le serveur VPN."
+        return ((Get-WinWGText $script:Language "ClientRemoved") + " : $clientName. Note: script returned an error after removal, probably while reloading the service. If needed, use 3 to restart the VPN server.")
     }
 
-    return "Appareil supprime : $clientName"
+    return ((Get-WinWGText $script:Language "ClientRemoved") + " : $clientName")
 }
 
 
@@ -687,16 +687,16 @@ function Select-ClientConfigName([string]$BaseDir, [string]$Title = "Selection a
 
     if ($clients.Length -eq 1) {
         Write-UiHost "1 - $($clients[0].BaseName)" -ForegroundColor DarkCyan
-        Write-UiHost "Un seul appareil detecte : $($clients[0].BaseName)" -ForegroundColor Yellow
+        Write-UiHost ((Get-WinWGText $script:Language "SingleDeviceDetected") + " : $($clients[0].BaseName)") -ForegroundColor Yellow
         return $clients[0].BaseName
     }
 
-    Write-UiHost "0 - Annuler"
+    Write-UiHost ("0 - " + (Get-WinWGText $script:Language "Cancel"))
     for ($i = 0; $i -lt $clients.Length; $i++) {
         Write-UiHost ("{0} - {1}" -f ($i + 1), $clients[$i].BaseName)
     }
     Write-UiHost ""
-    $choice = (Read-UiHost "Tape le numero de l'appareil, ou son nom exact").Trim()
+    $choice = (Read-UiHost (Get-WinWGText $script:Language "TypeNumberOrExactName")).Trim()
     if ($choice -eq '0' -or [string]::IsNullOrWhiteSpace($choice)) { return $null }
     if ($choice -match '^\d+$' -and [int]$choice -ge 1 -and [int]$choice -le $clients.Length) {
         return $clients[[int]$choice - 1].BaseName
@@ -742,7 +742,7 @@ function Edit-ClientAllowedIPsAdvanced([string]$BaseDir) {
     Write-UiHost "2 - VPN uniquement : 10.66.66.0/24"
     Write-UiHost "3 - VPN + LAN maison : 10.66.66.0/24, 192.168.1.0/24"
     Write-UiHost "4 - Valeur personnalisee"
-    Write-UiHost "0 - Annuler"
+    Write-UiHost ("0 - " + (Get-WinWGText $script:Language "Cancel"))
     Write-UiHost ""
     $choice = (Read-UiHost "Choix").Trim()
 
@@ -1021,7 +1021,7 @@ function Get-AllowedIPsPresetFromMenu([string]$BaseDir) {
     Write-UiHost "2 - VPN uniquement : 10.66.66.0/24"
     Write-UiHost "3 - VPN + LAN maison : 10.66.66.0/24, 192.168.1.0/24"
     Write-UiHost "4 - Valeur personnalisee"
-    Write-UiHost "0 - Annuler"
+    Write-UiHost ("0 - " + (Get-WinWGText $script:Language "Cancel"))
     $choice = (Read-UiHost "Choix").Trim()
     switch ($choice) {
         '1' { return "0.0.0.0/0" }

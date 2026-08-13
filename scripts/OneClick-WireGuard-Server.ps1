@@ -28,6 +28,8 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
+$languageScript = Join-Path $PSScriptRoot "WinWG-Language.ps1"
+if (Test-Path $languageScript) { . $languageScript }
 
 function Write-Step([string]$Text) {
     Write-Host ""
@@ -62,15 +64,15 @@ function Ask-Text([string]$Title, [string]$Prompt, [string]$Default) {
 
 
 function Ask-YesNo([string]$Title, [string]$Prompt, [bool]$DefaultYes = $true) {
-    $defaultText = if ($DefaultYes) { "oui" } else { "non" }
+    $defaultText = if ($DefaultYes) { "yes/oui" } else { "no/non" }
     try {
         Add-Type -AssemblyName Microsoft.VisualBasic -ErrorAction Stop
-        $value = [Microsoft.VisualBasic.Interaction]::InputBox("$Prompt`n`nReponds par oui ou non.", $Title, $defaultText)
+        $value = [Microsoft.VisualBasic.Interaction]::InputBox("$Prompt`n`nAnswer yes/no or oui/non.", $Title, $defaultText)
         if ([string]::IsNullOrWhiteSpace($value)) { return $DefaultYes }
         $v = $value.Trim().ToLowerInvariant()
         return ($v -in @('o','oui','y','yes','1','true'))
     } catch {
-        $suffix = if ($DefaultYes) { "O/n" } else { "o/N" }
+        $suffix = if ($DefaultYes) { "Y/o / n" } else { "y/o / N" }
         $value = Read-Host "$Prompt [$suffix]"
         if ([string]::IsNullOrWhiteSpace($value)) { return $DefaultYes }
         $v = $value.Trim().ToLowerInvariant()
@@ -326,26 +328,48 @@ try {
     Assert-Admin
     $host.UI.RawUI.WindowTitle = "WinWG OneClick Server - One Click"
 
-    Write-Host "WinWG OneClick Server - installation one click" -ForegroundColor Green
-    Write-Host "Ce script va configurer ce PC comme serveur VPN WireGuard pour ton telephone."
-
-    $defaultEndpoint = Get-PublicEndpoint -Port $ListenPort
-    $clientName = Ask-Text "WireGuard" "Nom du telephone/client" "telephone"
-    $endpoint = Ask-Text "WireGuard" "IP publique ou DNS a utiliser cote telephone. Laisse la valeur detectee si tu n'as pas de DNS dynamique." $defaultEndpoint
-    $Dns = Ask-Text "WireGuard" "DNS a utiliser sur cet appareil. Laisse vide / ne tape rien pour garder le DNS par defaut. Exemples : 1.1.1.1, 8.8.8.8 ou l'IP DNS de ta box comme 192.168.1.1" $Dns
-
-    $tools = @(Ensure-WireGuard)[-1]
-    if (-not $tools -or -not $tools.PSObject.Properties["WgExe"] -or -not $tools.PSObject.Properties["WireGuardExe"]) { throw "Impossible de recuperer les chemins WireGuard apres installation." }
-    $wgExe = $tools.WgExe
-    $wireguardExe = $tools.WireGuardExe
-
     $baseDir = Join-Path $env:ProgramData "WireGuardPhoneServer"
     $serverDir = Join-Path $baseDir "server"
     $clientDir = Join-Path $baseDir "clients"
     Ensure-Directory $serverDir
     Ensure-Directory $clientDir
 
-    $enableQrFeature = Ask-YesNo "WinWG QR Code" "Installer le generateur de QR code integre ? Cela permet d'importer la configuration dans l'app WireGuard mobile en scannant un QR code. La dependance QRCoder sera telechargee depuis NuGet, mais tes cles/configurations ne sont pas envoyees a Internet." $true
+    # First interactive action: language selection.
+    # Keep this prompt bilingual so English/French users can understand before any other question.
+    $Language = "en"
+    if (Get-Command Select-WinWGLanguage -ErrorAction SilentlyContinue) {
+        $Language = Select-WinWGLanguage -BaseDir $baseDir
+    }
+
+    if ($Language -eq "fr") {
+        Write-Host "Langue selectionnee : Francais" -ForegroundColor Green
+        Write-Host "WinWG OneClick Server - installation one click" -ForegroundColor Green
+        Write-Host "Ce script va configurer ce PC comme serveur VPN WireGuard pour ton telephone."
+        $clientNamePrompt = "Nom du telephone/client"
+        $endpointPrompt = "IP publique ou DNS a utiliser cote telephone. Laisse la valeur detectee si tu n'as pas de DNS dynamique."
+        $dnsPrompt = "DNS a utiliser sur cet appareil. Laisse vide / ne tape rien pour garder le DNS par defaut. Exemples : 1.1.1.1, 8.8.8.8 ou l'IP DNS de ta box comme 192.168.1.1"
+        $qrPrompt = "Installer le generateur de QR code integre ? Cela permet d'importer la configuration dans l'app WireGuard mobile en scannant un QR code. La dependance QRCoder sera telechargee depuis NuGet, mais tes cles/configurations ne sont pas envoyees a Internet."
+    } else {
+        Write-Host "Selected language: English" -ForegroundColor Green
+        Write-Host "WinWG OneClick Server - one-click installation" -ForegroundColor Green
+        Write-Host "This script will configure this PC as a WireGuard VPN server for your device."
+        $clientNamePrompt = "Phone/device name"
+        $endpointPrompt = "Public IP or DNS to use on the device side. Keep the detected value if you do not have dynamic DNS."
+        $dnsPrompt = "DNS to use on this device. Leave empty / type nothing to keep the default DNS. Examples: 1.1.1.1, 8.8.8.8 or your router DNS such as 192.168.1.1"
+        $qrPrompt = "Install the integrated QR code generator? This lets you import the configuration in the WireGuard mobile app by scanning a QR code. The QRCoder dependency will be downloaded from NuGet, but your keys/configurations are not sent to the Internet."
+    }
+
+    $defaultEndpoint = Get-PublicEndpoint -Port $ListenPort
+    $clientName = Ask-Text "WireGuard" $clientNamePrompt "telephone"
+    $endpoint = Ask-Text "WireGuard" $endpointPrompt $defaultEndpoint
+    $Dns = Ask-Text "WireGuard" $dnsPrompt $Dns
+
+    $tools = @(Ensure-WireGuard)[-1]
+    if (-not $tools -or -not $tools.PSObject.Properties["WgExe"] -or -not $tools.PSObject.Properties["WireGuardExe"]) { throw "Impossible de recuperer les chemins WireGuard apres installation." }
+    $wgExe = $tools.WgExe
+    $wireguardExe = $tools.WireGuardExe
+
+    $enableQrFeature = Ask-YesNo "WinWG QR Code" $qrPrompt $true
     if ($enableQrFeature) {
         try {
             Install-QrDependency -BaseDir $baseDir | Out-Null
@@ -439,7 +463,8 @@ PersistentKeepalive = 25
 
     Start-Process explorer.exe $clientDir
 
-    $consoleBat = Join-Path $PSScriptRoot "SERVER-CONSOLE.bat"
+    $projectRoot = Split-Path $PSScriptRoot -Parent
+    $consoleBat = Join-Path $projectRoot "SERVER-CONSOLE.bat"
     if (Test-Path $consoleBat) {
         Write-Host ""
         Write-Host "Ouverture de la console serveur de supervision..." -ForegroundColor Cyan

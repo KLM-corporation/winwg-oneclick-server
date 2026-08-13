@@ -1,12 +1,14 @@
 # WinWG OneClick Server
 
+English | [Français](README.fr.md)
+
 ![Status](https://img.shields.io/badge/status-beta-orange) ![Platform](https://img.shields.io/badge/platform-Windows-blue) ![License](https://img.shields.io/badge/license-MIT-green)
 
 **One script. One click. Your Windows PC becomes a WireGuard VPN server.**
 
 
 > 💙 **Support the project**: WinWG OneClick Server is free and open source. Donations are optional.  
-> BTC: `bc1qp3lzycrpngpk00tecj85pfkhrqqr49gmslzmsg` — see [`DONATE.md`](DONATE.md).
+> BTC: `bc1qp3lzycrpngpk00tecj85pfkhrqqr49gmslzmsg` — see [`docs/DONATE.md`](docs/DONATE.md).
 
 WinWG OneClick Server is a simple Windows project that turns a Windows 10/11 PC into a **WireGuard remote access server** with a **single script / single double-click** installation. It also generates the configuration file to import on your phone, tablet, or laptop.
 
@@ -21,6 +23,32 @@ WinWG OneClick Server is a simple Windows project that turns a Windows 10/11 PC 
 WinWG OneClick Server is currently in **beta**. It is usable, but it still needs testing on multiple Windows machines before being considered stable.
 
 Use it first for personal, home-lab, or test environments. Avoid installing it directly on a critical machine without validation.
+
+
+## Application language
+
+WinWG supports French and English.
+
+During one-click installation, the script asks which language should be used. The default is detected from the Windows system language:
+
+```text
+fr = Français
+en = English
+```
+
+The console can also change the language later with:
+
+```text
+L - Change language
+```
+
+The choice is stored in:
+
+```text
+C:\ProgramData\WireGuardPhoneServer\settings\language.txt
+```
+
+Note: translation is progressive. The main installer/console flow is prioritized first.
 
 ## Project promise
 
@@ -96,7 +124,7 @@ Bitcoin BTC address:
 bc1qp3lzycrpngpk00tecj85pfkhrqqr49gmslzmsg
 ```
 
-More information: [`DONATE.md`](DONATE.md).
+More information: [`docs/DONATE.md`](docs/DONATE.md).
 
 ## Attribution
 
@@ -212,7 +240,7 @@ If you manually created port-forwarding on your router, you must also remove it 
 Advanced silent mode:
 
 ```powershell
-.\Uninstall-WireGuard-Server.ps1 -Quiet -RemoveWireGuardApp
+.\scripts\Uninstall-WireGuard-Server.ps1 -Quiet -RemoveWireGuardApp
 ```
 
 

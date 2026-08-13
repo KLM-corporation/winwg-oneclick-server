@@ -8,10 +8,10 @@ REM =============================================================
 
 net session >nul 2>&1
 if %errorlevel% neq 0 (
-  echo Demande des droits administrateur...
+  echo Requesting administrator rights / Demande des droits administrateur...
   powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
   exit /b
 )
 
 cd /d "%~dp0"
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0WireGuard-Server-Console.ps1"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\WireGuard-Server-Console.ps1"

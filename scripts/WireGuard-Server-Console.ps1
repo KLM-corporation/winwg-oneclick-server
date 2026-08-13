@@ -1329,33 +1329,33 @@ try {
         $choice = (Read-UiHost (Get-WinWGText $script:Language "Choice")).Trim().ToLowerInvariant()
         switch ($choice) {
             { $_ -in @('1','a') } {
-                try { $lastMessage = Enable-Tunnel -TunnelName $TunnelName -BaseDir $BaseDir } catch { $lastMessage = "ERREUR activation : $($_.Exception.Message)" }
+                try { $lastMessage = Enable-Tunnel -TunnelName $TunnelName -BaseDir $BaseDir } catch { $lastMessage = ((Get-WinWGText $script:Language "ErrorActivation") + " : $($_.Exception.Message)") }
                 Pause-ConsoleAction $lastMessage
                 $lastMessage = ""
             }
             { $_ -in @('2','d') } {
-                try { $lastMessage = Disable-Tunnel -TunnelName $TunnelName } catch { $lastMessage = "ERREUR desactivation : $($_.Exception.Message)" }
+                try { $lastMessage = Disable-Tunnel -TunnelName $TunnelName } catch { $lastMessage = ((Get-WinWGText $script:Language "ErrorDeactivation") + " : $($_.Exception.Message)") }
                 Pause-ConsoleAction $lastMessage
                 $lastMessage = ""
             }
             { $_ -in @('3') } {
-                try { $lastMessage = Restart-Tunnel -TunnelName $TunnelName -BaseDir $BaseDir } catch { $lastMessage = "ERREUR redemarrage : $($_.Exception.Message)" }
+                try { $lastMessage = Restart-Tunnel -TunnelName $TunnelName -BaseDir $BaseDir } catch { $lastMessage = ((Get-WinWGText $script:Language "ErrorRestart") + " : $($_.Exception.Message)") }
                 Pause-ConsoleAction $lastMessage
                 $lastMessage = ""
             }
             { $_ -in @('4','n') } {
-                try { $lastMessage = Add-DeviceFromConsole -TunnelName $TunnelName -ListenPort $ListenPort -BaseDir $BaseDir } catch { $lastMessage = "ERREUR ajout appareil : $($_.Exception.Message)" }
+                try { $lastMessage = Add-DeviceFromConsole -TunnelName $TunnelName -ListenPort $ListenPort -BaseDir $BaseDir } catch { $lastMessage = ((Get-WinWGText $script:Language "ErrorAddDevice") + " : $($_.Exception.Message)") }
                 Pause-ConsoleAction $lastMessage
                 $lastMessage = ""
             }
             { $_ -in @('5','r','x') } {
-                try { $lastMessage = Remove-DeviceFromConsole -TunnelName $TunnelName -BaseDir $BaseDir } catch { $lastMessage = "ERREUR suppression appareil : $($_.Exception.Message)" }
+                try { $lastMessage = Remove-DeviceFromConsole -TunnelName $TunnelName -BaseDir $BaseDir } catch { $lastMessage = ((Get-WinWGText $script:Language "ErrorRemoveDevice") + " : $($_.Exception.Message)") }
                 Pause-ConsoleAction $lastMessage
                 $lastMessage = ""
             }
             { $_ -in @('6','g') } {
                 if (Test-QrFeatureEnabled -BaseDir $BaseDir) {
-                    try { $lastMessage = Generate-DeviceQrFromConsole -BaseDir $BaseDir } catch { $lastMessage = "ERREUR QR code : $($_.Exception.Message)" }
+                    try { $lastMessage = Generate-DeviceQrFromConsole -BaseDir $BaseDir } catch { $lastMessage = ((Get-WinWGText $script:Language "ErrorQr") + " : $($_.Exception.Message)") }
                     Pause-ConsoleAction $lastMessage
                     $lastMessage = ""
                 } else {
@@ -1370,7 +1370,7 @@ try {
                 Write-Log $lastMessage
             }
             'm' {
-                try { $lastMessage = Show-AdvancedMenu -TunnelName $TunnelName -BaseDir $BaseDir -ListenPort $ListenPort } catch { $lastMessage = "ERREUR mode avance : $($_.Exception.Message)" }
+                try { $lastMessage = Show-AdvancedMenu -TunnelName $TunnelName -BaseDir $BaseDir -ListenPort $ListenPort } catch { $lastMessage = ((Get-WinWGText $script:Language "ErrorAdvanced") + " : $($_.Exception.Message)") }
             }
             'l' {
                 if (Get-Command Select-WinWGLanguage -ErrorAction SilentlyContinue) {

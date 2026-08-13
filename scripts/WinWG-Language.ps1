@@ -146,6 +146,13 @@ function Get-WinWGText([string]$Language, [string]$Key) {
             ServiceDisabled = 'Service desactive'
             ResidualServiceRemoved = 'Service residuel supprime'
             PressEnterReturn = 'Appuie sur Entree pour revenir au menu'
+            ErrorActivation = 'ERREUR activation'
+            ErrorDeactivation = 'ERREUR desactivation'
+            ErrorRestart = 'ERREUR redemarrage'
+            ErrorAddDevice = 'ERREUR ajout appareil'
+            ErrorRemoveDevice = 'ERREUR suppression appareil'
+            ErrorQr = 'ERREUR QR code'
+            ErrorAdvanced = 'ERREUR mode avance'
         }
         en = @{
             ConsoleTitle = 'WinWG OneClick Server - Unified server console'
@@ -241,6 +248,13 @@ function Get-WinWGText([string]$Language, [string]$Key) {
             ServiceDisabled = 'Service disabled'
             ResidualServiceRemoved = 'Residual service removed'
             PressEnterReturn = 'Press Enter to return to the menu'
+            ErrorActivation = 'ERROR enabling'
+            ErrorDeactivation = 'ERROR disabling'
+            ErrorRestart = 'ERROR restarting'
+            ErrorAddDevice = 'ERROR adding device'
+            ErrorRemoveDevice = 'ERROR removing device'
+            ErrorQr = 'ERROR QR code'
+            ErrorAdvanced = 'ERROR advanced mode'
         }
     }
     if (-not $texts.ContainsKey($Language)) { $Language = 'en' }

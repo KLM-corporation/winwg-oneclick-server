@@ -8,7 +8,8 @@ English | [Français](README.fr.md)
 
 
 > 💙 **Support the project**: WinWG OneClick Server is free and open source. Donations are optional.  
-> BTC: `bc1qp3lzycrpngpk00tecj85pfkhrqqr49gmslzmsg` — see [`docs/DONATE.md`](docs/DONATE.md).
+> BTC: `bc1qp3lzycrpngpk00tecj85pfkhrqqr49gmslzmsg`  
+> ETH: `0xbb07ad0dd362c15a3167ececc0640c770c45849a` — see [`docs/DONATE.md`](docs/DONATE.md).
 
 WinWG OneClick Server is a simple Windows project that turns a Windows 10/11 PC into a **WireGuard remote access server** with a **single script / single double-click** installation. It also generates the configuration file to import on a remote device such as a phone, tablet, or laptop.
 
@@ -124,6 +125,12 @@ Bitcoin BTC address:
 
 ```text
 bc1qp3lzycrpngpk00tecj85pfkhrqqr49gmslzmsg
+```
+
+Ethereum ETH address:
+
+```text
+0xbb07ad0dd362c15a3167ececc0640c770c45849a
 ```
 
 More information: [`docs/DONATE.md`](docs/DONATE.md).

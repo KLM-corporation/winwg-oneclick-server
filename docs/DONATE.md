@@ -12,6 +12,14 @@ If you want to support the project, you can send an optional Bitcoin donation to
 bc1qp3lzycrpngpk00tecj85pfkhrqqr49gmslzmsg
 ```
 
-Please double-check the address before sending. Cryptocurrency transactions are irreversible.
+## Ethereum
+
+You can also send an optional Ethereum donation to:
+
+```text
+0xbb07ad0dd362c15a3167ececc0640c770c45849a
+```
+
+Please double-check the address and network before sending. Cryptocurrency transactions are irreversible.
 
 Thank you for your support.

@@ -538,6 +538,45 @@ Important: a WireGuard QR code contains the device private key, exactly like the
 
 To generate QR codes locally without sending configurations to a third-party service, WinWG downloads the open source .NET **QRCoder** library from NuGet if needed and uses it locally.
 
+
+## Temporary devices
+
+WinWG can now create a temporary device from the console.
+
+When adding a device:
+
+```text
+4 / N - Add a new device
+```
+
+The console asks whether the device should be temporary. If yes, you can choose a duration:
+
+```text
+1 - 1 hour
+2 - 6 hours
+3 - 24 hours
+4 - 7 days
+5 - custom duration in hours
+```
+
+WinWG now creates a metadata file for every device. For a temporary device, this file also contains the expiration date:
+
+```text
+C:\ProgramData\WinWGOneClickServer\devices\NAME.meta.json
+```
+
+For a permanent device, the same `.meta.json` file is created with `temporary = false` and no expiration.
+
+The console displays the expiration in the peer list only for temporary devices.
+
+To remove expired temporary devices:
+
+```text
+8 / E - Remove expired temporary devices
+```
+
+Current simple mode: cleanup is manual from the console. There is no automatic Windows scheduled task yet.
+
 ## Device management from the console
 
 From `SERVER-CONSOLE.bat`, you can now manage devices without manual PowerShell commands:

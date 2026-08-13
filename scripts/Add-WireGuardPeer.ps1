@@ -137,6 +137,24 @@ function Restart-WireGuardTunnelSafely([string]$WireGuardExe, [string]$TunnelNam
     return $false
 }
 
+
+function Save-DeviceMetadata([string]$BaseDir, [string]$DeviceName, [string]$VpnIp) {
+    $deviceDir = Join-Path $BaseDir "devices"
+    if (-not (Test-Path $deviceDir)) { New-Item -ItemType Directory -Path $deviceDir -Force | Out-Null }
+    $path = Join-Path $deviceDir "$DeviceName.meta.json"
+    $metadata = [ordered]@{
+        name = $DeviceName
+        type = 'permanent'
+        temporary = $false
+        createdAt = (Get-Date).ToUniversalTime().ToString('o')
+        expiresAt = $null
+        vpnIp = $VpnIp
+        configPath = (Join-Path $deviceDir "$DeviceName.conf")
+    }
+    [pscustomobject]$metadata | ConvertTo-Json -Depth 5 | Set-Content -Path $path -Encoding UTF8
+    return $path
+}
+
 Assert-Admin
 $wgExe = Join-Path $env:ProgramFiles "WireGuard\wg.exe"
 $wireguardExe = Join-Path $env:ProgramFiles "WireGuard\wireguard.exe"
@@ -188,6 +206,8 @@ AllowedIPs = 0.0.0.0/0
 PersistentKeepalive = 25
 "@
 Set-Content -Path $deviceConfigPath -Value $deviceConfig -Encoding ASCII
+$metaPath = Save-DeviceMetadata -BaseDir $baseDir -DeviceName $DeviceName -VpnIp $deviceIp
+Write-Host ((TPeer "Metadonnees appareil creees" "Device metadata created") + " : $metaPath")
 
 $reloadOk = Restart-WireGuardTunnelSafely -WireGuardExe $wireguardExe -TunnelName $TunnelName -ConfigPath $serverConfigPath
 if (-not $reloadOk) {

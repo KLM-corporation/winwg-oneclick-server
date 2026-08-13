@@ -89,6 +89,7 @@ $wireguardExe = Join-Path $env:ProgramFiles "WireGuard\wireguard.exe"
 $baseDir = Join-Path $env:ProgramData "WinWGOneClickServer"
 $serverConfigPath = Join-Path $baseDir "server\$TunnelName.conf"
 $deviceConfigPath = Join-Path $baseDir "devices\$DeviceName.conf"
+$deviceMetaPath = Join-Path $baseDir "devices\$DeviceName.meta.json"
 
 if (-not (Test-Path $serverConfigPath)) { throw "Configuration serveur introuvable : $serverConfigPath" }
 
@@ -102,6 +103,7 @@ if ($newConfig -eq $config) {
 
 Set-Content -Path $serverConfigPath -Value $newConfig -Encoding ASCII
 if (Test-Path $deviceConfigPath) { Remove-Item $deviceConfigPath -Force }
+if (Test-Path $deviceMetaPath) { Remove-Item $deviceMetaPath -Force }
 
 $reloadOk = Restart-WireGuardTunnelSafely -WireGuardExe $wireguardExe -TunnelName $TunnelName -ConfigPath $serverConfigPath
 if (-not $reloadOk) {

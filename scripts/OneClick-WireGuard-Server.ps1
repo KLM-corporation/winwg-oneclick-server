@@ -335,15 +335,28 @@ function Install-Tunnel([string]$WireGuardExe, [string]$TunnelName, [string]$Con
     # WireGuard renvoie une erreur si le service n'existe pas encore.
     # C'est normal lors de la premiere installation, donc on l'ignore.
     $remove = Invoke-WireGuardNoThrow -WireGuardExe $WireGuardExe -Arguments @('/uninstalltunnelservice', $TunnelName)
-    if ($remove.ExitCode -ne 0 -and $remove.StdErr -notmatch 'does not exist|n.existe pas|service.*introuvable') {
-        Write-Host "Ancien tunnel non supprime, tentative d'installation quand meme : $($remove.StdErr.Trim())" -ForegroundColor Yellow
+    if ($remove.ExitCode -ne 0 -and $remove.StdErr -notmatch 'does not exist|n.existe pas|service.*introuvable|specified service') {
+        Write-Host (TInstall "Ancien tunnel non supprime, nouvelle tentative possible : $($remove.StdErr.Trim())" "Previous tunnel was not removed cleanly, retry may be needed: $($remove.StdErr.Trim())") -ForegroundColor Yellow
     }
+
+    Start-Sleep -Seconds 2
 
     $install = Invoke-WireGuardNoThrow -WireGuardExe $WireGuardExe -Arguments @('/installtunnelservice', $ConfigPath)
     if ($install.ExitCode -ne 0) {
         $message = ($install.StdErr + $install.StdOut).Trim()
-        if ([string]::IsNullOrWhiteSpace($message)) { $message = "wireguard.exe a retourne le code $($install.ExitCode)" }
-        throw $message
+
+        if ($message -match 'already installed|already running|deja installe|deja en cours|Tunnel already') {
+            Write-Host (TInstall "Tunnel deja installe/demarre detecte. Nettoyage puis nouvelle tentative..." "Tunnel already installed/running detected. Cleaning up and retrying...") -ForegroundColor Yellow
+            [void](Invoke-WireGuardNoThrow -WireGuardExe $WireGuardExe -Arguments @('/uninstalltunnelservice', $TunnelName))
+            Start-Sleep -Seconds 3
+            $install = Invoke-WireGuardNoThrow -WireGuardExe $WireGuardExe -Arguments @('/installtunnelservice', $ConfigPath)
+        }
+
+        if ($install.ExitCode -ne 0) {
+            $message = ($install.StdErr + $install.StdOut).Trim()
+            if ([string]::IsNullOrWhiteSpace($message)) { $message = "wireguard.exe a retourne le code $($install.ExitCode)" }
+            throw $message
+        }
     }
     Write-Ok (TInstall "Tunnel installe : $TunnelName" "Tunnel installed: $TunnelName")
 }
@@ -519,6 +532,12 @@ try {
                 $confirmText = TInstall "Tape REINSTALLER pour supprimer l'ancienne configuration et regenerer toutes les cles" "Type REINSTALL to delete the old configuration and regenerate all keys"
                 $confirm = (Read-Host $confirmText).Trim()
                 if ($confirm -ne 'REINSTALL' -and $confirm -ne 'REINSTALLER') { throw (TInstall "Reinstallation annulee." "Reinstall cancelled.") }
+                $existingWireGuardExe = Join-Path $env:ProgramFiles "WireGuard\wireguard.exe"
+                if (Test-Path $existingWireGuardExe) {
+                    Write-Host (TInstall "Suppression de l'ancien service tunnel avant reinstallation..." "Removing previous tunnel service before reinstall...") -ForegroundColor Yellow
+                    [void](Invoke-WireGuardNoThrow -WireGuardExe $existingWireGuardExe -Arguments @('/uninstalltunnelservice', $TunnelName))
+                    Start-Sleep -Seconds 2
+                }
                 Remove-Item $baseDir -Recurse -Force
                 Ensure-Directory $serverDir
                 Ensure-Directory $deviceDir

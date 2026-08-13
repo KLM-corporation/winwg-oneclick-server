@@ -81,7 +81,7 @@ function Get-WinWGText([string]$Language, [string]$Key) {
             Refresh = 'Rafraichir le statut'
             ToggleVerbose = 'Activer/desactiver le mode ultra verbeux'
             AdvancedTools = 'Mode avance / outils experts'
-            Language = 'Changer la langue / Change language'
+            Language = 'Changer la langue'
             Quit = 'Quitter'
             Choice = 'Choix'
             LanguageChanged = 'Langue modifiee'
@@ -139,6 +139,13 @@ function Get-WinWGText([string]$Language, [string]$Key) {
             AdvOpenServerConf = 'Ouvrir wg-phone-server.conf dans Notepad (contient la cle privee)'
             AdvDisable = 'Desactiver le mode avance'
             Back = 'Retour'
+            ServiceStarted = 'Service demarre'
+            ServiceAlreadyActive = 'Service deja actif'
+            ServiceInstalledStarted = 'Service installe et demarre'
+            ServiceAlreadyDisabled = 'Service deja desactive / non installe'
+            ServiceDisabled = 'Service desactive'
+            ResidualServiceRemoved = 'Service residuel supprime'
+            PressEnterReturn = 'Appuie sur Entree pour revenir au menu'
         }
         en = @{
             ConsoleTitle = 'WinWG OneClick Server - Unified server console'
@@ -169,7 +176,7 @@ function Get-WinWGText([string]$Language, [string]$Key) {
             Refresh = 'Refresh status'
             ToggleVerbose = 'Enable/disable ultra verbose mode'
             AdvancedTools = 'Advanced mode / expert tools'
-            Language = 'Change language / Changer la langue'
+            Language = 'Change language'
             Quit = 'Quit'
             Choice = 'Choice'
             LanguageChanged = 'Language changed'
@@ -227,6 +234,13 @@ function Get-WinWGText([string]$Language, [string]$Key) {
             AdvOpenServerConf = 'Open wg-phone-server.conf in Notepad (contains private key)'
             AdvDisable = 'Disable advanced mode'
             Back = 'Back'
+            ServiceStarted = 'Service started'
+            ServiceAlreadyActive = 'Service already active'
+            ServiceInstalledStarted = 'Service installed and started'
+            ServiceAlreadyDisabled = 'Service already disabled / not installed'
+            ServiceDisabled = 'Service disabled'
+            ResidualServiceRemoved = 'Residual service removed'
+            PressEnterReturn = 'Press Enter to return to the menu'
         }
     }
     if (-not $texts.ContainsKey($Language)) { $Language = 'en' }

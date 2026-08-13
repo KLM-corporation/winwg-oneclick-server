@@ -159,9 +159,9 @@ function Enable-Tunnel([string]$TunnelName, [string]$BaseDir) {
         if ($svc.Status -ne 'Running') {
             Start-Service -Name $svc.Name -ErrorAction Stop
             Start-Sleep -Seconds 1
-            return "Service demarre : $($svc.Name)"
+            return ((Get-WinWGText $script:Language "ServiceStarted") + " : $($svc.Name)")
         }
-        return "Service deja actif : $($svc.Name)"
+        return ((Get-WinWGText $script:Language "ServiceAlreadyActive") + " : $($svc.Name)")
     }
 
     $result = Invoke-ExternalNoThrow -FileName $wireguardExe -Arguments @('/installtunnelservice', $configPath)
@@ -170,12 +170,12 @@ function Enable-Tunnel([string]$TunnelName, [string]$BaseDir) {
         if ([string]::IsNullOrWhiteSpace($msg)) { $msg = "wireguard.exe a retourne le code $($result.ExitCode)" }
         throw $msg
     }
-    return "Service installe et demarre : WireGuardTunnel`$$TunnelName"
+    return ((Get-WinWGText $script:Language "ServiceInstalledStarted") + " : WireGuardTunnel`$$TunnelName")
 }
 
 function Disable-Tunnel([string]$TunnelName) {
     $svc = Get-ServiceState -TunnelName $TunnelName
-    if (-not $svc) { return "Service deja desactive / non installe" }
+    if (-not $svc) { return (Get-WinWGText $script:Language "ServiceAlreadyDisabled") }
 
     $wireguardExe = Get-WireGuardExe
     if ($wireguardExe) {
@@ -184,12 +184,12 @@ function Disable-Tunnel([string]$TunnelName) {
         if ($result.ExitCode -ne 0 -and $msg -notmatch 'does not exist|n.existe pas|service.*introuvable|specified service') {
             throw $msg
         }
-        return "Service desactive : WireGuardTunnel`$$TunnelName"
+        return ((Get-WinWGText $script:Language "ServiceDisabled") + " : WireGuardTunnel`$$TunnelName")
     }
 
     if ($svc.Status -ne 'Stopped') { Stop-Service -Name $svc.Name -Force -ErrorAction SilentlyContinue }
     sc.exe delete $svc.Name | Out-Null
-    return "Service residuel supprime : $($svc.Name)"
+    return ((Get-WinWGText $script:Language "ResidualServiceRemoved") + " : $($svc.Name)")
 }
 
 function Restart-Tunnel([string]$TunnelName, [string]$BaseDir) {
@@ -1312,7 +1312,7 @@ function Pause-ConsoleAction([string]$Message) {
         Write-UiHost $Message -ForegroundColor Yellow
     }
     Write-UiHost ""
-    [void](Read-UiHost "Appuie sur Entree pour revenir au menu")
+    [void](Read-UiHost (Get-WinWGText $script:Language "PressEnterReturn"))
 }
 
 try {
@@ -1366,7 +1366,7 @@ try {
             'v' {
                 $script:UltraVerboseMode = -not $script:UltraVerboseMode
                 $state = if ($script:UltraVerboseMode) { Get-WinWGText $script:Language "Enabled" } else { Get-WinWGText $script:Language "Disabled" }
-                $lastMessage = "Mode ultra verbeux $state. Log: $script:LogFilePath"
+                $lastMessage = ((Get-WinWGText $script:Language "VerboseMode") + " $state. Log: $script:LogFilePath")
                 Write-Log $lastMessage
             }
             'm' {

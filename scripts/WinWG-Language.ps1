@@ -69,6 +69,9 @@ function Get-WinWGText([string]$Language, [string]$Key) {
             UdpEndpoint = 'Endpoint UDP local'
             PhoneConfigs = 'Configs telephone'
             Actions = 'Actions'
+            QuickHelp = 'Aide rapide'
+            HelpPeerConnected = "Si le telephone est connecte, il apparait dans 'Telephones / peers' avec un handshake recent."
+            HelpSpeedRefresh = 'La vitesse RX/TX est calculee entre deux rafraichissements du statut. Utilise S pour mesurer.'
             StartVpn = 'Activer / demarrer le serveur VPN'
             StopVpn = 'Desactiver / arreter le serveur VPN'
             RestartVpn = 'Redemarrer le serveur VPN'
@@ -100,6 +103,9 @@ function Get-WinWGText([string]$Language, [string]$Key) {
             UdpEndpoint = 'Local UDP endpoint'
             PhoneConfigs = 'Device configs'
             Actions = 'Actions'
+            QuickHelp = 'Aide rapide'
+            HelpPeerConnected = "Si le telephone est connecte, il apparait dans 'Telephones / peers' avec un handshake recent."
+            HelpSpeedRefresh = 'La vitesse RX/TX est calculee entre deux rafraichissements du statut. Utilise S pour mesurer.'
             StartVpn = 'Enable / start VPN server'
             StopVpn = 'Disable / stop VPN server'
             RestartVpn = 'Restart VPN server'

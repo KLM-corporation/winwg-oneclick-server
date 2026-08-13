@@ -1282,9 +1282,9 @@ function Show-Status([string]$LastMessage = "") {
     }
 
     Write-UiHost ""
-    Write-UiHost "Aide rapide" -ForegroundColor Cyan
-    Write-UiHost "- Si le telephone est connecte, il apparait dans 'Telephones / peers' avec un handshake recent."
-    Write-UiHost "- La vitesse RX/TX est calculee entre deux rafraichissements du statut. Utilise S pour mesurer."
+    Write-UiHost (Get-WinWGText $script:Language "QuickHelp") -ForegroundColor Cyan
+    Write-UiHost ("- " + (Get-WinWGText $script:Language "HelpPeerConnected"))
+    Write-UiHost ("- " + (Get-WinWGText $script:Language "HelpSpeedRefresh"))
 }
 
 function Show-MainMenu {

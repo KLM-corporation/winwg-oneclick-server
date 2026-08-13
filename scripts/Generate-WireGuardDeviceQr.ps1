@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Genere un QR code PNG pour une configuration WireGuard appareil.
 
@@ -12,9 +12,9 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory=$true)]
-    [string]$ClientName,
+    [string]$DeviceName,
 
-    [string]$BaseDir = "$env:ProgramData\WireGuardPhoneServer",
+    [string]$BaseDir = "$env:ProgramData\WinWGOneClickServer",
     [switch]$Open,
     [ValidateSet("fr","en")]
     [string]$Language = "fr"
@@ -76,14 +76,14 @@ function Ensure-QRCoder {
 
 Assert-Admin
 
-$clientConfigPath = Join-Path $BaseDir "clients\$ClientName.conf"
-if (-not (Test-Path $clientConfigPath)) {
-    throw "Configuration appareil introuvable : $clientConfigPath"
+$deviceConfigPath = Join-Path $BaseDir "devices\$DeviceName.conf"
+if (-not (Test-Path $deviceConfigPath)) {
+    throw "Configuration appareil introuvable : $deviceConfigPath"
 }
 
-$confText = Get-Content $clientConfigPath -Raw
+$confText = Get-Content $deviceConfigPath -Raw
 if ([string]::IsNullOrWhiteSpace($confText)) {
-    throw "Configuration vide : $clientConfigPath"
+    throw "Configuration vide : $deviceConfigPath"
 }
 
 $qrcoderDll = Ensure-QRCoder
@@ -91,7 +91,7 @@ Add-Type -Path $qrcoderDll
 
 $qrDir = Join-Path $BaseDir "qrcodes"
 Ensure-Directory $qrDir
-$qrPath = Join-Path $qrDir "$ClientName.png"
+$qrPath = Join-Path $qrDir "$DeviceName.png"
 
 $generator = [QRCoder.QRCodeGenerator]::new()
 $data = $generator.CreateQrCode($confText, [QRCoder.QRCodeGenerator+ECCLevel]::Q)

@@ -221,7 +221,7 @@ LAN auto-discovery is not guaranteed.
 Créer un ZIP par appareil :
 
 ```text
-C:\ProgramData\WireGuardPhoneServer\exports\friend1.zip
+C:\ProgramData\WinWGOneClickServer\exports\friend1.zip
 ```
 
 Contenu possible :
@@ -352,8 +352,8 @@ Historiquement, certains noms internes utilisent :
 ```text
 Phone
 telephone
-WireGuardPhoneServer
-wg-phone-server
+WinWGOneClickServer
+winwg-server
 ```
 
 Pour compatibilité, on peut garder les chemins internes.
@@ -383,7 +383,7 @@ machine de jeu
 Créer un log principal :
 
 ```text
-C:\ProgramData\WireGuardPhoneServer\logs\winwg.log
+C:\ProgramData\WinWGOneClickServer\logs\winwg.log
 ```
 
 Événements à journaliser :
@@ -557,7 +557,7 @@ Contenu possible :
 
 ```text
 server config
-client configs
+device configs
 QR flags
 settings
 ```

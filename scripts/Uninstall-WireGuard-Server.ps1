@@ -4,19 +4,19 @@
 
 .DESCRIPTION
   Ce script supprime tout ce que l'installeur one-click a cree :
-  - service/tunnel WireGuard wg-phone-server ;
+  - service/tunnel WireGuard winwg-server ;
   - regle pare-feu UDP 51820 ;
-  - NAT Windows WireGuardPhoneServerNAT ;
+  - NAT Windows WinWGOneClickServerNAT ;
   - redirection UPnP UDP 51820 si presente ;
-  - fichiers de configuration dans C:\ProgramData\WireGuardPhoneServer ;
+  - fichiers de configuration dans C:\ProgramData\WinWGOneClickServer ;
   - dependance QR optionnelle QRCoder, QR codes generes et flags de fonctionnalite ;
   - optionnellement l'application WireGuard elle-meme.
 #>
 [CmdletBinding()]
 param(
-    [string]$TunnelName = "wg-phone-server",
+    [string]$TunnelName = "winwg-server",
     [int]$ListenPort = 51820,
-    [string]$BaseDir = "$env:ProgramData\WireGuardPhoneServer",
+    [string]$BaseDir = "$env:ProgramData\WinWGOneClickServer",
     [switch]$Quiet,
     [switch]$RemoveWireGuardApp,
     [switch]$KeepConfigs
@@ -146,12 +146,12 @@ function Remove-FirewallRules([int]$Port) {
 
 function Remove-WindowsNat {
     Write-Step (TUninstall "Suppression du NAT Windows" "Removing Windows NAT")
-    $nat = Get-NetNat -Name "WireGuardPhoneServerNAT" -ErrorAction SilentlyContinue
+    $nat = Get-NetNat -Name "WinWGOneClickServerNAT" -ErrorAction SilentlyContinue
     if ($null -eq $nat) {
-        Write-Ok (TUninstall "Aucun NAT WireGuardPhoneServerNAT trouve" "No WireGuardPhoneServerNAT NAT found")
+        Write-Ok (TUninstall "Aucun NAT WinWGOneClickServerNAT trouve" "No WinWGOneClickServerNAT NAT found")
     } else {
         $nat | Remove-NetNat -Confirm:$false
-        Write-Ok (TUninstall "NAT WireGuardPhoneServerNAT supprime" "WireGuardPhoneServerNAT NAT removed")
+        Write-Ok (TUninstall "NAT WinWGOneClickServerNAT supprime" "WinWGOneClickServerNAT NAT removed")
     }
 }
 
@@ -261,14 +261,14 @@ function Show-RemainingState([string]$TunnelName, [int]$Port, [string]$BaseDir) 
     Write-Step (TUninstall "Verification finale" "Final verification")
     $services = @(Get-Service -Name "WireGuardTunnel*$TunnelName*" -ErrorAction SilentlyContinue)
     $fw = @(Get-NetFirewallRule -DisplayName "WireGuard Server UDP $Port" -ErrorAction SilentlyContinue)
-    $nat = @(Get-NetNat -Name "WireGuardPhoneServerNAT" -ErrorAction SilentlyContinue)
+    $nat = @(Get-NetNat -Name "WinWGOneClickServerNAT" -ErrorAction SilentlyContinue)
 
     if ($services.Length -eq 0 -and $fw.Length -eq 0 -and $nat.Length -eq 0 -and -not (Test-Path $BaseDir)) {
         Write-Ok (TUninstall "Nettoyage complet confirme" "Complete cleanup confirmed")
     } else {
         if ($services.Length -gt 0) { Write-Warn (TUninstall "Service(s) restant(s): $($services.Name -join ', ')" "Remaining service(s): $($services.Name -join ', ')") }
         if ($fw.Length -gt 0) { Write-Warn (TUninstall "Regle(s) pare-feu restante(s): $($fw.DisplayName -join ', ')" "Remaining firewall rule(s): $($fw.DisplayName -join ', ')") }
-        if ($nat.Length -gt 0) { Write-Warn (TUninstall "NAT restant: WireGuardPhoneServerNAT" "Remaining NAT: WireGuardPhoneServerNAT") }
+        if ($nat.Length -gt 0) { Write-Warn (TUninstall "NAT restant: WinWGOneClickServerNAT" "Remaining NAT: WinWGOneClickServerNAT") }
         if (Test-Path $BaseDir) { Write-Warn (TUninstall "Dossier encore present: $BaseDir" "Folder still present: $BaseDir") }
     }
 }

@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Console serveur unifiee pour WinWG OneClick Server.
 
@@ -9,9 +9,9 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$TunnelName = "wg-phone-server",
+    [string]$TunnelName = "winwg-server",
     [int]$ListenPort = 51820,
-    [string]$BaseDir = "$env:ProgramData\WireGuardPhoneServer",
+    [string]$BaseDir = "$env:ProgramData\WinWGOneClickServer",
     [switch]$UltraVerbose
 )
 
@@ -344,11 +344,11 @@ function Write-Line([string]$Name, [string]$Value, [ConsoleColor]$Color = [Conso
 
 
 function Get-DefaultEndpoint([int]$ListenPort, [string]$BaseDir) {
-    $clientDir = Join-Path $BaseDir "clients"
-    if (Test-Path $clientDir) {
-        $firstClient = Get-ChildItem $clientDir -Filter "*.conf" -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($firstClient) {
-            $content = Get-Content $firstClient.FullName -Raw -ErrorAction SilentlyContinue
+    $deviceDir = Join-Path $BaseDir "devices"
+    if (Test-Path $deviceDir) {
+        $firstDevice = Get-ChildItem $deviceDir -Filter "*.conf" -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($firstDevice) {
+            $content = Get-Content $firstDevice.FullName -Raw -ErrorAction SilentlyContinue
             if ($content -match '(?m)^Endpoint\s*=\s*([^:\s]+):\d+') { return $Matches[1] }
         }
     }
@@ -363,7 +363,7 @@ function Get-DefaultEndpoint([int]$ListenPort, [string]$BaseDir) {
     return "TON_IP_PUBLIQUE_OU_DNS"
 }
 
-function Get-NextClientNumber([string]$TunnelName, [string]$BaseDir) {
+function Get-NextDeviceNumber([string]$TunnelName, [string]$BaseDir) {
     $serverConfig = Get-ServerConfigPath -TunnelName $TunnelName -BaseDir $BaseDir
     $used = @()
     if (Test-Path $serverConfig) {
@@ -380,33 +380,33 @@ function Get-NextClientNumber([string]$TunnelName, [string]$BaseDir) {
 }
 
 
-function Test-DeviceRemoved([string]$ClientName, [string]$TunnelName, [string]$BaseDir) {
+function Test-DeviceRemoved([string]$DeviceName, [string]$TunnelName, [string]$BaseDir) {
     $serverConfig = Get-ServerConfigPath -TunnelName $TunnelName -BaseDir $BaseDir
-    $clientConfig = Join-Path $BaseDir "clients\$ClientName.conf"
+    $deviceConfig = Join-Path $BaseDir "devices\$DeviceName.conf"
 
-    $clientFileRemoved = -not (Test-Path $clientConfig)
+    $deviceFileRemoved = -not (Test-Path $deviceConfig)
     $peerRemoved = $true
     if (Test-Path $serverConfig) {
         $content = Get-Content $serverConfig -Raw -ErrorAction SilentlyContinue
-        if ($content -match "(?m)^#\s*$([regex]::Escape($ClientName))\s*$") { $peerRemoved = $false }
+        if ($content -match "(?m)^#\s*$([regex]::Escape($DeviceName))\s*$") { $peerRemoved = $false }
     }
 
-    return ($clientFileRemoved -and $peerRemoved)
+    return ($deviceFileRemoved -and $peerRemoved)
 }
 
 
-function Test-DeviceAdded([string]$ClientName, [string]$TunnelName, [string]$BaseDir) {
+function Test-DeviceAdded([string]$DeviceName, [string]$TunnelName, [string]$BaseDir) {
     $serverConfig = Get-ServerConfigPath -TunnelName $TunnelName -BaseDir $BaseDir
-    $clientConfig = Join-Path $BaseDir "clients\$ClientName.conf"
+    $deviceConfig = Join-Path $BaseDir "devices\$DeviceName.conf"
 
-    $clientFilePresent = Test-Path $clientConfig
+    $deviceFilePresent = Test-Path $deviceConfig
     $peerPresent = $false
     if (Test-Path $serverConfig) {
         $content = Get-Content $serverConfig -Raw -ErrorAction SilentlyContinue
-        if ($content -match "(?m)^#\s*$([regex]::Escape($ClientName))\s*$") { $peerPresent = $true }
+        if ($content -match "(?m)^#\s*$([regex]::Escape($DeviceName))\s*$") { $peerPresent = $true }
     }
 
-    return ($clientFilePresent -and $peerPresent)
+    return ($deviceFilePresent -and $peerPresent)
 }
 
 
@@ -433,61 +433,61 @@ function TConsoleInvalidYesNo {
     return 'Please answer yes/no.'
 }
 
-function Generate-DeviceQrFromConsole([string]$BaseDir, [string]$ClientName = "") {
+function Generate-DeviceQrFromConsole([string]$BaseDir, [string]$DeviceName = "") {
     if (-not (Test-QrFeatureEnabled -BaseDir $BaseDir)) { throw "Fonctionnalite QR desactivee. Relance l'installation et accepte la dependance QR pour l'activer." }
-    $scriptPath = Join-Path $PSScriptRoot "Generate-WireGuardClientQr.ps1"
+    $scriptPath = Join-Path $PSScriptRoot "Generate-WireGuardDeviceQr.ps1"
     if (-not (Test-Path $scriptPath)) { throw "Script QR introuvable : $scriptPath" }
 
-    $clientDir = Join-Path $BaseDir "clients"
-    $clients = @()
-    if (Test-Path $clientDir) { $clients = @(Get-ChildItem $clientDir -Filter "*.conf" -ErrorAction SilentlyContinue) }
+    $deviceDir = Join-Path $BaseDir "devices"
+    $devices = @()
+    if (Test-Path $deviceDir) { $devices = @(Get-ChildItem $deviceDir -Filter "*.conf" -ErrorAction SilentlyContinue) }
 
-    if ([string]::IsNullOrWhiteSpace($ClientName)) {
+    if ([string]::IsNullOrWhiteSpace($DeviceName)) {
         Write-UiHost ""
         Write-UiHost (Get-WinWGText $script:Language "GenerateQrTitle") -ForegroundColor Cyan
         Write-UiHost "----------------------------" -ForegroundColor DarkGray
 
-        if ($clients.Length -eq 0) {
-            throw "Aucune configuration .conf trouvee dans $clientDir"
-        } elseif ($clients.Length -eq 1) {
-            $ClientName = $clients[0].BaseName
-            Write-UiHost ((Get-WinWGText $script:Language "SingleDeviceDetected") + " : $ClientName") -ForegroundColor Yellow
+        if ($devices.Length -eq 0) {
+            throw "Aucune configuration .conf trouvee dans $deviceDir"
+        } elseif ($devices.Length -eq 1) {
+            $DeviceName = $devices[0].BaseName
+            Write-UiHost ((Get-WinWGText $script:Language "SingleDeviceDetected") + " : $DeviceName") -ForegroundColor Yellow
         } else {
             Write-UiHost ("0 - " + (Get-WinWGText $script:Language "Cancel"))
-            for ($i = 0; $i -lt $clients.Length; $i++) {
-                Write-UiHost ("{0} - {1}" -f ($i + 1), $clients[$i].BaseName)
+            for ($i = 0; $i -lt $devices.Length; $i++) {
+                Write-UiHost ("{0} - {1}" -f ($i + 1), $devices[$i].BaseName)
             }
             Write-UiHost ""
             $choice = (Read-UiHost (Get-WinWGText $script:Language "TypeNumberOrExactName")).Trim()
             if ($choice -eq '0' -or [string]::IsNullOrWhiteSpace($choice)) { return "Generation QR annulee." }
-            if ($choice -match '^\d+$' -and [int]$choice -ge 1 -and [int]$choice -le $clients.Length) {
-                $ClientName = $clients[[int]$choice - 1].BaseName
+            if ($choice -match '^\d+$' -and [int]$choice -ge 1 -and [int]$choice -le $devices.Length) {
+                $DeviceName = $devices[[int]$choice - 1].BaseName
             } else {
-                $ClientName = $choice
+                $DeviceName = $choice
             }
         }
     }
 
-    Write-Ultra "Generation QR: ClientName=$ClientName Script=$scriptPath"
-    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -ClientName $ClientName -BaseDir $BaseDir -Language $script:Language -Open 2>&1
+    Write-Ultra "Generation QR: DeviceName=$DeviceName Script=$scriptPath"
+    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -DeviceName $DeviceName -BaseDir $BaseDir -Language $script:Language -Open 2>&1
     $code = $LASTEXITCODE
     $outputText = ($output | Out-String).Trim()
     if (-not [string]::IsNullOrWhiteSpace($outputText)) {
         Write-Ultra "Sortie script QR: $outputText"
         Write-UiHost $outputText
     }
-    if ($code -ne 0) { throw "Echec de generation du QR code pour '$ClientName'." }
+    if ($code -ne 0) { throw "Echec de generation du QR code pour '$DeviceName'." }
 
-    return ((Get-WinWGText $script:Language "QrGeneratedFor") + " : $ClientName")
+    return ((Get-WinWGText $script:Language "QrGeneratedFor") + " : $DeviceName")
 }
 
 
-function Get-DefaultClientDns([string]$BaseDir) {
-    $clientDir = Join-Path $BaseDir "clients"
-    if (Test-Path $clientDir) {
-        $firstClient = Get-ChildItem $clientDir -Filter "*.conf" -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($firstClient) {
-            $content = Get-Content $firstClient.FullName -Raw -ErrorAction SilentlyContinue
+function Get-DefaultDeviceDns([string]$BaseDir) {
+    $deviceDir = Join-Path $BaseDir "devices"
+    if (Test-Path $deviceDir) {
+        $firstDevice = Get-ChildItem $deviceDir -Filter "*.conf" -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($firstDevice) {
+            $content = Get-Content $firstDevice.FullName -Raw -ErrorAction SilentlyContinue
             if ($content -match '(?m)^DNS\s*=\s*(.+)$') { return $Matches[1].Trim() }
         }
     }
@@ -503,22 +503,22 @@ function Add-DeviceFromConsole([string]$TunnelName, [int]$ListenPort, [string]$B
     Write-UiHost ""
     Write-UiHost (Get-WinWGText $script:Language "AddDeviceTitle") -ForegroundColor Cyan
     Write-UiHost "-------------------" -ForegroundColor DarkGray
-    $clientName = (Read-UiHost (Get-WinWGText $script:Language "DeviceNamePrompt")).Trim()
-    if ([string]::IsNullOrWhiteSpace($clientName)) { throw "Nom d'appareil vide." }
+    $deviceName = (Read-UiHost (Get-WinWGText $script:Language "DeviceNamePrompt")).Trim()
+    if ([string]::IsNullOrWhiteSpace($deviceName)) { throw "Nom d'appareil vide." }
 
     $defaultEndpoint = Get-DefaultEndpoint -ListenPort $ListenPort -BaseDir $BaseDir
     $endpointInput = (Read-UiHost ((Get-WinWGText $script:Language "EndpointPrompt") + " [$defaultEndpoint]")).Trim()
     $endpoint = if ([string]::IsNullOrWhiteSpace($endpointInput)) { $defaultEndpoint } else { $endpointInput }
 
-    $defaultDns = Get-DefaultClientDns -BaseDir $BaseDir
+    $defaultDns = Get-DefaultDeviceDns -BaseDir $BaseDir
     $dnsInput = (Read-UiHost ((Get-WinWGText $script:Language "DnsPrompt") + " [$defaultDns] - " + (Get-WinWGText $script:Language "KeepDefault"))).Trim()
-    $clientDns = if ([string]::IsNullOrWhiteSpace($dnsInput)) { $defaultDns } else { $dnsInput }
+    $deviceDns = if ([string]::IsNullOrWhiteSpace($dnsInput)) { $defaultDns } else { $dnsInput }
 
-    $clientNumber = Get-NextClientNumber -TunnelName $TunnelName -BaseDir $BaseDir
-    Write-UiHost ((Get-WinWGText $script:Language "AssignedVpnIp") + " : 10.66.66.$clientNumber") -ForegroundColor DarkCyan
-    Write-Ultra "Ajout appareil: ClientName=$clientName Endpoint=$endpoint Dns=$clientDns ClientNumber=$clientNumber ListenPort=$ListenPort TunnelName=$TunnelName Script=$scriptPath"
+    $deviceNumber = Get-NextDeviceNumber -TunnelName $TunnelName -BaseDir $BaseDir
+    Write-UiHost ((Get-WinWGText $script:Language "AssignedVpnIp") + " : 10.66.66.$deviceNumber") -ForegroundColor DarkCyan
+    Write-Ultra "Ajout appareil: DeviceName=$deviceName Endpoint=$endpoint Dns=$deviceDns DeviceNumber=$deviceNumber ListenPort=$ListenPort TunnelName=$TunnelName Script=$scriptPath"
 
-    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -ClientName $clientName -Endpoint $endpoint -ClientNumber $clientNumber -ListenPort $ListenPort -Dns $clientDns -TunnelName $TunnelName -Language $script:Language 2>&1
+    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -DeviceName $deviceName -Endpoint $endpoint -DeviceNumber $deviceNumber -ListenPort $ListenPort -Dns $deviceDns -TunnelName $TunnelName -Language $script:Language 2>&1
     $code = $LASTEXITCODE
     Write-Ultra "Code retour script ajout: $code"
     $outputText = ($output | Out-String).Trim()
@@ -527,23 +527,23 @@ function Add-DeviceFromConsole([string]$TunnelName, [int]$ListenPort, [string]$B
         Write-UiHost $outputText
     }
 
-    $added = Test-DeviceAdded -ClientName $clientName -TunnelName $TunnelName -BaseDir $BaseDir
-    Write-Ultra "Verification ajout: added=$added clientConf=$(Join-Path $BaseDir "clients\$clientName.conf") serverConfig=$(Get-ServerConfigPath -TunnelName $TunnelName -BaseDir $BaseDir)"
+    $added = Test-DeviceAdded -DeviceName $deviceName -TunnelName $TunnelName -BaseDir $BaseDir
+    Write-Ultra "Verification ajout: added=$added deviceConf=$(Join-Path $BaseDir "devices\$deviceName.conf") serverConfig=$(Get-ServerConfigPath -TunnelName $TunnelName -BaseDir $BaseDir)"
     if ($code -ne 0 -and -not $added) {
         $details = ($output | Out-String).Trim()
         if ([string]::IsNullOrWhiteSpace($details)) { $details = "Aucun detail retourne par le script d'ajout." }
-        throw "Echec de l'ajout de l'appareil '$clientName'. Details: $details"
+        throw "Echec de l'ajout de l'appareil '$deviceName'. Details: $details"
     }
 
-    $clientDir = Join-Path $BaseDir "clients"
-    if (Test-Path $clientDir) { Start-Process explorer.exe $clientDir }
+    $deviceDir = Join-Path $BaseDir "devices"
+    if (Test-Path $deviceDir) { Start-Process explorer.exe $deviceDir }
 
     $qrMessage = ""
     if (Test-QrFeatureEnabled -BaseDir $BaseDir) {
         $generateQr = Ask-YesNoConsole -Question (Get-WinWGText $script:Language "AskGenerateQrForDevice") -DefaultYes $true
         if ($generateQr) {
             try {
-                $qrMessage = "`n" + (Generate-DeviceQrFromConsole -BaseDir $BaseDir -ClientName $clientName)
+                $qrMessage = "`n" + (Generate-DeviceQrFromConsole -BaseDir $BaseDir -DeviceName $deviceName)
             } catch {
                 $qrMessage = "`nQR not generated / QR non genere : $($_.Exception.Message)"
             }
@@ -553,10 +553,10 @@ function Add-DeviceFromConsole([string]$TunnelName, [int]$ListenPort, [string]$B
     }
 
     if ($code -ne 0 -and $added) {
-        return ((Get-WinWGText $script:Language "DeviceAddedFinal") + " : $clientName. Note: script returned an error after creation, probably while reloading the service. " + (Get-WinWGText $script:Language "ConfGeneratedIn") + " $clientDir. $qrMessage")
+        return ((Get-WinWGText $script:Language "DeviceAddedFinal") + " : $deviceName. Note: script returned an error after creation, probably while reloading the service. " + (Get-WinWGText $script:Language "ConfGeneratedIn") + " $deviceDir. $qrMessage")
     }
 
-    return ((Get-WinWGText $script:Language "DeviceAddedFinal") + " : $clientName. " + (Get-WinWGText $script:Language "ConfGeneratedIn") + " $clientDir.$qrMessage")
+    return ((Get-WinWGText $script:Language "DeviceAddedFinal") + " : $deviceName. " + (Get-WinWGText $script:Language "ConfGeneratedIn") + " $deviceDir.$qrMessage")
 }
 
 function Remove-DeviceFromConsole([string]$TunnelName, [string]$BaseDir) {
@@ -565,43 +565,43 @@ function Remove-DeviceFromConsole([string]$TunnelName, [string]$BaseDir) {
     $scriptPath = Join-Path $PSScriptRoot "Remove-WireGuardPeer.ps1"
     if (-not (Test-Path $scriptPath)) { throw "Script de suppression introuvable : $scriptPath" }
 
-    $clientDir = Join-Path $BaseDir "clients"
-    $clients = @()
-    if (Test-Path $clientDir) { $clients = @(Get-ChildItem $clientDir -Filter "*.conf" -ErrorAction SilentlyContinue) }
+    $deviceDir = Join-Path $BaseDir "devices"
+    $devices = @()
+    if (Test-Path $deviceDir) { $devices = @(Get-ChildItem $deviceDir -Filter "*.conf" -ErrorAction SilentlyContinue) }
 
     Write-UiHost ""
     Write-UiHost (Get-WinWGText $script:Language "RemoveDeviceTitle") -ForegroundColor Cyan
     Write-UiHost "---------------------" -ForegroundColor DarkGray
-    if ($clients.Length -eq 1) {
-        $clientName = $clients[0].BaseName
-        Write-UiHost "1 - $clientName" -ForegroundColor DarkCyan
+    if ($devices.Length -eq 1) {
+        $deviceName = $devices[0].BaseName
+        Write-UiHost "1 - $deviceName" -ForegroundColor DarkCyan
         Write-UiHost ""
-        Write-UiHost ((Get-WinWGText $script:Language "SingleDeviceAuto") + " : $clientName") -ForegroundColor Yellow
-    } elseif ($clients.Length -gt 1) {
+        Write-UiHost ((Get-WinWGText $script:Language "SingleDeviceAuto") + " : $deviceName") -ForegroundColor Yellow
+    } elseif ($devices.Length -gt 1) {
         Write-UiHost ("0 - " + (Get-WinWGText $script:Language "Cancel"))
-        for ($i = 0; $i -lt $clients.Length; $i++) {
-            Write-UiHost ("{0} - {1}" -f ($i + 1), $clients[$i].BaseName)
+        for ($i = 0; $i -lt $devices.Length; $i++) {
+            Write-UiHost ("{0} - {1}" -f ($i + 1), $devices[$i].BaseName)
         }
         Write-UiHost ""
         $choice = (Read-UiHost (Get-WinWGText $script:Language "TypeNumberOrExactNameRemove")).Trim()
         if ($choice -eq '0') { return "Suppression annulee." }
-        if ($choice -match '^\d+$' -and [int]$choice -ge 1 -and [int]$choice -le $clients.Length) {
-            $clientName = $clients[[int]$choice - 1].BaseName
+        if ($choice -match '^\d+$' -and [int]$choice -ge 1 -and [int]$choice -le $devices.Length) {
+            $deviceName = $devices[[int]$choice - 1].BaseName
         } else {
-            $clientName = $choice
+            $deviceName = $choice
         }
     } else {
-        Write-UiHost "Aucun fichier .conf trouve dans $clientDir" -ForegroundColor Yellow
-        $clientName = (Read-UiHost "Nom exact de l'appareil a supprimer, ou laisse vide pour annuler").Trim()
-        if ([string]::IsNullOrWhiteSpace($clientName)) { return "Suppression annulee." }
+        Write-UiHost "Aucun fichier .conf trouve dans $deviceDir" -ForegroundColor Yellow
+        $deviceName = (Read-UiHost "Nom exact de l'appareil a supprimer, ou laisse vide pour annuler").Trim()
+        if ([string]::IsNullOrWhiteSpace($deviceName)) { return "Suppression annulee." }
     }
 
-    if ([string]::IsNullOrWhiteSpace($clientName)) { return "Suppression annulee." }
-    $confirm = (Read-UiHost ((Get-WinWGText $script:Language "ConfirmRemove") + " '$clientName' ? " + (Get-WinWGText $script:Language "TypeOConfirm") + " [o/N]")).Trim().ToLowerInvariant()
+    if ([string]::IsNullOrWhiteSpace($deviceName)) { return "Suppression annulee." }
+    $confirm = (Read-UiHost ((Get-WinWGText $script:Language "ConfirmRemove") + " '$deviceName' ? " + (Get-WinWGText $script:Language "TypeOConfirm") + " [o/N]")).Trim().ToLowerInvariant()
     if ($confirm -notin @('o','oui','y','yes')) { return "Suppression annulee." }
 
-    Write-Ultra "Suppression appareil: ClientName=$clientName TunnelName=$TunnelName Script=$scriptPath"
-    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -ClientName $clientName -TunnelName $TunnelName -Language $script:Language 2>&1
+    Write-Ultra "Suppression appareil: DeviceName=$deviceName TunnelName=$TunnelName Script=$scriptPath"
+    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -DeviceName $deviceName -TunnelName $TunnelName -Language $script:Language 2>&1
     $code = $LASTEXITCODE
     Write-Ultra "Code retour script suppression: $code"
     $outputText = ($output | Out-String).Trim()
@@ -610,17 +610,17 @@ function Remove-DeviceFromConsole([string]$TunnelName, [string]$BaseDir) {
         Write-UiHost $outputText
     }
 
-    $removed = Test-DeviceRemoved -ClientName $clientName -TunnelName $TunnelName -BaseDir $BaseDir
-    Write-Ultra "Verification suppression: removed=$removed clientConf=$(Join-Path $BaseDir "clients\$clientName.conf") serverConfig=$(Get-ServerConfigPath -TunnelName $TunnelName -BaseDir $BaseDir)"
+    $removed = Test-DeviceRemoved -DeviceName $deviceName -TunnelName $TunnelName -BaseDir $BaseDir
+    Write-Ultra "Verification suppression: removed=$removed deviceConf=$(Join-Path $BaseDir "devices\$deviceName.conf") serverConfig=$(Get-ServerConfigPath -TunnelName $TunnelName -BaseDir $BaseDir)"
     if ($code -ne 0 -and -not $removed) {
-        throw "Echec de la suppression de l'appareil '$clientName'."
+        throw "Echec de la suppression de l'appareil '$deviceName'."
     }
 
     if ($code -ne 0 -and $removed) {
-        return ((Get-WinWGText $script:Language "ClientRemoved") + " : $clientName. Note: script returned an error after removal, probably while reloading the service. If needed, use 3 to restart the VPN server.")
+        return ((Get-WinWGText $script:Language "DeviceRemoved") + " : $deviceName. Note: script returned an error after removal, probably while reloading the service. If needed, use 3 to restart the VPN server.")
     }
 
-    return ((Get-WinWGText $script:Language "ClientRemoved") + " : $clientName")
+    return ((Get-WinWGText $script:Language "DeviceRemoved") + " : $deviceName")
 }
 
 
@@ -680,7 +680,7 @@ function Export-AdvancedDiagnostic([string]$TunnelName, [string]$BaseDir, [int]$
     if ($fw.Length -gt 0) { $content.Add("Regle firewall presente") } else { $content.Add("Regle firewall manquante") }
     $content.Add("")
     $content.Add("== NAT ==")
-    $nat = Get-NetNat -Name "WireGuardPhoneServerNAT" -ErrorAction SilentlyContinue
+    $nat = Get-NetNat -Name "WinWGOneClickServerNAT" -ErrorAction SilentlyContinue
     if ($nat) { $content.Add("$($nat.Name) - $($nat.InternalIPInterfaceAddressPrefix)") } else { $content.Add("NAT introuvable") }
     $content.Add("")
     $content.Add("== wg show ==")
@@ -698,64 +698,64 @@ function Export-AdvancedDiagnostic([string]$TunnelName, [string]$BaseDir, [int]$
 }
 
 
-function Select-ClientConfigName([string]$BaseDir, [string]$Title = "Selection appareil") {
-    $clientDir = Join-Path $BaseDir "clients"
-    $clients = @()
-    if (Test-Path $clientDir) { $clients = @(Get-ChildItem $clientDir -Filter "*.conf" -ErrorAction SilentlyContinue) }
-    if ($clients.Length -eq 0) { throw "Aucune configuration .conf trouvee dans $clientDir" }
+function Select-DeviceConfigName([string]$BaseDir, [string]$Title = "Selection appareil") {
+    $deviceDir = Join-Path $BaseDir "devices"
+    $devices = @()
+    if (Test-Path $deviceDir) { $devices = @(Get-ChildItem $deviceDir -Filter "*.conf" -ErrorAction SilentlyContinue) }
+    if ($devices.Length -eq 0) { throw "Aucune configuration .conf trouvee dans $deviceDir" }
 
     Write-UiHost ""
     Write-UiHost $Title -ForegroundColor Cyan
     Write-UiHost ("-" * $Title.Length) -ForegroundColor DarkGray
 
-    if ($clients.Length -eq 1) {
-        Write-UiHost "1 - $($clients[0].BaseName)" -ForegroundColor DarkCyan
-        Write-UiHost ((Get-WinWGText $script:Language "SingleDeviceDetected") + " : $($clients[0].BaseName)") -ForegroundColor Yellow
-        return $clients[0].BaseName
+    if ($devices.Length -eq 1) {
+        Write-UiHost "1 - $($devices[0].BaseName)" -ForegroundColor DarkCyan
+        Write-UiHost ((Get-WinWGText $script:Language "SingleDeviceDetected") + " : $($devices[0].BaseName)") -ForegroundColor Yellow
+        return $devices[0].BaseName
     }
 
     Write-UiHost ("0 - " + (Get-WinWGText $script:Language "Cancel"))
-    for ($i = 0; $i -lt $clients.Length; $i++) {
-        Write-UiHost ("{0} - {1}" -f ($i + 1), $clients[$i].BaseName)
+    for ($i = 0; $i -lt $devices.Length; $i++) {
+        Write-UiHost ("{0} - {1}" -f ($i + 1), $devices[$i].BaseName)
     }
     Write-UiHost ""
     $choice = (Read-UiHost (Get-WinWGText $script:Language "TypeNumberOrExactName")).Trim()
     if ($choice -eq '0' -or [string]::IsNullOrWhiteSpace($choice)) { return $null }
-    if ($choice -match '^\d+$' -and [int]$choice -ge 1 -and [int]$choice -le $clients.Length) {
-        return $clients[[int]$choice - 1].BaseName
+    if ($choice -match '^\d+$' -and [int]$choice -ge 1 -and [int]$choice -le $devices.Length) {
+        return $devices[[int]$choice - 1].BaseName
     }
     return $choice
 }
 
-function Get-ClientAllowedIPs([string]$ClientConfigPath) {
-    if (-not (Test-Path $ClientConfigPath)) { throw "Configuration introuvable : $ClientConfigPath" }
-    $content = Get-Content $ClientConfigPath -Raw
+function Get-DeviceAllowedIPs([string]$DeviceConfigPath) {
+    if (-not (Test-Path $DeviceConfigPath)) { throw "Configuration introuvable : $DeviceConfigPath" }
+    $content = Get-Content $DeviceConfigPath -Raw
     if ($content -match '(?m)^AllowedIPs\s*=\s*(.+)$') { return $Matches[1].Trim() }
     return ""
 }
 
-function Set-ClientAllowedIPs([string]$ClientConfigPath, [string]$AllowedIPs) {
-    if (-not (Test-Path $ClientConfigPath)) { throw "Configuration introuvable : $ClientConfigPath" }
-    $content = Get-Content $ClientConfigPath -Raw
-    if ($content -notmatch '(?m)^AllowedIPs\s*=') { throw "Ligne AllowedIPs introuvable dans $ClientConfigPath" }
+function Set-DeviceAllowedIPs([string]$DeviceConfigPath, [string]$AllowedIPs) {
+    if (-not (Test-Path $DeviceConfigPath)) { throw "Configuration introuvable : $DeviceConfigPath" }
+    $content = Get-Content $DeviceConfigPath -Raw
+    if ($content -notmatch '(?m)^AllowedIPs\s*=') { throw "Ligne AllowedIPs introuvable dans $DeviceConfigPath" }
     $newContent = [regex]::Replace($content, '(?m)^AllowedIPs\s*=\s*.+$', "AllowedIPs = $AllowedIPs", 1)
-    Set-Content -Path $ClientConfigPath -Value $newContent -Encoding ASCII
+    Set-Content -Path $DeviceConfigPath -Value $newContent -Encoding ASCII
 }
 
-function Edit-ClientAllowedIPsAdvanced([string]$BaseDir) {
-    $clientName = Select-ClientConfigName -BaseDir $BaseDir -Title "Modifier AllowedIPs client"
-    if ([string]::IsNullOrWhiteSpace($clientName)) { return "Modification AllowedIPs annulee." }
+function Edit-DeviceAllowedIPsAdvanced([string]$BaseDir) {
+    $deviceName = Select-DeviceConfigName -BaseDir $BaseDir -Title "Modifier AllowedIPs device"
+    if ([string]::IsNullOrWhiteSpace($deviceName)) { return "Modification AllowedIPs annulee." }
 
-    $clientConfigPath = Join-Path $BaseDir "clients\$clientName.conf"
-    $current = Get-ClientAllowedIPs -ClientConfigPath $clientConfigPath
+    $deviceConfigPath = Join-Path $BaseDir "devices\$deviceName.conf"
+    $current = Get-DeviceAllowedIPs -DeviceConfigPath $deviceConfigPath
 
     Clear-Host
-    Write-UiHost "Modifier AllowedIPs - $clientName" -ForegroundColor Yellow
+    Write-UiHost "Modifier AllowedIPs - $deviceName" -ForegroundColor Yellow
     Write-UiHost "================================" -ForegroundColor DarkGray
     Write-UiHost ""
     Write-UiHost "AllowedIPs actuel : $current" -ForegroundColor Cyan
     Write-UiHost ""
-    Write-UiHost "AllowedIPs cote client controle quelles routes passent dans le VPN." -ForegroundColor Yellow
+    Write-UiHost "AllowedIPs cote device controle quelles routes passent dans le VPN." -ForegroundColor Yellow
     Write-UiHost "Une mauvaise valeur peut couper Internet sur l'appareil ou empecher l'acces au LAN." -ForegroundColor Yellow
     Write-UiHost "IMPORTANT : apres modification, l'appareil ne sera PAS mis a jour automatiquement." -ForegroundColor Red
     Write-UiHost "Tu devras reimporter le fichier .conf sur l'appareil ou rescanner le nouveau QR code." -ForegroundColor Red
@@ -792,14 +792,14 @@ function Edit-ClientAllowedIPsAdvanced([string]$BaseDir) {
     $confirm = (Read-UiHost "Tape APPLIQUER pour modifier le fichier .conf").Trim()
     if ($confirm -ne "APPLIQUER") { return "Modification AllowedIPs annulee." }
 
-    Set-ClientAllowedIPs -ClientConfigPath $clientConfigPath -AllowedIPs $newAllowed
+    Set-DeviceAllowedIPs -DeviceConfigPath $deviceConfigPath -AllowedIPs $newAllowed
 
     $qrMessage = ""
     if (Test-QrFeatureEnabled -BaseDir $BaseDir) {
-        try { $qrMessage = "`n" + (Generate-DeviceQrFromConsole -BaseDir $BaseDir -ClientName $clientName) } catch { $qrMessage = "`nQR non regenere : $($_.Exception.Message)" }
+        try { $qrMessage = "`n" + (Generate-DeviceQrFromConsole -BaseDir $BaseDir -DeviceName $deviceName) } catch { $qrMessage = "`nQR non regenere : $($_.Exception.Message)" }
     }
 
-    return "AllowedIPs modifie pour $clientName : $newAllowed`nIMPORTANT : reimporte ce fichier sur l'appareil, sinon il gardera l'ancienne configuration.`nFichier a reimporter : $clientConfigPath$qrMessage"
+    return "AllowedIPs modifie pour $deviceName : $newAllowed`nIMPORTANT : reimporte ce fichier sur l'appareil, sinon il gardera l'ancienne configuration.`nFichier a reimporter : $deviceConfigPath$qrMessage"
 }
 
 
@@ -819,10 +819,10 @@ function Get-ServerAddress([string]$ServerConfigPath) {
     return "10.66.66.1/24"
 }
 
-function Get-FirstClientDns([string]$BaseDir) {
-    $clientDir = Join-Path $BaseDir "clients"
-    if (Test-Path $clientDir) {
-        $first = Get-ChildItem $clientDir -Filter "*.conf" -ErrorAction SilentlyContinue | Select-Object -First 1
+function Get-FirstDeviceDns([string]$BaseDir) {
+    $deviceDir = Join-Path $BaseDir "devices"
+    if (Test-Path $deviceDir) {
+        $first = Get-ChildItem $deviceDir -Filter "*.conf" -ErrorAction SilentlyContinue | Select-Object -First 1
         if ($first) {
             $content = Get-Content $first.FullName -Raw
             if ($content -match '(?m)^DNS\s*=\s*(.+)$') { return $Matches[1].Trim() }
@@ -831,60 +831,60 @@ function Get-FirstClientDns([string]$BaseDir) {
     return "1.1.1.1, 8.8.8.8"
 }
 
-function Get-FirstClientAllowedIPs([string]$BaseDir) {
-    $clientDir = Join-Path $BaseDir "clients"
-    if (Test-Path $clientDir) {
-        $first = Get-ChildItem $clientDir -Filter "*.conf" -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($first) { return (Get-ClientAllowedIPs -ClientConfigPath $first.FullName) }
+function Get-FirstDeviceAllowedIPs([string]$BaseDir) {
+    $deviceDir = Join-Path $BaseDir "devices"
+    if (Test-Path $deviceDir) {
+        $first = Get-ChildItem $deviceDir -Filter "*.conf" -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($first) { return (Get-DeviceAllowedIPs -DeviceConfigPath $first.FullName) }
     }
     return "0.0.0.0/0"
 }
 
-function Set-AllClientDns([string]$BaseDir, [string]$Dns) {
-    $clientDir = Join-Path $BaseDir "clients"
-    if (-not (Test-Path $clientDir)) { throw "Dossier clients introuvable : $clientDir" }
-    $clients = @(Get-ChildItem $clientDir -Filter "*.conf" -ErrorAction SilentlyContinue)
-    foreach ($client in $clients) {
-        $content = Get-Content $client.FullName -Raw
+function Set-AllDeviceDns([string]$BaseDir, [string]$Dns) {
+    $deviceDir = Join-Path $BaseDir "devices"
+    if (-not (Test-Path $deviceDir)) { throw "Dossier devices introuvable : $deviceDir" }
+    $devices = @(Get-ChildItem $deviceDir -Filter "*.conf" -ErrorAction SilentlyContinue)
+    foreach ($device in $devices) {
+        $content = Get-Content $device.FullName -Raw
         if ($content -match '(?m)^DNS\s*=') {
             $content = [regex]::Replace($content, '(?m)^DNS\s*=\s*.+$', "DNS = $Dns", 1)
         } else {
             $content = [regex]::Replace($content, '(?m)^(Address\s*=\s*.+)$', "`$1`r`nDNS = $Dns", 1)
         }
-        Set-Content -Path $client.FullName -Value $content -Encoding ASCII
+        Set-Content -Path $device.FullName -Value $content -Encoding ASCII
     }
-    return $clients.Count
+    return $devices.Count
 }
 
 
-function Get-ClientDns([string]$ClientConfigPath) {
-    if (-not (Test-Path $ClientConfigPath)) { throw "Configuration introuvable : $ClientConfigPath" }
-    $content = Get-Content $ClientConfigPath -Raw
+function Get-DeviceDns([string]$DeviceConfigPath) {
+    if (-not (Test-Path $DeviceConfigPath)) { throw "Configuration introuvable : $DeviceConfigPath" }
+    $content = Get-Content $DeviceConfigPath -Raw
     if ($content -match '(?m)^DNS\s*=\s*(.+)$') { return $Matches[1].Trim() }
     return ""
 }
 
-function Set-ClientDns([string]$ClientConfigPath, [string]$Dns) {
-    if (-not (Test-Path $ClientConfigPath)) { throw "Configuration introuvable : $ClientConfigPath" }
-    $content = Get-Content $ClientConfigPath -Raw
+function Set-DeviceDns([string]$DeviceConfigPath, [string]$Dns) {
+    if (-not (Test-Path $DeviceConfigPath)) { throw "Configuration introuvable : $DeviceConfigPath" }
+    $content = Get-Content $DeviceConfigPath -Raw
     if ($content -match '(?m)^DNS\s*=') {
         $content = [regex]::Replace($content, '(?m)^DNS\s*=\s*.+$', "DNS = $Dns", 1)
     } else {
         $content = [regex]::Replace($content, '(?m)^(Address\s*=\s*.+)$', "`$1`r`nDNS = $Dns", 1)
     }
-    Set-Content -Path $ClientConfigPath -Value $content -Encoding ASCII
+    Set-Content -Path $DeviceConfigPath -Value $content -Encoding ASCII
 }
 
-function Edit-ClientDnsAdvanced([string]$BaseDir) {
-    $clientName = Select-ClientConfigName -BaseDir $BaseDir -Title "Modifier DNS client"
-    if ([string]::IsNullOrWhiteSpace($clientName)) { return "Modification DNS annulee." }
+function Edit-DeviceDnsAdvanced([string]$BaseDir) {
+    $deviceName = Select-DeviceConfigName -BaseDir $BaseDir -Title "Modifier DNS device"
+    if ([string]::IsNullOrWhiteSpace($deviceName)) { return "Modification DNS annulee." }
 
-    $clientConfigPath = Join-Path $BaseDir "clients\$clientName.conf"
-    $current = Get-ClientDns -ClientConfigPath $clientConfigPath
+    $deviceConfigPath = Join-Path $BaseDir "devices\$deviceName.conf"
+    $current = Get-DeviceDns -DeviceConfigPath $deviceConfigPath
     if ([string]::IsNullOrWhiteSpace($current)) { $current = "aucun" }
 
     Clear-Host
-    Write-UiHost "Modifier DNS - $clientName" -ForegroundColor Yellow
+    Write-UiHost "Modifier DNS - $deviceName" -ForegroundColor Yellow
     Write-UiHost "========================" -ForegroundColor DarkGray
     Write-UiHost "DNS actuel : $current" -ForegroundColor Cyan
     Write-UiHost ""
@@ -893,7 +893,7 @@ function Edit-ClientDnsAdvanced([string]$BaseDir) {
     Write-UiHost "- DNS LAN maison    : 192.168.1.1"
     Write-UiHost "- Aucun DNS         : laisse vide puis annule, ou modifie manuellement en mode expert"
     Write-UiHost ""
-    $dns = (Read-UiHost "Nouveau DNS pour $clientName").Trim()
+    $dns = (Read-UiHost "Nouveau DNS pour $deviceName").Trim()
     if ([string]::IsNullOrWhiteSpace($dns)) { return "Modification DNS annulee." }
 
     Write-UiHost ""
@@ -902,28 +902,28 @@ function Edit-ClientDnsAdvanced([string]$BaseDir) {
     $confirm = (Read-UiHost "Tape APPLIQUER pour modifier le fichier .conf").Trim()
     if ($confirm -ne "APPLIQUER") { return "Modification DNS annulee." }
 
-    Set-ClientDns -ClientConfigPath $clientConfigPath -Dns $dns
+    Set-DeviceDns -DeviceConfigPath $deviceConfigPath -Dns $dns
 
     $qrMessage = ""
     if (Test-QrFeatureEnabled -BaseDir $BaseDir) {
-        try { $qrMessage = "`n" + (Generate-DeviceQrFromConsole -BaseDir $BaseDir -ClientName $clientName) } catch { $qrMessage = "`nQR non regenere : $($_.Exception.Message)" }
+        try { $qrMessage = "`n" + (Generate-DeviceQrFromConsole -BaseDir $BaseDir -DeviceName $deviceName) } catch { $qrMessage = "`nQR non regenere : $($_.Exception.Message)" }
     }
 
-    return "DNS modifie pour $clientName : $dns`nIMPORTANT : reimporte ce fichier sur l'appareil, sinon il gardera l'ancienne configuration.`nFichier a reimporter : $clientConfigPath$qrMessage"
+    return "DNS modifie pour $deviceName : $dns`nIMPORTANT : reimporte ce fichier sur l'appareil, sinon il gardera l'ancienne configuration.`nFichier a reimporter : $deviceConfigPath$qrMessage"
 }
 
 
-function Get-ClientPersistentKeepalive([string]$ClientConfigPath) {
-    if (-not (Test-Path $ClientConfigPath)) { throw "Configuration introuvable : $ClientConfigPath" }
-    $content = Get-Content $ClientConfigPath -Raw
+function Get-DevicePersistentKeepalive([string]$DeviceConfigPath) {
+    if (-not (Test-Path $DeviceConfigPath)) { throw "Configuration introuvable : $DeviceConfigPath" }
+    $content = Get-Content $DeviceConfigPath -Raw
     if ($content -match '(?m)^PersistentKeepalive\s*=\s*(\d+)') { return [int]$Matches[1] }
     return 0
 }
 
-function Set-ClientPersistentKeepalive([string]$ClientConfigPath, [int]$Keepalive) {
-    if (-not (Test-Path $ClientConfigPath)) { throw "Configuration introuvable : $ClientConfigPath" }
+function Set-DevicePersistentKeepalive([string]$DeviceConfigPath, [int]$Keepalive) {
+    if (-not (Test-Path $DeviceConfigPath)) { throw "Configuration introuvable : $DeviceConfigPath" }
     if ($Keepalive -lt 0 -or $Keepalive -gt 65535) { throw "PersistentKeepalive invalide : $Keepalive" }
-    $content = Get-Content $ClientConfigPath -Raw
+    $content = Get-Content $DeviceConfigPath -Raw
     if ($content -match '(?m)^PersistentKeepalive\s*=') {
         $content = [regex]::Replace($content, '(?m)^PersistentKeepalive\s*=\s*\d+', "PersistentKeepalive = $Keepalive", 1)
     } else {
@@ -934,17 +934,17 @@ function Set-ClientPersistentKeepalive([string]$ClientConfigPath, [int]$Keepaliv
             $content = $content.TrimEnd() + "`r`nPersistentKeepalive = $Keepalive`r`n"
         }
     }
-    Set-Content -Path $ClientConfigPath -Value $content -Encoding ASCII
+    Set-Content -Path $DeviceConfigPath -Value $content -Encoding ASCII
 }
 
-function Set-AllClientPersistentKeepalive([string]$BaseDir, [int]$Keepalive) {
-    $clientDir = Join-Path $BaseDir "clients"
-    if (-not (Test-Path $clientDir)) { throw "Dossier clients introuvable : $clientDir" }
-    $clients = @(Get-ChildItem $clientDir -Filter "*.conf" -ErrorAction SilentlyContinue)
-    foreach ($client in $clients) {
-        Set-ClientPersistentKeepalive -ClientConfigPath $client.FullName -Keepalive $Keepalive
+function Set-AllDevicePersistentKeepalive([string]$BaseDir, [int]$Keepalive) {
+    $deviceDir = Join-Path $BaseDir "devices"
+    if (-not (Test-Path $deviceDir)) { throw "Dossier devices introuvable : $deviceDir" }
+    $devices = @(Get-ChildItem $deviceDir -Filter "*.conf" -ErrorAction SilentlyContinue)
+    foreach ($device in $devices) {
+        Set-DevicePersistentKeepalive -DeviceConfigPath $device.FullName -Keepalive $Keepalive
     }
-    return $clients.Count
+    return $devices.Count
 }
 
 function Read-KeepaliveValue([int]$Default = 25) {
@@ -962,19 +962,19 @@ function Read-KeepaliveValue([int]$Default = 25) {
     return $value
 }
 
-function Edit-ClientPersistentKeepaliveAdvanced([string]$BaseDir) {
-    $clientName = Select-ClientConfigName -BaseDir $BaseDir -Title "Modifier PersistentKeepalive client"
-    if ([string]::IsNullOrWhiteSpace($clientName)) { return "Modification PersistentKeepalive annulee." }
+function Edit-DevicePersistentKeepaliveAdvanced([string]$BaseDir) {
+    $deviceName = Select-DeviceConfigName -BaseDir $BaseDir -Title "Modifier PersistentKeepalive device"
+    if ([string]::IsNullOrWhiteSpace($deviceName)) { return "Modification PersistentKeepalive annulee." }
 
-    $clientConfigPath = Join-Path $BaseDir "clients\$clientName.conf"
-    $current = Get-ClientPersistentKeepalive -ClientConfigPath $clientConfigPath
+    $deviceConfigPath = Join-Path $BaseDir "devices\$deviceName.conf"
+    $current = Get-DevicePersistentKeepalive -DeviceConfigPath $deviceConfigPath
 
     Clear-Host
-    Write-UiHost "Modifier PersistentKeepalive - $clientName" -ForegroundColor Yellow
+    Write-UiHost "Modifier PersistentKeepalive - $deviceName" -ForegroundColor Yellow
     Write-UiHost "=========================================" -ForegroundColor DarkGray
     Write-UiHost "Valeur actuelle : $current" -ForegroundColor Cyan
     Write-UiHost ""
-    Write-UiHost "PersistentKeepalive aide a garder ouvert le NAT cote client." -ForegroundColor Yellow
+    Write-UiHost "PersistentKeepalive aide a garder ouvert le NAT cote device." -ForegroundColor Yellow
     Write-UiHost "Utile pour telephone 4G/5G, Wi-Fi public ou routeur strict." -ForegroundColor Yellow
     Write-UiHost "IMPORTANT : apres modification, l'appareil ne sera PAS mis a jour automatiquement." -ForegroundColor Red
     Write-UiHost "Tu devras reimporter le fichier .conf sur l'appareil ou rescanner le nouveau QR code." -ForegroundColor Red
@@ -985,24 +985,24 @@ function Edit-ClientPersistentKeepaliveAdvanced([string]$BaseDir) {
     $confirm = (Read-UiHost "Tape APPLIQUER pour modifier le fichier .conf").Trim()
     if ($confirm -ne "APPLIQUER") { return "Modification PersistentKeepalive annulee." }
 
-    Set-ClientPersistentKeepalive -ClientConfigPath $clientConfigPath -Keepalive $keepalive
+    Set-DevicePersistentKeepalive -DeviceConfigPath $deviceConfigPath -Keepalive $keepalive
 
     $qrMessage = ""
     if (Test-QrFeatureEnabled -BaseDir $BaseDir) {
-        try { $qrMessage = "`n" + (Generate-DeviceQrFromConsole -BaseDir $BaseDir -ClientName $clientName) } catch { $qrMessage = "`nQR non regenere : $($_.Exception.Message)" }
+        try { $qrMessage = "`n" + (Generate-DeviceQrFromConsole -BaseDir $BaseDir -DeviceName $deviceName) } catch { $qrMessage = "`nQR non regenere : $($_.Exception.Message)" }
     }
 
-    return "PersistentKeepalive modifie pour $clientName : $keepalive`nIMPORTANT : reimporte ce fichier sur l'appareil, sinon il gardera l'ancienne configuration.`nFichier a reimporter : $clientConfigPath$qrMessage"
+    return "PersistentKeepalive modifie pour $deviceName : $keepalive`nIMPORTANT : reimporte ce fichier sur l'appareil, sinon il gardera l'ancienne configuration.`nFichier a reimporter : $deviceConfigPath$qrMessage"
 }
 
-function Set-AllClientAllowedIPs([string]$BaseDir, [string]$AllowedIPs) {
-    $clientDir = Join-Path $BaseDir "clients"
-    if (-not (Test-Path $clientDir)) { throw "Dossier clients introuvable : $clientDir" }
-    $clients = @(Get-ChildItem $clientDir -Filter "*.conf" -ErrorAction SilentlyContinue)
-    foreach ($client in $clients) {
-        Set-ClientAllowedIPs -ClientConfigPath $client.FullName -AllowedIPs $AllowedIPs
+function Set-AllDeviceAllowedIPs([string]$BaseDir, [string]$AllowedIPs) {
+    $deviceDir = Join-Path $BaseDir "devices"
+    if (-not (Test-Path $deviceDir)) { throw "Dossier devices introuvable : $deviceDir" }
+    $devices = @(Get-ChildItem $deviceDir -Filter "*.conf" -ErrorAction SilentlyContinue)
+    foreach ($device in $devices) {
+        Set-DeviceAllowedIPs -DeviceConfigPath $device.FullName -AllowedIPs $AllowedIPs
     }
-    return $clients.Count
+    return $devices.Count
 }
 
 function Set-ServerListenPortAdvanced([string]$TunnelName, [string]$BaseDir, [int]$OldPort, [int]$NewPort) {
@@ -1021,24 +1021,24 @@ function Set-ServerListenPortAdvanced([string]$TunnelName, [string]$BaseDir, [in
     Get-NetFirewallRule -DisplayName $fwNew -ErrorAction SilentlyContinue | Remove-NetFirewallRule
     New-NetFirewallRule -DisplayName $fwNew -Direction Inbound -Action Allow -Protocol UDP -LocalPort $NewPort | Out-Null
 
-    $clientDir = Join-Path $BaseDir "clients"
-    $updatedClients = 0
-    if (Test-Path $clientDir) {
-        foreach ($client in Get-ChildItem $clientDir -Filter "*.conf" -ErrorAction SilentlyContinue) {
-            $clientContent = Get-Content $client.FullName -Raw
-            $clientContent = [regex]::Replace($clientContent, '(?m)^(Endpoint\s*=\s*[^:\s]+:)\d+', "`${1}$NewPort", 1)
-            Set-Content -Path $client.FullName -Value $clientContent -Encoding ASCII
-            $updatedClients++
+    $deviceDir = Join-Path $BaseDir "devices"
+    $updatedDevices = 0
+    if (Test-Path $deviceDir) {
+        foreach ($device in Get-ChildItem $deviceDir -Filter "*.conf" -ErrorAction SilentlyContinue) {
+            $deviceContent = Get-Content $device.FullName -Raw
+            $deviceContent = [regex]::Replace($deviceContent, '(?m)^(Endpoint\s*=\s*[^:\s]+:)\d+', "`${1}$NewPort", 1)
+            Set-Content -Path $device.FullName -Value $deviceContent -Encoding ASCII
+            $updatedDevices++
         }
     }
 
     $restartMsg = Restart-Tunnel -TunnelName $TunnelName -BaseDir $BaseDir
-    return "Port WireGuard modifie : $OldPort -> $NewPort`nRegle pare-feu mise a jour.`nClients mis a jour : $updatedClients`nIMPORTANT : modifie aussi la redirection de port sur ta box vers UDP $NewPort.`n$restartMsg"
+    return "Port WireGuard modifie : $OldPort -> $NewPort`nRegle pare-feu mise a jour.`nDevices mis a jour : $updatedDevices`nIMPORTANT : modifie aussi la redirection de port sur ta box vers UDP $NewPort.`n$restartMsg"
 }
 
 function Get-AllowedIPsPresetFromMenu([string]$BaseDir) {
     Write-UiHost ""
-    Write-UiHost "Mode client AllowedIPs" -ForegroundColor Cyan
+    Write-UiHost "Mode device AllowedIPs" -ForegroundColor Cyan
     Write-UiHost "----------------------" -ForegroundColor DarkGray
     Write-UiHost "1 - Full tunnel IPv4 : 0.0.0.0/0"
     Write-UiHost "2 - VPN uniquement : 10.66.66.0/24"
@@ -1069,8 +1069,8 @@ function Show-DefaultConfigurationAdvanced([string]$TunnelName, [string]$BaseDir
     $serverIp = ($serverAddress -split '/')[0]
     $vpnPrefix = if ($serverAddress -match '^10\.66\.66\.1/24$') { "10.66.66.0/24" } else { "derive de $serverAddress" }
     $port = Get-ServerListenPort -ServerConfigPath $serverConfig
-    $dns = Get-FirstClientDns -BaseDir $BaseDir
-    $allowed = Get-FirstClientAllowedIPs -BaseDir $BaseDir
+    $dns = Get-FirstDeviceDns -BaseDir $BaseDir
+    $allowed = Get-FirstDeviceAllowedIPs -BaseDir $BaseDir
 
     Write-UiHost ""
     Write-UiHost "Configuration actuelle" -ForegroundColor Cyan
@@ -1079,8 +1079,8 @@ function Show-DefaultConfigurationAdvanced([string]$TunnelName, [string]$BaseDir
     Write-Line "WireGuard port" "$port/UDP" Cyan
     Write-Line "VPN network" $vpnPrefix Cyan
     Write-Line "VPN server IP" $serverIp Cyan
-    Write-Line "Client DNS" $dns Cyan
-    Write-Line "Client mode" "AllowedIPs = $allowed" Cyan
+    Write-Line "Device DNS" $dns Cyan
+    Write-Line "Device mode" "AllowedIPs = $allowed" Cyan
 }
 
 function Show-AdvancedDefaultConfigEditor([string]$TunnelName, [string]$BaseDir, [int]$ListenPort) {
@@ -1088,19 +1088,19 @@ function Show-AdvancedDefaultConfigEditor([string]$TunnelName, [string]$BaseDir,
         Clear-Host
         Write-UiHost "WinWG - Configuration avancee" -ForegroundColor Yellow
         Write-UiHost "=============================" -ForegroundColor DarkGray
-        Write-UiHost "ATTENTION : certaines options demandent de reimporter les configs client ou de changer la box." -ForegroundColor Red
+        Write-UiHost "ATTENTION : certaines options demandent de reimporter les configs device ou de changer la box." -ForegroundColor Red
         Show-DefaultConfigurationAdvanced -TunnelName $TunnelName -BaseDir $BaseDir -ListenPort $ListenPort
         Write-UiHost ""
         Write-UiHost "Options globales:" -ForegroundColor Cyan
         Write-UiHost "1 - Changer le port WireGuard global"
-        Write-UiHost "2 - Changer le DNS de TOUS les clients"
-        Write-UiHost "3 - Changer AllowedIPs de TOUS les clients"
-        Write-UiHost "4 - Changer PersistentKeepalive de TOUS les clients"
+        Write-UiHost "2 - Changer le DNS de TOUS les devices"
+        Write-UiHost "3 - Changer AllowedIPs de TOUS les devices"
+        Write-UiHost "4 - Changer PersistentKeepalive de TOUS les devices"
         Write-UiHost ""
-        Write-UiHost "Options par client/appareil:" -ForegroundColor Cyan
-        Write-UiHost "5 - Changer le DNS d'UN client"
-        Write-UiHost "6 - Changer AllowedIPs d'UN client"
-        Write-UiHost "7 - Changer PersistentKeepalive d'UN client"
+        Write-UiHost "Options par device/appareil:" -ForegroundColor Cyan
+        Write-UiHost "5 - Changer le DNS d'UN device"
+        Write-UiHost "6 - Changer AllowedIPs d'UN device"
+        Write-UiHost "7 - Changer PersistentKeepalive d'UN device"
         Write-UiHost ("Q - " + (Get-WinWGText $script:Language "Back"))
         Write-UiHost ""
         $choice = (Read-UiHost (Get-WinWGText $script:Language "Choice")).Trim().ToLowerInvariant()
@@ -1120,21 +1120,21 @@ function Show-AdvancedDefaultConfigEditor([string]$TunnelName, [string]$BaseDir,
                 }
             }
             '2' {
-                $current = Get-FirstClientDns -BaseDir $BaseDir
-                $dns = (Read-UiHost "Nouveau DNS clients [$current]").Trim()
+                $current = Get-FirstDeviceDns -BaseDir $BaseDir
+                $dns = (Read-UiHost "Nouveau DNS devices [$current]").Trim()
                 if ([string]::IsNullOrWhiteSpace($dns)) { continue }
-                $count = Set-AllClientDns -BaseDir $BaseDir -Dns $dns
-                Pause-ConsoleAction "DNS modifie pour $count client(s). IMPORTANT : reimporte les .conf ou QR sur les appareils."
+                $count = Set-AllDeviceDns -BaseDir $BaseDir -Dns $dns
+                Pause-ConsoleAction "DNS modifie pour $count device(s). IMPORTANT : reimporte les .conf ou QR sur les appareils."
             }
             '3' {
                 $allowed = Get-AllowedIPsPresetFromMenu -BaseDir $BaseDir
                 if ([string]::IsNullOrWhiteSpace($allowed)) { continue }
                 Write-UiHost ""
                 Write-UiHost "IMPORTANT : tous les appareils devront reimporter leur .conf ou rescanner leur QR." -ForegroundColor Red
-                $confirm = (Read-UiHost "Tape APPLIQUER pour modifier tous les clients").Trim()
+                $confirm = (Read-UiHost "Tape APPLIQUER pour modifier tous les devices").Trim()
                 if ($confirm -eq "APPLIQUER") {
-                    $count = Set-AllClientAllowedIPs -BaseDir $BaseDir -AllowedIPs $allowed
-                    Pause-ConsoleAction "AllowedIPs modifie pour $count client(s) : $allowed`nIMPORTANT : reimporte les .conf ou QR sur les appareils."
+                    $count = Set-AllDeviceAllowedIPs -BaseDir $BaseDir -AllowedIPs $allowed
+                    Pause-ConsoleAction "AllowedIPs modifie pour $count device(s) : $allowed`nIMPORTANT : reimporte les .conf ou QR sur les appareils."
                 }
             }
             '4' {
@@ -1142,22 +1142,22 @@ function Show-AdvancedDefaultConfigEditor([string]$TunnelName, [string]$BaseDir,
                 $keepalive = Read-KeepaliveValue -Default $defaultKeepalive
                 Write-UiHost ""
                 Write-UiHost "IMPORTANT : tous les appareils devront reimporter leur .conf ou rescanner leur QR." -ForegroundColor Red
-                $confirm = (Read-UiHost "Tape APPLIQUER pour modifier tous les clients").Trim()
+                $confirm = (Read-UiHost "Tape APPLIQUER pour modifier tous les devices").Trim()
                 if ($confirm -eq "APPLIQUER") {
-                    $count = Set-AllClientPersistentKeepalive -BaseDir $BaseDir -Keepalive $keepalive
-                    Pause-ConsoleAction "PersistentKeepalive modifie pour $count client(s) : $keepalive`nIMPORTANT : reimporte les .conf ou QR sur les appareils."
+                    $count = Set-AllDevicePersistentKeepalive -BaseDir $BaseDir -Keepalive $keepalive
+                    Pause-ConsoleAction "PersistentKeepalive modifie pour $count device(s) : $keepalive`nIMPORTANT : reimporte les .conf ou QR sur les appareils."
                 }
             }
             '5' {
-                $msg = Edit-ClientDnsAdvanced -BaseDir $BaseDir
+                $msg = Edit-DeviceDnsAdvanced -BaseDir $BaseDir
                 Pause-ConsoleAction $msg
             }
             '6' {
-                $msg = Edit-ClientAllowedIPsAdvanced -BaseDir $BaseDir
+                $msg = Edit-DeviceAllowedIPsAdvanced -BaseDir $BaseDir
                 Pause-ConsoleAction $msg
             }
             '7' {
-                $msg = Edit-ClientPersistentKeepaliveAdvanced -BaseDir $BaseDir
+                $msg = Edit-DevicePersistentKeepaliveAdvanced -BaseDir $BaseDir
                 Pause-ConsoleAction $msg
             }
             'q' { return "Retour depuis la configuration avancee." }
@@ -1178,7 +1178,7 @@ function Show-AdvancedMenu([string]$TunnelName, [string]$BaseDir, [int]$ListenPo
         Write-UiHost ""
         Write-UiHost ("1 - " + (Get-WinWGText $script:Language "AdvRawWgShow"))
         Write-UiHost ("2 - " + (Get-WinWGText $script:Language "AdvOpenServerFolder"))
-        Write-UiHost ("3 - " + (Get-WinWGText $script:Language "AdvOpenClientsFolder"))
+        Write-UiHost ("3 - " + (Get-WinWGText $script:Language "AdvOpenDevicesFolder"))
         Write-UiHost ("4 - " + (Get-WinWGText $script:Language "AdvOpenQrFolder"))
         Write-UiHost ("5 - " + (Get-WinWGText $script:Language "AdvExportDiagnostic"))
         Write-UiHost ("6 - " + (Get-WinWGText $script:Language "AdvEditConfig"))
@@ -1199,8 +1199,8 @@ function Show-AdvancedMenu([string]$TunnelName, [string]$BaseDir, [int]$ListenPo
                 if (Test-Path $dir) { Start-Process explorer.exe $dir; Pause-ConsoleAction "Dossier serveur ouvert : $dir" } else { Pause-ConsoleAction "Dossier serveur introuvable : $dir" }
             }
             '3' {
-                $dir = Join-Path $BaseDir "clients"
-                if (Test-Path $dir) { Start-Process explorer.exe $dir; Pause-ConsoleAction "Dossier clients ouvert : $dir" } else { Pause-ConsoleAction "Dossier clients introuvable : $dir" }
+                $dir = Join-Path $BaseDir "devices"
+                if (Test-Path $dir) { Start-Process explorer.exe $dir; Pause-ConsoleAction "Dossier devices ouvert : $dir" } else { Pause-ConsoleAction "Dossier devices introuvable : $dir" }
             }
             '4' {
                 $dir = Join-Path $BaseDir "qrcodes"
@@ -1253,7 +1253,7 @@ function Show-Status([string]$LastMessage = "") {
     Write-UiHost ""
 
     $serverConfig = Get-ServerConfigPath -TunnelName $TunnelName -BaseDir $BaseDir
-    $clientDir = Join-Path $BaseDir "clients"
+    $deviceDir = Join-Path $BaseDir "devices"
     $installed = Test-ProjectInstalled -TunnelName $TunnelName -BaseDir $BaseDir
     $svc = Get-ServiceState -TunnelName $TunnelName
 
@@ -1274,18 +1274,18 @@ function Show-Status([string]$LastMessage = "") {
     $fw = @(Get-NetFirewallRule -DisplayName "WireGuard Server UDP $ListenPort" -ErrorAction SilentlyContinue)
     if ($fw.Length -gt 0) { Write-Line (Get-WinWGText $script:Language "Firewall") (Get-WinWGText $script:Language "FirewallPresent") Green } else { Write-Line (Get-WinWGText $script:Language "Firewall") (Get-WinWGText $script:Language "FirewallMissing") Red }
 
-    $nat = Get-NetNat -Name "WireGuardPhoneServerNAT" -ErrorAction SilentlyContinue
+    $nat = Get-NetNat -Name "WinWGOneClickServerNAT" -ErrorAction SilentlyContinue
     if ($nat) { Write-Line (Get-WinWGText $script:Language "Nat") "$($nat.InternalIPInterfaceAddressPrefix)" Green } else { Write-Line (Get-WinWGText $script:Language "Nat") (Get-WinWGText $script:Language "Missing") Yellow }
 
     $udp = @(Get-NetUDPEndpoint -LocalPort $ListenPort -ErrorAction SilentlyContinue)
     if ($udp.Length -gt 0) { Write-Line (Get-WinWGText $script:Language "UdpEndpoint") (Get-WinWGText $script:Language "UdpPresent") Green } else { Write-Line (Get-WinWGText $script:Language "UdpEndpoint") (Get-WinWGText $script:Language "UdpNotVisible") Yellow }
 
-    if (Test-Path $clientDir) {
-        $clients = @(Get-ChildItem $clientDir -Filter "*.conf" -ErrorAction SilentlyContinue)
-        Write-Line (Get-WinWGText $script:Language "PhoneConfigs") ("$($clients.Length) " + (Get-WinWGText $script:Language "FileCount")) Cyan
-        foreach ($c in $clients) { Write-UiHost "  - $($c.FullName)" -ForegroundColor DarkCyan }
+    if (Test-Path $deviceDir) {
+        $devices = @(Get-ChildItem $deviceDir -Filter "*.conf" -ErrorAction SilentlyContinue)
+        Write-Line (Get-WinWGText $script:Language "DeviceConfigs") ("$($devices.Length) " + (Get-WinWGText $script:Language "FileCount")) Cyan
+        foreach ($c in $devices) { Write-UiHost "  - $($c.FullName)" -ForegroundColor DarkCyan }
     } else {
-        Write-Line (Get-WinWGText $script:Language "PhoneConfigs") (Get-WinWGText $script:Language "FolderMissing") Yellow
+        Write-Line (Get-WinWGText $script:Language "DeviceConfigs") (Get-WinWGText $script:Language "FolderMissing") Yellow
     }
 
     Write-UiHost ""

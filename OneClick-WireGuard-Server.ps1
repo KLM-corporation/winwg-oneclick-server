@@ -28,6 +28,8 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
+$languageScript = Join-Path $PSScriptRoot "scripts\WinWG-Language.ps1"
+if (Test-Path $languageScript) { . $languageScript }
 
 function Write-Step([string]$Text) {
     Write-Host ""
@@ -344,6 +346,11 @@ try {
     $clientDir = Join-Path $baseDir "clients"
     Ensure-Directory $serverDir
     Ensure-Directory $clientDir
+
+    if (Get-Command Select-WinWGLanguage -ErrorAction SilentlyContinue) {
+        $Language = Select-WinWGLanguage -BaseDir $baseDir
+        Write-Host "Language selected / Langue selectionnee : $Language" -ForegroundColor Green
+    }
 
     $enableQrFeature = Ask-YesNo "WinWG QR Code" "Installer le generateur de QR code integre ? Cela permet d'importer la configuration dans l'app WireGuard mobile en scannant un QR code. La dependance QRCoder sera telechargee depuis NuGet, mais tes cles/configurations ne sont pas envoyees a Internet." $true
     if ($enableQrFeature) {

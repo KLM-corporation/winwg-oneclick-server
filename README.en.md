@@ -1,5 +1,7 @@
 # WinWG OneClick Server
 
+English | [Français](README.fr.md)
+
 ![Status](https://img.shields.io/badge/status-beta-orange) ![Platform](https://img.shields.io/badge/platform-Windows-blue) ![License](https://img.shields.io/badge/license-MIT-green)
 
 **One script. One click. Your Windows PC becomes a WireGuard VPN server.**
@@ -21,6 +23,32 @@ WinWG OneClick Server is a simple Windows project that turns a Windows 10/11 PC 
 WinWG OneClick Server is currently in **beta**. It is usable, but it still needs testing on multiple Windows machines before being considered stable.
 
 Use it first for personal, home-lab, or test environments. Avoid installing it directly on a critical machine without validation.
+
+
+## Application language
+
+WinWG supports French and English.
+
+During one-click installation, the script asks which language should be used. The default is detected from the Windows system language:
+
+```text
+fr = Français
+en = English
+```
+
+The console can also change the language later with:
+
+```text
+L - Change language
+```
+
+The choice is stored in:
+
+```text
+C:\ProgramData\WireGuardPhoneServer\settings\language.txt
+```
+
+Note: translation is progressive. The main installer/console flow is prioritized first.
 
 ## Project promise
 

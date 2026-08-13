@@ -134,6 +134,7 @@ jobs:
           required=(
             README.md
             README.en.md
+            README.fr.md
             LICENSE
             SECURITY.md
             CONTRIBUTING.md

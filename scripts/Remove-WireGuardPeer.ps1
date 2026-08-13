@@ -1,13 +1,13 @@
 ﻿<#
 .SYNOPSIS
-  Supprime un client WireGuard du fichier serveur.
+  Supprime un device WireGuard du fichier serveur.
 #>
 [CmdletBinding()]
 param(
     [Parameter(Mandatory=$true)]
-    [string]$ClientName,
+    [string]$DeviceName,
 
-    [string]$TunnelName = "wg-phone-server",
+    [string]$TunnelName = "winwg-server",
 
     [ValidateSet("fr","en")]
     [string]$Language = "fr"
@@ -86,26 +86,26 @@ function Restart-WireGuardTunnelSafely([string]$WireGuardExe, [string]$TunnelNam
 
 Assert-Admin
 $wireguardExe = Join-Path $env:ProgramFiles "WireGuard\wireguard.exe"
-$baseDir = Join-Path $env:ProgramData "WireGuardPhoneServer"
+$baseDir = Join-Path $env:ProgramData "WinWGOneClickServer"
 $serverConfigPath = Join-Path $baseDir "server\$TunnelName.conf"
-$clientConfigPath = Join-Path $baseDir "clients\$ClientName.conf"
+$deviceConfigPath = Join-Path $baseDir "devices\$DeviceName.conf"
 
 if (-not (Test-Path $serverConfigPath)) { throw "Configuration serveur introuvable : $serverConfigPath" }
 
 $config = Get-Content $serverConfigPath -Raw
-$pattern = "(?ms)^#\s*$([regex]::Escape($ClientName))\s*\r?\n\[Peer\]\s*\r?\nPublicKey\s*=\s*\S+\s*\r?\nPresharedKey\s*=\s*\S+\s*\r?\nAllowedIPs\s*=\s*[^\r\n]+\s*\r?\n?"
+$pattern = "(?ms)^#\s*$([regex]::Escape($DeviceName))\s*\r?\n\[Peer\]\s*\r?\nPublicKey\s*=\s*\S+\s*\r?\nPresharedKey\s*=\s*\S+\s*\r?\nAllowedIPs\s*=\s*[^\r\n]+\s*\r?\n?"
 $newConfig = [regex]::Replace($config, $pattern, "")
 
 if ($newConfig -eq $config) {
-    throw "Peer '$ClientName' introuvable dans $serverConfigPath"
+    throw "Peer '$DeviceName' introuvable dans $serverConfigPath"
 }
 
 Set-Content -Path $serverConfigPath -Value $newConfig -Encoding ASCII
-if (Test-Path $clientConfigPath) { Remove-Item $clientConfigPath -Force }
+if (Test-Path $deviceConfigPath) { Remove-Item $deviceConfigPath -Force }
 
 $reloadOk = Restart-WireGuardTunnelSafely -WireGuardExe $wireguardExe -TunnelName $TunnelName -ConfigPath $serverConfigPath
 if (-not $reloadOk) {
     Write-Warning "L'operation sur le peer est faite, mais le service doit etre redemarre manuellement."
 }
 
-Write-Host ((TPeer "✅ Client supprime" "✅ Client removed") + " : $ClientName") -ForegroundColor Green
+Write-Host ((TPeer "✅ Device supprime" "✅ Device removed") + " : $DeviceName") -ForegroundColor Green

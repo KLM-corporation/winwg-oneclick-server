@@ -3,20 +3,20 @@
   Configure un PC Windows en serveur WireGuard pour appareil distant hors LAN.
 
 .EXAMPLE
-  .\Install-WireGuardServer.ps1 -Endpoint "vpn-maison.duckdns.org" -ClientName "iphone"
+  .\Install-WireGuardServer.ps1 -Endpoint "vpn-maison.duckdns.org" -DeviceName "iphone"
 #>
 [CmdletBinding()]
 param(
     [Parameter(Mandatory=$true)]
     [string]$Endpoint,
 
-    [string]$ClientName = "phone",
+    [string]$DeviceName = "device",
     [int]$ListenPort = 51820,
     [string]$VpnCidr = "10.66.66.0/24",
     [string]$ServerVpnIp = "10.66.66.1",
-    [string]$FirstClientVpnIp = "10.66.66.2",
+    [string]$FirstDeviceVpnIp = "10.66.66.2",
     [string]$Dns = "1.1.1.1, 8.8.8.8",
-    [string]$TunnelName = "wg-phone-server"
+    [string]$TunnelName = "winwg-server"
 )
 
 Set-StrictMode -Version Latest
@@ -129,20 +129,20 @@ if (-not $tools -or -not $tools.PSObject.Properties["WgExe"] -or -not $tools.PSO
 $wgExe = $tools.WgExe
 $wireguardExe = $tools.WireGuardExe
 
-$baseDir = Join-Path $env:ProgramData "WireGuardPhoneServer"
+$baseDir = Join-Path $env:ProgramData "WinWGOneClickServer"
 $serverDir = Join-Path $baseDir "server"
-$clientDir = Join-Path $baseDir "clients"
+$deviceDir = Join-Path $baseDir "devices"
 Ensure-Directory $serverDir
-Ensure-Directory $clientDir
+Ensure-Directory $deviceDir
 
 $serverPrivateKey = New-WgPrivateKey $wgExe
 $serverPublicKey = Get-WgPublicKey $wgExe $serverPrivateKey
-$clientPrivateKey = New-WgPrivateKey $wgExe
-$clientPublicKey = Get-WgPublicKey $wgExe $clientPrivateKey
+$devicePrivateKey = New-WgPrivateKey $wgExe
+$devicePublicKey = Get-WgPublicKey $wgExe $devicePrivateKey
 $psk = New-WgPresharedKey $wgExe
 
 $serverConfigPath = Join-Path $serverDir "$TunnelName.conf"
-$clientConfigPath = Join-Path $clientDir "$ClientName.conf"
+$deviceConfigPath = Join-Path $deviceDir "$DeviceName.conf"
 
 $serverConfig = @"
 [Interface]
@@ -150,17 +150,17 @@ PrivateKey = $serverPrivateKey
 Address = $ServerVpnIp/24
 ListenPort = $ListenPort
 
-# $ClientName
+# $DeviceName
 [Peer]
-PublicKey = $clientPublicKey
+PublicKey = $devicePublicKey
 PresharedKey = $psk
-AllowedIPs = $FirstClientVpnIp/32
+AllowedIPs = $FirstDeviceVpnIp/32
 "@
 
-$clientConfig = @"
+$deviceConfig = @"
 [Interface]
-PrivateKey = $clientPrivateKey
-Address = $FirstClientVpnIp/32
+PrivateKey = $devicePrivateKey
+Address = $FirstDeviceVpnIp/32
 DNS = $Dns
 
 [Peer]
@@ -172,7 +172,7 @@ PersistentKeepalive = 25
 "@
 
 Set-Content -Path $serverConfigPath -Value $serverConfig -Encoding ASCII
-Set-Content -Path $clientConfigPath -Value $clientConfig -Encoding ASCII
+Set-Content -Path $deviceConfigPath -Value $deviceConfig -Encoding ASCII
 
 Write-Host "Activation du routage IPv4 Windows..."
 Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -Name IPEnableRouter -Value 1
@@ -188,7 +188,7 @@ Get-NetFirewallRule -DisplayName $fwName -ErrorAction SilentlyContinue | Remove-
 New-NetFirewallRule -DisplayName $fwName -Direction Inbound -Action Allow -Protocol UDP -LocalPort $ListenPort | Out-Null
 
 Write-Host "Création/actualisation du NAT Windows pour $VpnCidr..."
-$natName = "WireGuardPhoneServerNAT"
+$natName = "WinWGOneClickServerNAT"
 Get-NetNat -Name $natName -ErrorAction SilentlyContinue | Remove-NetNat -Confirm:$false
 New-NetNat -Name $natName -InternalIPInterfaceAddressPrefix $VpnCidr | Out-Null
 
@@ -203,7 +203,7 @@ Write-Host "✅ Serveur WireGuard configuré." -ForegroundColor Green
 Write-Host "Tunnel      : $TunnelName"
 Write-Host "Port UDP    : $ListenPort"
 Write-Host "VPN serveur : $ServerVpnIp"
-Write-Host "Config appareil : $clientConfigPath"
+Write-Host "Config appareil : $deviceConfigPath"
 Write-Host ""
 Write-Host "À faire sur ta box : redirige UDP $ListenPort vers l'IP locale de ce PC."
 Write-Host "Puis importe le fichier appareil dans l'app WireGuard de l'appareil distant."

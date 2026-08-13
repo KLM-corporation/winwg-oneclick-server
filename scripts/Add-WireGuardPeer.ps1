@@ -1,22 +1,22 @@
 ﻿<#
 .SYNOPSIS
-  Ajoute un client WireGuard au serveur Windows existant.
+  Ajoute un appareil WireGuard au serveur Windows existant.
 
 .EXAMPLE
-  .\Add-WireGuardPeer.ps1 -ClientName "android" -Endpoint "vpn-maison.duckdns.org"
+  .\Add-WireGuardPeer.ps1 -DeviceName "android" -Endpoint "vpn-maison.duckdns.org"
 #>
 [CmdletBinding()]
 param(
     [Parameter(Mandatory=$true)]
-    [string]$ClientName,
+    [string]$DeviceName,
 
     [Parameter(Mandatory=$true)]
     [string]$Endpoint,
 
-    [int]$ClientNumber = 3,
+    [int]$DeviceNumber = 3,
     [int]$ListenPort = 51820,
     [string]$Dns = "1.1.1.1, 8.8.8.8",
-    [string]$TunnelName = "wg-phone-server",
+    [string]$TunnelName = "winwg-server",
     [ValidateSet("fr","en")]
     [string]$Language = "fr"
 )
@@ -142,42 +142,42 @@ $wgExe = Join-Path $env:ProgramFiles "WireGuard\wg.exe"
 $wireguardExe = Join-Path $env:ProgramFiles "WireGuard\wireguard.exe"
 if (-not (Test-Path $wgExe)) { throw "wg.exe introuvable. Installe WireGuard ou lance Install-WireGuardServer.ps1 d'abord." }
 
-$baseDir = Join-Path $env:ProgramData "WireGuardPhoneServer"
+$baseDir = Join-Path $env:ProgramData "WinWGOneClickServer"
 $serverConfigPath = Join-Path $baseDir "server\$TunnelName.conf"
-$clientDir = Join-Path $baseDir "clients"
-$clientConfigPath = Join-Path $clientDir "$ClientName.conf"
+$deviceDir = Join-Path $baseDir "devices"
+$deviceConfigPath = Join-Path $deviceDir "$DeviceName.conf"
 
 if (-not (Test-Path $serverConfigPath)) { throw "Configuration serveur introuvable : $serverConfigPath" }
-if (Test-Path $clientConfigPath) { throw "Un client nommé '$ClientName' existe déjà : $clientConfigPath" }
+if (Test-Path $deviceConfigPath) { throw "Un appareil nommé '$DeviceName' existe déjà : $deviceConfigPath" }
 
 $serverConfig = Get-Content $serverConfigPath -Raw
 $serverPrivateKey = ([regex]::Match($serverConfig, 'PrivateKey\s*=\s*(\S+)')).Groups[1].Value
 if (-not $serverPrivateKey) { throw "Impossible de lire la clé privée serveur." }
 $serverPublicKey = Get-WgPublicKey $wgExe $serverPrivateKey
 
-$clientIp = "10.66.66.$ClientNumber"
-if ($serverConfig -match [regex]::Escape("AllowedIPs = $clientIp/32")) {
-    throw "L'adresse $clientIp est déjà utilisée. Choisis un autre -ClientNumber."
+$deviceIp = "10.66.66.$DeviceNumber"
+if ($serverConfig -match [regex]::Escape("AllowedIPs = $deviceIp/32")) {
+    throw "L'adresse $deviceIp est déjà utilisée. Choisis un autre -DeviceNumber."
 }
 
-$clientPrivateKey = New-WgPrivateKey $wgExe
-$clientPublicKey = Get-WgPublicKey $wgExe $clientPrivateKey
+$devicePrivateKey = New-WgPrivateKey $wgExe
+$devicePublicKey = Get-WgPublicKey $wgExe $devicePrivateKey
 $psk = New-WgPresharedKey $wgExe
 
 $peerBlock = @"
 
-# $ClientName
+# $DeviceName
 [Peer]
-PublicKey = $clientPublicKey
+PublicKey = $devicePublicKey
 PresharedKey = $psk
-AllowedIPs = $clientIp/32
+AllowedIPs = $deviceIp/32
 "@
 Add-Content -Path $serverConfigPath -Value $peerBlock -Encoding ASCII
 
-$clientConfig = @"
+$deviceConfig = @"
 [Interface]
-PrivateKey = $clientPrivateKey
-Address = $clientIp/32
+PrivateKey = $devicePrivateKey
+Address = $deviceIp/32
 DNS = $Dns
 
 [Peer]
@@ -187,13 +187,13 @@ Endpoint = $Endpoint`:$ListenPort
 AllowedIPs = 0.0.0.0/0
 PersistentKeepalive = 25
 "@
-Set-Content -Path $clientConfigPath -Value $clientConfig -Encoding ASCII
+Set-Content -Path $deviceConfigPath -Value $deviceConfig -Encoding ASCII
 
 $reloadOk = Restart-WireGuardTunnelSafely -WireGuardExe $wireguardExe -TunnelName $TunnelName -ConfigPath $serverConfigPath
 if (-not $reloadOk) {
     Write-Warning "L'operation sur le peer est faite, mais le service doit etre redemarre manuellement."
 }
 
-Write-Host ((TPeer "✅ Client ajoute" "✅ Client added") + " : $ClientName") -ForegroundColor Green
-Write-Host ((TPeer "IP VPN" "VPN IP") + "      : $clientIp")
-Write-Host ((TPeer "Client conf" "Client config") + " : $clientConfigPath")
+Write-Host ((TPeer "✅ Appareil ajoute" "✅ Device added") + " : $DeviceName") -ForegroundColor Green
+Write-Host ((TPeer "IP VPN" "VPN IP") + "      : $deviceIp")
+Write-Host ((TPeer "Config appareil" "Config appareilig") + " : $deviceConfigPath")

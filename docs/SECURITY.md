@@ -29,7 +29,7 @@ This project configures a VPN server on Windows and may expose a UDP port to the
 Never commit generated files from:
 
 ```text
-C:\ProgramData\WireGuardPhoneServer
+C:\ProgramData\WinWGOneClickServer
 ```
 
 They may contain private keys.

@@ -10,7 +10,7 @@
 > 💙 **Soutenir le projet** : WinWG OneClick Server est gratuit et open source. Les dons sont optionnels.  
 > BTC : `bc1qp3lzycrpngpk00tecj85pfkhrqqr49gmslzmsg` — voir [`docs/DONATE.md`](docs/DONATE.md).
 
-Un projet Windows simple et propre pour transformer un PC Windows 10/11 en **serveur d’accès distant WireGuard** avec une installation en **un seul script / un seul double-clic**. Il génère aussi la configuration à importer sur ton téléphone, ta tablette ou ton PC portable.
+Un projet Windows simple et propre pour transformer un PC Windows 10/11 en **serveur d’accès distant WireGuard** avec une installation en **un seul script / un seul double-clic**. Il génère aussi la configuration à importer sur un appareil distant comme un téléphone, une tablette ou un PC portable.
 
 
 
@@ -42,7 +42,7 @@ L - Changer la langue
 Le choix est enregistré dans :
 
 ```text
-C:\ProgramData\WireGuardPhoneServer\settings\language.txt
+C:\ProgramData\WinWGOneClickServer\settings\language.txt
 ```
 
 Note : la traduction est progressive. Le flux principal installateur/console est prioritaire.
@@ -71,7 +71,7 @@ Le projet configure automatiquement ce qui est normalement pénible à faire à 
 - désinstallation propre.
 
 
-> Compatibilité : certains chemins internes gardent le nom historique `WireGuardPhoneServer`, par exemple `C:\ProgramData\WireGuardPhoneServer`. C'est volontaire pour ne pas casser les installations existantes.
+> Compatibilité : certains chemins internes gardent le nom historique `WinWGOneClickServer`, par exemple `C:\ProgramData\WinWGOneClickServer`. C'est volontaire pour ne pas casser les installations existantes.
 
 ## Installation one-click recommandée
 
@@ -109,12 +109,12 @@ Idéalement, cette IP locale doit être réservée via un **bail DHCP statique**
 ## Ce que le projet automatise
 
 - Installation de WireGuard pour Windows via `winget` si nécessaire.
-- Génération des clés serveur/client.
+- Génération des clés serveur/device.
 - Création d'un tunnel WireGuard serveur.
 - Activation du routage IPv4 Windows.
 - Création d'une règle pare-feu UDP.
 - Création d'une règle NAT Windows pour permettre à l’appareil de sortir vers Internet via le PC.
-- Génération d'un fichier client `.conf` à importer dans l'app WireGuard mobile.
+- Génération d'un fichier device `.conf` à importer dans l'app WireGuard mobile.
 
 ## Pré-requis
 
@@ -171,15 +171,15 @@ Windows + WireGuard helper
 
 Sur Windows, il n'existe pas vraiment de paquet officiel séparé "serveur seulement". L'application WireGuard Windows installe aussi les composants nécessaires au mode serveur : `wg.exe`, `wireguard.exe`, le driver et le service tunnel.
 
-Le projet ne transforme pas ton PC en "peer/client VPN". Il utilise WireGuard pour créer un **tunnel serveur** sur le PC.
+Le projet ne transforme pas ton PC en "peer/device VPN". Il utilise WireGuard pour créer un **tunnel serveur** sur le PC.
 
-Quand le script parle de fichier `client` ou de dossier `clients`, cela veut dire :
+Quand le script parle de fichier `device` ou de dossier `devices`, cela veut dire :
 
 ```text
 configuration à importer sur l’appareil
 ```
 
-L’appareil distant est le peer/client VPN. Le PC Windows reste le serveur.
+L’appareil distant est le peer/device VPN. Le PC Windows reste le serveur.
 
 ## Installation rapide
 
@@ -188,19 +188,19 @@ Ouvre PowerShell **en administrateur**, puis :
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force
 cd .\winwg-oneclick-server
-.\scripts\Install-WireGuardServer.ps1 -Endpoint "MON_IP_PUBLIQUE_OU_DNS" -ClientName "telephone"
+.\scripts\Install-WireGuardServer.ps1 -Endpoint "MON_IP_PUBLIQUE_OU_DNS" -DeviceName "telephone"
 ```
 
 Exemple :
 
 ```powershell
-.\scripts\Install-WireGuardServer.ps1 -Endpoint "vpn-maison.duckdns.org" -ClientName "iphone"
+.\scripts\Install-WireGuardServer.ps1 -Endpoint "vpn-maison.duckdns.org" -DeviceName "iphone"
 ```
 
 À la fin, le script affiche le chemin du fichier appareil, par exemple :
 
 ```text
-C:\ProgramData\WireGuardPhoneServer\clients\iphone.conf
+C:\ProgramData\WinWGOneClickServer\devices\iphone.conf
 ```
 
 Copie ce fichier sur ton appareil puis importe-le dans l'application WireGuard.
@@ -271,7 +271,7 @@ v0.1.0-beta
 Si tu as lancé le désinstalleur en gardant les configurations, puis que tu relances `INSTALLER-ONE-CLICK.bat`, l'installateur détecte maintenant :
 
 ```text
-C:\ProgramData\WireGuardPhoneServer\server\wg-phone-server.conf
+C:\ProgramData\WinWGOneClickServer\server\winwg-server.conf
 ```
 
 Il propose alors :
@@ -295,11 +295,11 @@ UNINSTALLER-ONE-CLICK.bat
 
 Le désinstalleur supprime :
 
-- le tunnel/service WireGuard `wg-phone-server` ;
+- le tunnel/service WireGuard `winwg-server` ;
 - la règle pare-feu UDP `51820` ;
-- le NAT Windows `WireGuardPhoneServerNAT` ;
+- le NAT Windows `WinWGOneClickServerNAT` ;
 - la redirection UPnP UDP `51820` si elle avait été créée automatiquement ;
-- les configurations et clés dans `C:\ProgramData\WireGuardPhoneServer` ;
+- les configurations et clés dans `C:\ProgramData\WinWGOneClickServer` ;
 - les QR codes générés dans `qrcodes` ;
 - la dépendance QR optionnelle QRCoder dans `tools` ;
 - les flags de fonctionnalité dans `features` ;
@@ -334,7 +334,7 @@ Cette console permet de :
 - activer/démarrer le serveur VPN ;
 - désactiver/arrêter le serveur VPN sans supprimer les configurations ;
 - redémarrer le serveur VPN ;
-- ajouter un téléphone, une tablette, un PC portable ou un autre appareil de confiance ;
+- ajouter un appareil distant comme un téléphone, une tablette, un PC portable ou un autre appareil de confiance ;
 - supprimer un appareil existant.
 
 Menu disponible dans la console :
@@ -394,7 +394,7 @@ Ce mode affiche davantage de détails pendant les actions sensibles, notamment :
 Un fichier log est aussi écrit dans :
 
 ```text
-C:\ProgramData\WireGuardPhoneServer\logs
+C:\ProgramData\WinWGOneClickServer\logs
 ```
 
 C'est utile pour diagnostiquer les cas où l'appareil est bien créé/supprimé mais où le rechargement du service WireGuard retourne un avertissement.
@@ -418,10 +418,10 @@ JE COMPRENDS
 Ce mode peut donner accès à des fichiers et actions sensibles. Il permet notamment :
 
 - afficher `wg show` brut ;
-- ouvrir les dossiers serveur, clients et QR codes ;
+- ouvrir les dossiers serveur, devices et QR codes ;
 - exporter un diagnostic redigé ;
-- modifier la configuration avancée : port WireGuard, DNS clients et `AllowedIPs` ;
-- ouvrir le fichier serveur `wg-phone-server.conf` dans Notepad.
+- modifier la configuration avancée : port WireGuard, DNS devices et `AllowedIPs` ;
+- ouvrir le fichier serveur `winwg-server.conf` dans Notepad.
 
 Attention : le fichier serveur contient la clé privée WireGuard. Ne partage jamais ce fichier, son contenu, ni une capture d'écran non redigée.
 
@@ -438,30 +438,30 @@ Le mode avancé contient aussi :
 Options disponibles :
 
 - changer le port WireGuard UDP global ;
-- changer le DNS de tous les clients ;
-- changer le DNS d'un seul client ;
-- changer le mode client `AllowedIPs` de tous les clients ;
-- modifier `AllowedIPs` d'un seul client ;
-- changer `PersistentKeepalive` de tous les clients ;
-- changer `PersistentKeepalive` d'un seul client.
+- changer le DNS de tous les devices ;
+- changer le DNS d'un seul device ;
+- changer le mode device `AllowedIPs` de tous les devices ;
+- modifier `AllowedIPs` d'un seul device ;
+- changer `PersistentKeepalive` de tous les devices ;
+- changer `PersistentKeepalive` d'un seul device.
 
-Principe : quand un paramètre concerne les clients, la console propose autant que possible deux niveaux :
+Principe : quand un paramètre concerne les devices, la console propose autant que possible deux niveaux :
 
 ```text
-Global = appliquer la même valeur à tous les clients
-Individuel = personnaliser uniquement un client/appareil
+Global = appliquer la même valeur à tous les devices
+Individuel = personnaliser uniquement un device/appareil
 ```
 
 
 ### Exemple avancé : modifier PersistentKeepalive
 
-Par défaut, les configurations client utilisent :
+Par défaut, les configurations device utilisent :
 
 ```ini
 PersistentKeepalive = 25
 ```
 
-Cela aide à garder ouverte la translation NAT côté client, notamment sur appareil en 4G/5G, Wi-Fi public ou routeur strict.
+Cela aide à garder ouverte la translation NAT côté device, notamment sur appareil en 4G/5G, Wi-Fi public ou routeur strict.
 
 Valeurs proposées :
 
@@ -472,13 +472,13 @@ Valeurs proposées :
 60 = moins fréquent
 ```
 
-Comme pour le DNS et `AllowedIPs`, la console permet de modifier cette valeur globalement pour tous les clients ou individuellement pour un seul appareil.
+Comme pour le DNS et `AllowedIPs`, la console permet de modifier cette valeur globalement pour tous les devices ou individuellement pour un seul appareil.
 
 Après modification, il faut obligatoirement réimporter le `.conf` ou rescanner le nouveau QR code sur l'appareil.
 
 ### Exemple avancé : modifier AllowedIPs
 
-Par défaut, les configurations client utilisent :
+Par défaut, les configurations device utilisent :
 
 ```ini
 AllowedIPs = 0.0.0.0/0
@@ -532,7 +532,7 @@ Après l'ajout d'un nouvel appareil, la console essaie aussi de générer automa
 Les QR codes sont stockés ici :
 
 ```text
-C:\ProgramData\WireGuardPhoneServer\qrcodes
+C:\ProgramData\WinWGOneClickServer\qrcodes
 ```
 
 Important : un QR code WireGuard contient la clé privée de l'appareil, exactement comme le fichier `.conf`. Ne le partage jamais publiquement.
@@ -579,38 +579,38 @@ La suppression d'appareil :
 ### Ajouter un deuxième appareil
 
 ```powershell
-.\scripts\Add-WireGuardPeer.ps1 -ClientName "android" -Endpoint "vpn-maison.duckdns.org"
+.\scripts\Add-WireGuardPeer.ps1 -DeviceName "android" -Endpoint "vpn-maison.duckdns.org"
 ```
 
-### Supprimer un client
+### Supprimer un device
 
 ```powershell
-.\scripts\Remove-WireGuardPeer.ps1 -ClientName "android"
+.\scripts\Remove-WireGuardPeer.ps1 -DeviceName "android"
 ```
 
-### Voir les clients configurés
+### Voir les devices configurés
 
 ```powershell
-Get-ChildItem "C:\ProgramData\WireGuardPhoneServer\clients"
+Get-ChildItem "C:\ProgramData\WinWGOneClickServer\devices"
 ```
 
 ### Redémarrer le tunnel
 
 ```powershell
-& "$env:ProgramFiles\WireGuard\wireguard.exe" /uninstalltunnelservice "wg-phone-server"
-& "$env:ProgramFiles\WireGuard\wireguard.exe" /installtunnelservice "C:\ProgramData\WireGuardPhoneServer\server\wg-phone-server.conf"
+& "$env:ProgramFiles\WireGuard\wireguard.exe" /uninstalltunnelservice "winwg-server"
+& "$env:ProgramFiles\WireGuard\wireguard.exe" /installtunnelservice "C:\ProgramData\WinWGOneClickServer\server\winwg-server.conf"
 ```
 
 ## Configuration par défaut
 
 | Option | Valeur |
 |---|---|
-| Nom tunnel | `wg-phone-server` |
+| Nom tunnel | `winwg-server` |
 | Port WireGuard | `51820/UDP` |
 | Réseau VPN | `10.66.66.0/24` |
 | IP serveur VPN | `10.66.66.1` |
-| DNS client | `1.1.1.1, 8.8.8.8` |
-| Mode client | full-tunnel IPv4 : `AllowedIPs = 0.0.0.0/0` |
+| DNS device | `1.1.1.1, 8.8.8.8` |
+| Mode device | full-tunnel IPv4 : `AllowedIPs = 0.0.0.0/0` |
 
 ## Tester depuis l’appareil
 

@@ -58,13 +58,13 @@ Get-Service | Where-Object Name -like "WireGuardTunnel*"
 Check Windows NAT:
 
 ```powershell
-Get-NetNat -Name "WireGuardPhoneServerNAT"
+Get-NetNat -Name "WinWGOneClickServerNAT"
 ```
 
 If missing:
 
 ```powershell
-New-NetNat -Name "WireGuardPhoneServerNAT" -InternalIPInterfaceAddressPrefix "10.66.66.0/24"
+New-NetNat -Name "WinWGOneClickServerNAT" -InternalIPInterfaceAddressPrefix "10.66.66.0/24"
 ```
 
 Check IPv4 routing:
@@ -107,7 +107,7 @@ If your public IP changes, configure a dynamic DNS provider:
 - Dynu
 - Cloudflare with an update script
 
-Then use that hostname as the client endpoint, for example:
+Then use that hostname as the device endpoint, for example:
 
 ```ini
 Endpoint = home-vpn.duckdns.org:51820
@@ -126,7 +126,7 @@ PublicKey = ...
 If the name is missing, check:
 
 ```text
-C:\ProgramData\WireGuardPhoneServer\server\wg-phone-server.conf
+C:\ProgramData\WinWGOneClickServer\server\winwg-server.conf
 ```
 
 ## 7. The service is running but I want to stop the VPN temporarily

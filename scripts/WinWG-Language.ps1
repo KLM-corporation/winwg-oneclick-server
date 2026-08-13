@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Language helpers for WinWG OneClick Server.
 #>
@@ -67,7 +67,7 @@ function Get-WinWGText([string]$Language, [string]$Key) {
             Firewall = 'Pare-feu'
             Nat = 'NAT Windows'
             UdpEndpoint = 'Endpoint UDP local'
-            PhoneConfigs = 'Configs appareil'
+            DeviceConfigs = 'Configs appareil'
             Actions = 'Actions'
             QuickHelp = 'Aide rapide'
             HelpPeerConnected = "Si l’appareil est connecte, il apparait dans 'Appareils / peers' avec un handshake recent."
@@ -133,11 +133,11 @@ function Get-WinWGText([string]$Language, [string]$Key) {
             AdvancedToolsActive = 'Mode avance actif - attention aux cles et fichiers .conf'
             AdvRawWgShow = 'Afficher wg show brut'
             AdvOpenServerFolder = 'Ouvrir le dossier serveur'
-            AdvOpenClientsFolder = 'Ouvrir le dossier clients'
+            AdvOpenDevicesFolder = 'Ouvrir le dossier devices'
             AdvOpenQrFolder = 'Ouvrir le dossier QR codes'
             AdvExportDiagnostic = 'Exporter un diagnostic redige'
             AdvEditConfig = 'Modifier configuration avancee (port, DNS, AllowedIPs)'
-            AdvOpenServerConf = 'Ouvrir wg-phone-server.conf dans Notepad (contient la cle privee)'
+            AdvOpenServerConf = 'Ouvrir winwg-server.conf dans Notepad (contient la cle privee)'
             AdvDisable = 'Desactiver le mode avance'
             Back = 'Retour'
             ServiceStarted = 'Service demarre'
@@ -156,7 +156,7 @@ function Get-WinWGText([string]$Language, [string]$Key) {
             TypeNumberOrExactNameRemove = 'Tape le numero de l''appareil a supprimer, ou son nom exact'
             ConfirmRemove = 'Confirmer la suppression de'
             TypeOConfirm = 'Tape O pour confirmer'
-            ClientRemoved = 'Client supprime'
+            DeviceRemoved = 'Device supprime'
             AddDeviceTitle = 'Ajouter un appareil'
             DeviceNamePrompt = 'Nom de l''appareil, ex: iphone, android, laptop'
             EndpointPrompt = 'Endpoint public ou DNS'
@@ -165,9 +165,9 @@ function Get-WinWGText([string]$Language, [string]$Key) {
             AssignedVpnIp = 'IP VPN attribuee automatiquement'
             ReloadingService = 'Rechargement du service WireGuard...'
             WireGuardServiceReloaded = 'Service WireGuard recharge.'
-            DeviceAdded = 'Client ajoute'
+            DeviceAdded = 'Appareil ajoute'
             VpnIpShort = 'IP VPN'
-            ClientConf = 'Client conf'
+            DeviceConf = 'Config appareil'
             QrGenerated = 'QR code genere'
             ScanQr = "Scanne ce QR code avec l'application WireGuard sur Android/iOS."
             QrPrivateWarning = "Attention : ce QR contient la cle privee de l'appareil. Ne le partage pas publiquement."
@@ -199,7 +199,7 @@ function Get-WinWGText([string]$Language, [string]$Key) {
             Firewall = 'Firewall'
             Nat = 'Windows NAT'
             UdpEndpoint = 'Local UDP endpoint'
-            PhoneConfigs = 'Device configs'
+            DeviceConfigs = 'Config appareiligs'
             Actions = 'Actions'
             QuickHelp = 'Quick help'
             HelpPeerConnected = "If the device is connected, it appears in 'Devices / peers' with a recent handshake."
@@ -265,11 +265,11 @@ function Get-WinWGText([string]$Language, [string]$Key) {
             AdvancedToolsActive = 'Advanced mode enabled - be careful with keys and .conf files'
             AdvRawWgShow = 'Show raw wg show output'
             AdvOpenServerFolder = 'Open server folder'
-            AdvOpenClientsFolder = 'Open clients folder'
+            AdvOpenDevicesFolder = 'Open devices folder'
             AdvOpenQrFolder = 'Open QR codes folder'
             AdvExportDiagnostic = 'Export redacted diagnostic'
             AdvEditConfig = 'Edit advanced configuration (port, DNS, AllowedIPs)'
-            AdvOpenServerConf = 'Open wg-phone-server.conf in Notepad (contains private key)'
+            AdvOpenServerConf = 'Open winwg-server.conf in Notepad (contains private key)'
             AdvDisable = 'Disable advanced mode'
             Back = 'Back'
             ServiceStarted = 'Service started'
@@ -288,7 +288,7 @@ function Get-WinWGText([string]$Language, [string]$Key) {
             TypeNumberOrExactNameRemove = 'Type the number of the device to remove, or its exact name'
             ConfirmRemove = 'Confirm removal of'
             TypeOConfirm = 'Type O to confirm'
-            ClientRemoved = 'Client removed'
+            DeviceRemoved = 'Device removed'
             AddDeviceTitle = 'Add a device'
             DeviceNamePrompt = 'Device name, e.g. iphone, android, laptop'
             EndpointPrompt = 'Public endpoint or DNS'
@@ -297,9 +297,9 @@ function Get-WinWGText([string]$Language, [string]$Key) {
             AssignedVpnIp = 'Automatically assigned VPN IP'
             ReloadingService = 'Reloading WireGuard service...'
             WireGuardServiceReloaded = 'WireGuard service reloaded.'
-            DeviceAdded = 'Client added'
+            DeviceAdded = 'Device added'
             VpnIpShort = 'VPN IP'
-            ClientConf = 'Client config'
+            DeviceConf = 'Config appareilig'
             QrGenerated = 'QR code generated'
             ScanQr = 'Scan this QR code with the WireGuard app on Android/iOS.'
             QrPrivateWarning = 'Warning: this QR contains the device private key. Do not share it publicly.'

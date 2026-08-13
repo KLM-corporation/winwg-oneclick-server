@@ -58,13 +58,13 @@ Get-Service | Where-Object Name -like "WireGuardTunnel*"
 Vérifie le NAT Windows :
 
 ```powershell
-Get-NetNat -Name "WireGuardPhoneServerNAT"
+Get-NetNat -Name "WinWGOneClickServerNAT"
 ```
 
 Si absent :
 
 ```powershell
-New-NetNat -Name "WireGuardPhoneServerNAT" -InternalIPInterfaceAddressPrefix "10.66.66.0/24"
+New-NetNat -Name "WinWGOneClickServerNAT" -InternalIPInterfaceAddressPrefix "10.66.66.0/24"
 ```
 
 Vérifie aussi le routage IPv4 :
@@ -102,7 +102,7 @@ Si ton IP publique change, configure un DNS dynamique :
 - Dynu
 - Cloudflare avec script de mise à jour
 
-Puis utilise ce nom comme endpoint client, par exemple :
+Puis utilise ce nom comme endpoint device, par exemple :
 
 ```ini
 Endpoint = vpn-maison.duckdns.org:51820

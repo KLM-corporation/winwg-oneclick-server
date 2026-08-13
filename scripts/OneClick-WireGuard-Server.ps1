@@ -8,7 +8,7 @@
   - installe WireGuard si absent ;
   - detecte l'IP publique ;
   - demande seulement le nom de l'appareil et l'endpoint si besoin ;
-  - genere serveur + client ;
+  - genere serveur + device ;
   - active routage, firewall, NAT ;
   - installe le tunnel WireGuard ;
   - tente une redirection UPnP UDP 51820 sur la box si disponible ;
@@ -17,10 +17,10 @@
 [CmdletBinding()]
 param(
     [int]$ListenPort = 51820,
-    [string]$TunnelName = "wg-phone-server",
+    [string]$TunnelName = "winwg-server",
     [string]$VpnCidr = "10.66.66.0/24",
     [string]$ServerVpnIp = "10.66.66.1",
-    [string]$ClientVpnIp = "10.66.66.2",
+    [string]$DeviceVpnIp = "10.66.66.2",
     [string]$Dns = "1.1.1.1, 8.8.8.8"
 )
 
@@ -226,7 +226,7 @@ function Ensure-Firewall([int]$Port) {
 
 function Ensure-Nat([string]$Cidr) {
     Write-Step (TInstall "Configuration du NAT Windows" "Configuring Windows NAT")
-    $natName = "WireGuardPhoneServerNAT"
+    $natName = "WinWGOneClickServerNAT"
     Get-NetNat -Name $natName -ErrorAction SilentlyContinue | Remove-NetNat -Confirm:$false
     New-NetNat -Name $natName -InternalIPInterfaceAddressPrefix $Cidr | Out-Null
     Write-Ok (TInstall "NAT cree pour $Cidr" "NAT created for $Cidr")
@@ -357,7 +357,7 @@ function Get-ExistingServerListenPort([string]$ServerConfigPath, [int]$DefaultPo
     return $DefaultPort
 }
 
-function Get-NextExistingClientNumber([string]$ServerConfigPath) {
+function Get-NextExistingDeviceNumber([string]$ServerConfigPath) {
     $used = @()
     if (Test-Path $ServerConfigPath) {
         foreach ($line in Get-Content $ServerConfigPath) {
@@ -437,15 +437,15 @@ function Add-DeviceToExistingInstallation([string]$BaseDir, [string]$ServerConfi
 
     $existingPort = Get-ExistingServerListenPort -ServerConfigPath $ServerConfigPath -DefaultPort $ListenPort
     $defaultEndpoint = Get-PublicEndpoint -Port $existingPort
-    $clientName = Ask-Text "WireGuard" (TInstall "Nom du nouvel appareil" "New device name") "device"
+    $deviceName = Ask-Text "WireGuard" (TInstall "Nom du nouvel appareil" "New device name") "device"
     $endpoint = Ask-Text "WireGuard" (TInstall "IP publique ou DNS a utiliser cote appareil. Laisse la valeur detectee si tu n'as pas de DNS dynamique." "Public IP or DNS to use on the device side. Keep the detected value if you do not have dynamic DNS.") $defaultEndpoint
-    $clientDns = Ask-Text "WireGuard" (TInstall "DNS a utiliser sur cet appareil. Laisse vide / ne tape rien pour garder le DNS par defaut." "DNS to use on this device. Leave empty / type nothing to keep the default DNS.") $Dns
-    $clientNumber = Get-NextExistingClientNumber -ServerConfigPath $ServerConfigPath
+    $deviceDns = Ask-Text "WireGuard" (TInstall "DNS a utiliser sur cet appareil. Laisse vide / ne tape rien pour garder le DNS par defaut." "DNS to use on this device. Leave empty / type nothing to keep the default DNS.") $Dns
+    $deviceNumber = Get-NextExistingDeviceNumber -ServerConfigPath $ServerConfigPath
 
     $addScript = Join-Path $PSScriptRoot "Add-WireGuardPeer.ps1"
     if (-not (Test-Path $addScript)) { throw "Script d'ajout introuvable : $addScript" }
 
-    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $addScript -ClientName $clientName -Endpoint $endpoint -ClientNumber $clientNumber -ListenPort $existingPort -Dns $clientDns -TunnelName $TunnelName -Language $Language 2>&1
+    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $addScript -DeviceName $deviceName -Endpoint $endpoint -DeviceNumber $deviceNumber -ListenPort $existingPort -Dns $deviceDns -TunnelName $TunnelName -Language $Language 2>&1
     if ($output) { $output | Out-Host }
     if ($LASTEXITCODE -ne 0) { throw (TInstall "Echec de l'ajout de l'appareil." "Failed to add device.") }
 
@@ -454,10 +454,10 @@ function Add-DeviceToExistingInstallation([string]$BaseDir, [string]$ServerConfi
     if ($qrEnabled) {
         $generateQr = Ask-YesNoRequired "WinWG QR Code" (TInstall "Generer un QR code pour ce nouvel appareil ? Tape oui ou non ; laisser le champ vide n'est pas accepte." "Generate a QR code for this new device? Please type yes or no; leaving the field empty is not accepted.")
         if ($generateQr) {
-            $qrScript = Join-Path $PSScriptRoot "Generate-WireGuardClientQr.ps1"
+            $qrScript = Join-Path $PSScriptRoot "Generate-WireGuardDeviceQr.ps1"
             if (Test-Path $qrScript) {
-                $safeName = ($clientName -replace '[^a-zA-Z0-9_-]', '_')
-                $qrOutput = & powershell -NoProfile -ExecutionPolicy Bypass -File $qrScript -ClientName $safeName -BaseDir $BaseDir -Language $Language -Open 2>&1
+                $safeName = ($deviceName -replace '[^a-zA-Z0-9_-]', '_')
+                $qrOutput = & powershell -NoProfile -ExecutionPolicy Bypass -File $qrScript -DeviceName $safeName -BaseDir $BaseDir -Language $Language -Open 2>&1
                 if ($qrOutput) { $qrOutput | Out-Host }
             }
         }
@@ -470,11 +470,11 @@ try {
     Assert-Admin
     $host.UI.RawUI.WindowTitle = "WinWG OneClick Server - One Click"
 
-    $baseDir = Join-Path $env:ProgramData "WireGuardPhoneServer"
+    $baseDir = Join-Path $env:ProgramData "WinWGOneClickServer"
     $serverDir = Join-Path $baseDir "server"
-    $clientDir = Join-Path $baseDir "clients"
+    $deviceDir = Join-Path $baseDir "devices"
     Ensure-Directory $serverDir
-    Ensure-Directory $clientDir
+    Ensure-Directory $deviceDir
 
     # First interactive action: language selection.
     # Keep this prompt bilingual so English/French users can understand before any other question.
@@ -489,7 +489,7 @@ try {
         Write-Host "Langue selectionnee : Francais" -ForegroundColor Green
         Write-Host "WinWG OneClick Server - installation one click" -ForegroundColor Green
         Write-Host "Ce script va configurer ce PC comme serveur VPN WireGuard pour ton appareil."
-        $clientNamePrompt = "Nom de l'appareil/client"
+        $deviceNamePrompt = "Nom de l'appareil/device"
         $endpointPrompt = "IP publique ou DNS a utiliser cote appareil. Laisse la valeur detectee si tu n'as pas de DNS dynamique."
         $dnsPrompt = "DNS a utiliser sur cet appareil. Laisse vide / ne tape rien pour garder le DNS par defaut. Exemples : 1.1.1.1, 8.8.8.8 ou l'IP DNS de ta box comme 192.168.1.1"
         $qrPrompt = "Installer le generateur de QR code integre ? Cela permet d'importer la configuration dans l'app WireGuard mobile en scannant un QR code. La dependance QRCoder sera telechargee depuis NuGet, mais tes cles/configurations ne sont pas envoyees a Internet. Tape oui ou non ; laisser le champ vide n'est pas accepte."
@@ -497,7 +497,7 @@ try {
         Write-Host "Selected language: English" -ForegroundColor Green
         Write-Host "WinWG OneClick Server - one-click installation" -ForegroundColor Green
         Write-Host "This script will configure this PC as a WireGuard VPN server for your device."
-        $clientNamePrompt = "Device name"
+        $deviceNamePrompt = "Device name"
         $endpointPrompt = "Public IP or DNS to use on the device side. Keep the detected value if you do not have dynamic DNS."
         $dnsPrompt = "DNS to use on this device. Leave empty / type nothing to keep the default DNS. Examples: 1.1.1.1, 8.8.8.8 or your router DNS such as 192.168.1.1"
         $qrPrompt = "Install the integrated QR code generator? This lets you import the configuration in the WireGuard mobile app by scanning a QR code. The QRCoder dependency will be downloaded from NuGet, but your keys/configurations are not sent to the Internet. Please type yes or no; leaving the field empty is not accepted."
@@ -521,7 +521,7 @@ try {
                 if ($confirm -ne 'REINSTALL' -and $confirm -ne 'REINSTALLER') { throw (TInstall "Reinstallation annulee." "Reinstall cancelled.") }
                 Remove-Item $baseDir -Recurse -Force
                 Ensure-Directory $serverDir
-                Ensure-Directory $clientDir
+                Ensure-Directory $deviceDir
                 if (Get-Command Set-WinWGLanguage -ErrorAction SilentlyContinue) { Set-WinWGLanguage -BaseDir $baseDir -Language $Language | Out-Null }
             }
             default { throw (TInstall "Installation annulee." "Installation cancelled.") }
@@ -529,7 +529,7 @@ try {
     }
 
     $defaultEndpoint = Get-PublicEndpoint -Port $ListenPort
-    $clientName = Ask-Text "WireGuard" $clientNamePrompt "appareil"
+    $deviceName = Ask-Text "WireGuard" $deviceNamePrompt "appareil"
     $endpoint = Ask-Text "WireGuard" $endpointPrompt $defaultEndpoint
     $Dns = Ask-Text "WireGuard" $dnsPrompt $Dns
 
@@ -557,12 +557,12 @@ try {
     Write-Step (TInstall "Generation des cles et configurations" "Generating keys and configurations")
     $serverPrivateKey = New-WgPrivateKey $wgExe
     $serverPublicKey = Get-WgPublicKey $wgExe $serverPrivateKey
-    $clientPrivateKey = New-WgPrivateKey $wgExe
-    $clientPublicKey = Get-WgPublicKey $wgExe $clientPrivateKey
+    $devicePrivateKey = New-WgPrivateKey $wgExe
+    $devicePublicKey = Get-WgPublicKey $wgExe $devicePrivateKey
     $psk = New-WgPresharedKey $wgExe
 
-    $safeClientName = ($clientName -replace '[^a-zA-Z0-9_-]', '_')
-    $clientConfigPath = Join-Path $clientDir "$safeClientName.conf"
+    $safeDeviceName = ($deviceName -replace '[^a-zA-Z0-9_-]', '_')
+    $deviceConfigPath = Join-Path $deviceDir "$safeDeviceName.conf"
 
     $serverConfig = @"
 [Interface]
@@ -570,17 +570,17 @@ PrivateKey = $serverPrivateKey
 Address = $ServerVpnIp/24
 ListenPort = $ListenPort
 
-# $safeClientName
+# $safeDeviceName
 [Peer]
-PublicKey = $clientPublicKey
+PublicKey = $devicePublicKey
 PresharedKey = $psk
-AllowedIPs = $ClientVpnIp/32
+AllowedIPs = $DeviceVpnIp/32
 "@
 
-    $clientConfig = @"
+    $deviceConfig = @"
 [Interface]
-PrivateKey = $clientPrivateKey
-Address = $ClientVpnIp/32
+PrivateKey = $devicePrivateKey
+Address = $DeviceVpnIp/32
 DNS = $Dns
 
 [Peer]
@@ -592,17 +592,17 @@ PersistentKeepalive = 25
 "@
 
     Set-Content -Path $serverConfigPath -Value $serverConfig -Encoding ASCII
-    Set-Content -Path $clientConfigPath -Value $clientConfig -Encoding ASCII
-    Write-Ok (TInstall "Configuration appareil creee : $clientConfigPath" "Device configuration created: $clientConfigPath")
+    Set-Content -Path $deviceConfigPath -Value $deviceConfig -Encoding ASCII
+    Write-Ok (TInstall "Configuration appareil creee : $deviceConfigPath" "Config appareiliguration created: $deviceConfigPath")
 
     if ($enableQrFeature) {
         $generateFirstQrPrompt = TInstall "Generer un QR code pour ce premier appareil ? Tape oui ou non ; laisser le champ vide n'est pas accepte." "Generate a QR code for this first device? Please type yes or no; leaving the field empty is not accepted."
         $generateFirstQr = Ask-YesNoRequired "WinWG QR Code" $generateFirstQrPrompt
         if ($generateFirstQr) {
-            $qrScript = Join-Path $PSScriptRoot "Generate-WireGuardClientQr.ps1"
+            $qrScript = Join-Path $PSScriptRoot "Generate-WireGuardDeviceQr.ps1"
             if (Test-Path $qrScript) {
                 Write-Step (TInstall "Generation du QR code du premier appareil" "Generating QR code for the first device")
-                $qrOutput = & powershell -NoProfile -ExecutionPolicy Bypass -File $qrScript -ClientName $safeClientName -BaseDir $baseDir -Language $Language -Open 2>&1
+                $qrOutput = & powershell -NoProfile -ExecutionPolicy Bypass -File $qrScript -DeviceName $safeDeviceName -BaseDir $baseDir -Language $Language -Open 2>&1
                 $qrCode = $LASTEXITCODE
                 if ($qrOutput) { $qrOutput | Out-Host }
                 if ($qrCode -ne 0) {
@@ -631,9 +631,9 @@ PersistentKeepalive = 25
     Write-Host (TInstall "Tunnel serveur : $TunnelName" "Server tunnel: $TunnelName")
     Write-Host (TInstall "Port WireGuard : UDP $ListenPort" "WireGuard port: UDP $ListenPort")
     Write-Host (TInstall "IP VPN serveur : $ServerVpnIp" "VPN server IP: $ServerVpnIp")
-    Write-Host (TInstall "IP VPN appareil : $ClientVpnIp" "Device VPN IP: $ClientVpnIp")
+    Write-Host (TInstall "IP VPN appareil : $DeviceVpnIp" "Device VPN IP: $DeviceVpnIp")
     Write-Host (TInstall "Fichier a importer dans l'app WireGuard de l’appareil :" "File to import into the WireGuard app:")
-    Write-Host "  $clientConfigPath" -ForegroundColor Yellow
+    Write-Host "  $deviceConfigPath" -ForegroundColor Yellow
     Write-Host ""
 
     if ($upnpOk) {
@@ -651,7 +651,7 @@ PersistentKeepalive = 25
     Write-Host (TInstall "3. Coupe le Wi-Fi, passe en 4G/5G, active le tunnel." "3. Disable Wi-Fi, use mobile data, enable the tunnel.")
     Write-Host (TInstall "4. Verifie l'IP sur https://ifconfig.me." "4. Check the IP on https://ifconfig.me.")
 
-    Start-Process explorer.exe $clientDir
+    Start-Process explorer.exe $deviceDir
 
     Start-ConsoleIfAvailable
 } catch {

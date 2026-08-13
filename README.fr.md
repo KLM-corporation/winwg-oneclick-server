@@ -74,6 +74,19 @@ Le projet configure automatiquement ce qui est normalement pénible à faire à 
 
 > Compatibilité : certains chemins internes gardent le nom historique `WinWGOneClickServer`, par exemple `C:\ProgramData\WinWGOneClickServer`. C'est volontaire pour ne pas casser les installations existantes.
 
+
+## Mise à jour du projet
+
+Si tu as cloné le projet avec Git, tu peux le mettre à jour simplement avec :
+
+```text
+UPDATE-WINWG.bat
+```
+
+Le script met à jour la branche Git actuelle avec `git pull --ff-only`.
+
+Si le projet a été téléchargé en ZIP sans dossier `.git`, l'updater n'écrase rien automatiquement et ouvre la page de la dernière release GitHub.
+
 ## Installation one-click recommandée
 
 Pendant l’installation one-click, le DNS du premier appareil est aussi demandé. Si tu ne sais pas quoi mettre, ne tape rien et garde la valeur par défaut `1.1.1.1, 8.8.8.8`. Tu peux aussi mettre le DNS de ta box, par exemple `192.168.1.1`.

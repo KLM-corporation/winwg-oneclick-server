@@ -30,7 +30,7 @@ Le projet est adapté pour :
 ```text
 home-lab
 accès distant personnel
-VPN téléphone hors réseau local
+VPN appareil hors réseau local
 LAN party par IP directe
 auto-hébergement Windows
 serveur WireGuard personnel
@@ -142,7 +142,7 @@ Note: WireGuard is a layer-3 VPN. Some games that rely only on LAN broadcast dis
 WinWG OneClick Server peut servir pour :
 
 - accéder à ton réseau maison à distance ;
-- connecter ton téléphone à ton VPN maison ;
+- connecter ton appareil à ton VPN maison ;
 - héberger un serveur WireGuard sur Windows ;
 - jouer en LAN party à distance si le jeu accepte la connexion directe par IP ;
 - accéder à tes services maison hors réseau local ;
@@ -332,7 +332,7 @@ home-vpn.duckdns.org:51820
 
 Aujourd'hui, `AllowedIPs` est configurable en mode avancé.
 
-Idée : rendre le choix plus accessible lors de l'ajout d'un appareil :
+État : en cours / partiellement appliqué. Idée restante : rendre le choix plus accessible lors de l'ajout d'un appareil :
 
 ```text
 Traffic mode:
@@ -345,7 +345,7 @@ Cela éviterait aux utilisateurs de devoir passer par le mode avancé.
 
 ---
 
-### 8. Nettoyage terminologique phone/device
+### 8. Nettoyage terminologique device/appareil
 
 Historiquement, certains noms internes utilisent :
 
@@ -369,7 +369,7 @@ appareil
 Objectif : montrer que le projet marche aussi pour :
 
 ```text
-téléphone
+appareil
 tablette
 PC portable
 PC ami
@@ -411,7 +411,7 @@ Support plus facile via GitHub Issues.
 
 Aujourd'hui, la fonctionnalité QR est choisie à l'installation.
 
-Idée : ajouter dans la console :
+État : en cours / partiellement appliqué. Idée restante : ajouter dans la console :
 
 ```text
 QR feature settings
@@ -519,7 +519,7 @@ Cas d'usage :
 
 ```text
 un fichier .conf a été partagé par erreur
-un téléphone est perdu
+un appareil est perdu
 une clé privée est exposée
 ```
 

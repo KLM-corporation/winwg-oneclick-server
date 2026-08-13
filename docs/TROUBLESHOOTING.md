@@ -35,11 +35,11 @@ IP statique DHCP
 
 C'est plus propre qu'une IP fixe configurée directement dans Windows, car la box continue de gérer le DHCP et limite les risques de conflit d'adresse.
 
-## 1. Le téléphone ne se connecte pas du tout
+## 1. L’appareil ne se connecte pas du tout
 
 Vérifie :
 
-- Le téléphone est en 4G/5G, pas sur le Wi-Fi local.
+- L’appareil est en 4G/5G, pas sur le Wi-Fi local.
 - La redirection de port UDP est faite sur la box : `UDP 51820 -> IP locale du PC`.
 - L'IP locale du PC n'a pas changé.
 - Le pare-feu Windows contient une règle entrante UDP 51820.
@@ -53,7 +53,7 @@ Get-NetNat
 Get-Service | Where-Object Name -like "WireGuardTunnel*"
 ```
 
-## 2. Le téléphone se connecte mais Internet ne marche pas
+## 2. L’appareil se connecte mais Internet ne marche pas
 
 Vérifie le NAT Windows :
 
@@ -91,7 +91,7 @@ Solutions :
 ## 4. Test de port
 
 WireGuard utilise UDP : beaucoup de sites de test de port TCP ne sont pas fiables pour UDP.
-Le meilleur test est de lancer le tunnel depuis le téléphone en 4G/5G puis de regarder les logs WireGuard côté Windows.
+Le meilleur test est de lancer le tunnel depuis l’appareil en 4G/5G puis de regarder les logs WireGuard côté Windows.
 
 ## 5. DNS dynamique conseillé
 

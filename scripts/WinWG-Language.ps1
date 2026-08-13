@@ -67,10 +67,10 @@ function Get-WinWGText([string]$Language, [string]$Key) {
             Firewall = 'Pare-feu'
             Nat = 'NAT Windows'
             UdpEndpoint = 'Endpoint UDP local'
-            PhoneConfigs = 'Configs telephone'
+            PhoneConfigs = 'Configs appareil'
             Actions = 'Actions'
             QuickHelp = 'Aide rapide'
-            HelpPeerConnected = "Si le telephone est connecte, il apparait dans 'Telephones / peers' avec un handshake recent."
+            HelpPeerConnected = "Si l’appareil est connecte, il apparait dans 'Appareils / peers' avec un handshake recent."
             HelpSpeedRefresh = 'La vitesse RX/TX est calculee entre deux rafraichissements du statut. Utilise S pour mesurer.'
             StartVpn = 'Activer / demarrer le serveur VPN'
             StopVpn = 'Desactiver / arreter le serveur VPN'
@@ -96,8 +96,8 @@ function Get-WinWGText([string]$Language, [string]$Key) {
             UdpPresent = 'present'
             UdpNotVisible = 'non visible / normal selon driver'
             FileCount = 'fichier(s)'
-            PhonesPeers = 'Telephones / peers'
-            NoPeerDetected = 'Aucun telephone/peer detecte dans wg show.'
+            PhonesPeers = 'Appareils / peers'
+            NoPeerDetected = 'Aucun appareil/peer detecte dans wg show.'
             Online = 'connecte'
             Offline = 'hors ligne'
             Never = 'jamais'
@@ -202,7 +202,7 @@ function Get-WinWGText([string]$Language, [string]$Key) {
             PhoneConfigs = 'Device configs'
             Actions = 'Actions'
             QuickHelp = 'Quick help'
-            HelpPeerConnected = "If the device is connected, it appears in 'Phones / peers' with a recent handshake."
+            HelpPeerConnected = "If the device is connected, it appears in 'Devices / peers' with a recent handshake."
             HelpSpeedRefresh = 'RX/TX speed is calculated between two status refreshes. Press S to measure.'
             StartVpn = 'Enable / start VPN server'
             StopVpn = 'Disable / stop VPN server'
@@ -228,8 +228,8 @@ function Get-WinWGText([string]$Language, [string]$Key) {
             UdpPresent = 'present'
             UdpNotVisible = 'not visible / normal depending on driver'
             FileCount = 'file(s)'
-            PhonesPeers = 'Phones / peers'
-            NoPeerDetected = 'No phone/peer detected in wg show.'
+            PhonesPeers = 'Devices / peers'
+            NoPeerDetected = 'No device/peer detected in wg show.'
             Online = 'online'
             Offline = 'offline'
             Never = 'never'

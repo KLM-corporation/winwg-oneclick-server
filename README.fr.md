@@ -89,7 +89,7 @@ Sur le PC Windows qui doit devenir serveur VPN :
 INSTALLER-ONE-CLICK.bat
 ```
 
-L'installeur demande les droits administrateur Windows, installe WireGuard si besoin, génère la configuration serveur + téléphone, configure le pare-feu, le routage, le NAT, puis ouvre le dossier contenant le fichier `.conf` à importer dans l'application WireGuard du téléphone.
+L'installeur demande les droits administrateur Windows, installe WireGuard si besoin, génère la configuration serveur + appareil, configure le pare-feu, le routage, le NAT, puis ouvre le dossier contenant le fichier `.conf` à importer dans l'application WireGuard du appareil.
 
 Il tente aussi de créer automatiquement la redirection de port sur la box via UPnP. Si ta box refuse ou si UPnP est désactivé, l'installeur affiche l'IP locale du PC et tu devras faire la redirection manuellement :
 
@@ -113,7 +113,7 @@ Idéalement, cette IP locale doit être réservée via un **bail DHCP statique**
 - Création d'un tunnel WireGuard serveur.
 - Activation du routage IPv4 Windows.
 - Création d'une règle pare-feu UDP.
-- Création d'une règle NAT Windows pour permettre au téléphone de sortir vers Internet via le PC.
+- Création d'une règle NAT Windows pour permettre au appareil de sortir vers Internet via le PC.
 - Génération d'un fichier client `.conf` à importer dans l'app WireGuard mobile.
 
 ## Pré-requis
@@ -121,7 +121,7 @@ Idéalement, cette IP locale doit être réservée via un **bail DHCP statique**
 - Windows 10/11.
 - PowerShell lancé **en administrateur**.
 - Accès administrateur au routeur/à la box pour faire une redirection de port.
-- WireGuard mobile installé sur le téléphone :
+- WireGuard installé sur l’appareil distant :
   - Android : Google Play / F-Droid.
   - iPhone : App Store.
 
@@ -167,19 +167,19 @@ Le nom `WinWG` signifie simplement :
 Windows + WireGuard helper
 ```
 
-## Serveur WireGuard vs configuration téléphone
+## Serveur WireGuard vs configuration appareil
 
 Sur Windows, il n'existe pas vraiment de paquet officiel séparé "serveur seulement". L'application WireGuard Windows installe aussi les composants nécessaires au mode serveur : `wg.exe`, `wireguard.exe`, le driver et le service tunnel.
 
-Le projet ne transforme pas ton PC en "client VPN". Il utilise WireGuard pour créer un **tunnel serveur** sur le PC.
+Le projet ne transforme pas ton PC en "peer/client VPN". Il utilise WireGuard pour créer un **tunnel serveur** sur le PC.
 
 Quand le script parle de fichier `client` ou de dossier `clients`, cela veut dire :
 
 ```text
-configuration à importer sur le téléphone
+configuration à importer sur le appareil
 ```
 
-Le téléphone est le client VPN. Le PC Windows reste le serveur.
+L’appareil distant est le peer/peer/client VPN. Le PC Windows reste le serveur.
 
 ## Installation rapide
 
@@ -197,13 +197,13 @@ Exemple :
 .\scripts\Install-WireGuardServer.ps1 -Endpoint "vpn-maison.duckdns.org" -ClientName "iphone"
 ```
 
-À la fin, le script affiche le chemin du fichier client, par exemple :
+À la fin, le script affiche le chemin du fichier appareil, par exemple :
 
 ```text
 C:\ProgramData\WireGuardPhoneServer\clients\iphone.conf
 ```
 
-Copie ce fichier sur ton téléphone puis importe-le dans l'application WireGuard.
+Copie ce fichier sur ton appareil puis importe-le dans l'application WireGuard.
 
 ## Redirection de port sur la box
 
@@ -329,12 +329,12 @@ SERVER-CONSOLE.bat
 Cette console permet de :
 
 - voir l'état du service WireGuard ;
-- voir les téléphones/appareils connectés, leurs handshakes et leur vitesse RX/TX ;
+- voir les appareils connectés, leurs handshakes et leur vitesse RX/TX ;
 - vérifier le pare-feu, le NAT et le port UDP ;
 - activer/démarrer le serveur VPN ;
 - désactiver/arrêter le serveur VPN sans supprimer les configurations ;
 - redémarrer le serveur VPN ;
-- ajouter un téléphone, une tablette ou un PC portable ;
+- ajouter un appareil, une tablette ou un PC portable ;
 - supprimer un appareil existant.
 
 Menu disponible dans la console :
@@ -461,7 +461,7 @@ Par défaut, les configurations client utilisent :
 PersistentKeepalive = 25
 ```
 
-Cela aide à garder ouverte la translation NAT côté client, notamment sur téléphone 4G/5G, Wi-Fi public ou routeur strict.
+Cela aide à garder ouverte la translation NAT côté client, notamment sur appareil 4G/5G, Wi-Fi public ou routeur strict.
 
 Valeurs proposées :
 
@@ -576,7 +576,7 @@ La suppression d'appareil :
 
 ## Utilisation
 
-### Ajouter un deuxième téléphone
+### Ajouter un deuxième appareil
 
 ```powershell
 .\scripts\Add-WireGuardPeer.ps1 -ClientName "android" -Endpoint "vpn-maison.duckdns.org"
@@ -612,9 +612,9 @@ Get-ChildItem "C:\ProgramData\WireGuardPhoneServer\clients"
 | DNS client | `1.1.1.1, 8.8.8.8` |
 | Mode client | full-tunnel IPv4 : `AllowedIPs = 0.0.0.0/0` |
 
-## Tester depuis le téléphone
+## Tester depuis l’appareil
 
-1. Désactive le Wi-Fi du téléphone.
+1. Désactive le Wi-Fi de l’appareil.
 2. Active la 4G/5G.
 3. Active le tunnel WireGuard.
 4. Ouvre un site comme `https://ifconfig.me`.
@@ -643,7 +643,7 @@ Avant usage public ou prolongé :
 - Ne partage jamais les fichiers `.conf` générés : ils contiennent des clés privées.
 - Utilise un nom DNS dynamique plutôt qu'une IP copiée partout.
 - Garde Windows et WireGuard à jour.
-- Supprime immédiatement un peer si un téléphone est perdu.
+- Supprime immédiatement un peer si un appareil est perdu.
 
 ## Limites connues
 

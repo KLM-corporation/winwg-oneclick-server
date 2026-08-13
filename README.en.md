@@ -216,6 +216,26 @@ The release workflow can generate a clean ZIP package through `workflow_dispatch
 v0.1.0-beta
 ```
 
+
+## Existing configuration recovery
+
+If you ran the uninstaller while keeping configurations, then run `INSTALLER-ONE-CLICK.bat` again, the installer now detects:
+
+```text
+C:\ProgramData\WireGuardPhoneServer\server\wg-phone-server.conf
+```
+
+It then offers:
+
+```text
+1 - Restore/reinstall the service with this configuration
+2 - Add a new device to this configuration
+3 - Clean reinstall and regenerate all keys
+4 - Cancel
+```
+
+This helps avoid accidentally overwriting existing keys.
+
 ## One-click uninstall
 
 To cleanly remove everything configured by this project from the Windows PC, double-click:

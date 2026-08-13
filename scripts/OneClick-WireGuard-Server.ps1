@@ -348,6 +348,116 @@ function Install-Tunnel([string]$WireGuardExe, [string]$TunnelName, [string]$Con
     Write-Ok (TInstall "Tunnel installe : $TunnelName" "Tunnel installed: $TunnelName")
 }
 
+
+function Get-ExistingServerListenPort([string]$ServerConfigPath, [int]$DefaultPort) {
+    if (Test-Path $ServerConfigPath) {
+        $content = Get-Content $ServerConfigPath -Raw -ErrorAction SilentlyContinue
+        if ($content -match '(?m)^ListenPort\s*=\s*(\d+)') { return [int]$Matches[1] }
+    }
+    return $DefaultPort
+}
+
+function Get-NextExistingClientNumber([string]$ServerConfigPath) {
+    $used = @()
+    if (Test-Path $ServerConfigPath) {
+        foreach ($line in Get-Content $ServerConfigPath) {
+            if ($line -match 'AllowedIPs\s*=\s*10\.66\.66\.(\d+)/32') {
+                $used += [int]$Matches[1]
+            }
+        }
+    }
+    for ($i = 2; $i -lt 255; $i++) {
+        if ($used -notcontains $i) { return $i }
+    }
+    throw "Aucune adresse VPN disponible dans 10.66.66.0/24."
+}
+
+function Show-ExistingConfigMenu([string]$Language, [string]$ServerConfigPath) {
+    Write-Host ""
+    if ($Language -eq 'fr') {
+        Write-Host "Configuration existante detectee" -ForegroundColor Yellow
+        Write-Host "--------------------------------" -ForegroundColor DarkGray
+        Write-Host "Une configuration serveur existe deja : $ServerConfigPath"
+        Write-Host ""
+        Write-Host "1 - Restaurer/reinstaller le service avec cette configuration"
+        Write-Host "2 - Ajouter un nouvel appareil a cette configuration"
+        Write-Host "3 - Reinstaller proprement et regenerer toutes les cles"
+        Write-Host "4 - Annuler"
+        Write-Host ""
+        return (Read-Host "Choix").Trim()
+    }
+
+    Write-Host "Existing configuration detected" -ForegroundColor Yellow
+    Write-Host "-------------------------------" -ForegroundColor DarkGray
+    Write-Host "A server configuration already exists: $ServerConfigPath"
+    Write-Host ""
+    Write-Host "1 - Restore/reinstall the service with this configuration"
+    Write-Host "2 - Add a new device to this configuration"
+    Write-Host "3 - Clean reinstall and regenerate all keys"
+    Write-Host "4 - Cancel"
+    Write-Host ""
+    return (Read-Host "Choice").Trim()
+}
+
+function Start-ConsoleIfAvailable {
+    Start-ConsoleIfAvailable
+}
+
+function Restore-ExistingInstallation([string]$BaseDir, [string]$ServerConfigPath, [string]$TunnelName, [int]$ListenPort, [string]$VpnCidr) {
+    $tools = @(Ensure-WireGuard)[-1]
+    if (-not $tools -or -not $tools.PSObject.Properties["WireGuardExe"]) { throw "Impossible de recuperer les chemins WireGuard apres installation." }
+    $wireguardExe = $tools.WireGuardExe
+
+    $existingPort = Get-ExistingServerListenPort -ServerConfigPath $ServerConfigPath -DefaultPort $ListenPort
+    Enable-IPv4Forwarding
+    Ensure-Firewall -Port $existingPort
+    Ensure-Nat -Cidr $VpnCidr
+    Install-Tunnel -WireGuardExe $wireguardExe -TunnelName $TunnelName -ConfigPath $ServerConfigPath
+    $lanIp = Get-PrimaryIPv4
+    [void](Try-UpnpPortForward -Port $existingPort -LanIp $lanIp)
+
+    Write-Host ""
+    Write-Host (TInstall "Configuration existante restauree." "Existing configuration restored.") -ForegroundColor Green
+    Write-Host (TInstall "Tunnel serveur : $TunnelName" "Server tunnel: $TunnelName")
+    Write-Host (TInstall "Port WireGuard : UDP $existingPort" "WireGuard port: UDP $existingPort")
+    Start-ConsoleIfAvailable
+}
+
+function Add-DeviceToExistingInstallation([string]$BaseDir, [string]$ServerConfigPath, [string]$TunnelName, [int]$ListenPort, [string]$Dns) {
+    $tools = @(Ensure-WireGuard)[-1]
+    if (-not $tools -or -not $tools.PSObject.Properties["WireGuardExe"]) { throw "Impossible de recuperer les chemins WireGuard apres installation." }
+
+    $existingPort = Get-ExistingServerListenPort -ServerConfigPath $ServerConfigPath -DefaultPort $ListenPort
+    $defaultEndpoint = Get-PublicEndpoint -Port $existingPort
+    $clientName = Ask-Text "WireGuard" (TInstall "Nom du nouvel appareil" "New device name") "device"
+    $endpoint = Ask-Text "WireGuard" (TInstall "IP publique ou DNS a utiliser cote appareil. Laisse la valeur detectee si tu n'as pas de DNS dynamique." "Public IP or DNS to use on the device side. Keep the detected value if you do not have dynamic DNS.") $defaultEndpoint
+    $clientDns = Ask-Text "WireGuard" (TInstall "DNS a utiliser sur cet appareil. Laisse vide / ne tape rien pour garder le DNS par defaut." "DNS to use on this device. Leave empty / type nothing to keep the default DNS.") $Dns
+    $clientNumber = Get-NextExistingClientNumber -ServerConfigPath $ServerConfigPath
+
+    $addScript = Join-Path $PSScriptRoot "Add-WireGuardPeer.ps1"
+    if (-not (Test-Path $addScript)) { throw "Script d'ajout introuvable : $addScript" }
+
+    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $addScript -ClientName $clientName -Endpoint $endpoint -ClientNumber $clientNumber -ListenPort $existingPort -Dns $clientDns -TunnelName $TunnelName -Language $Language 2>&1
+    if ($output) { $output | Out-Host }
+    if ($LASTEXITCODE -ne 0) { throw (TInstall "Echec de l'ajout de l'appareil." "Failed to add device.") }
+
+    $featuresDir = Join-Path $BaseDir "features"
+    $qrEnabled = Test-Path (Join-Path $featuresDir "qr-enabled.flag")
+    if ($qrEnabled) {
+        $generateQr = Ask-YesNoRequired "WinWG QR Code" (TInstall "Generer un QR code pour ce nouvel appareil ? Tape oui ou non ; laisser le champ vide n'est pas accepte." "Generate a QR code for this new device? Please type yes or no; leaving the field empty is not accepted.")
+        if ($generateQr) {
+            $qrScript = Join-Path $PSScriptRoot "Generate-WireGuardClientQr.ps1"
+            if (Test-Path $qrScript) {
+                $safeName = ($clientName -replace '[^a-zA-Z0-9_-]', '_')
+                $qrOutput = & powershell -NoProfile -ExecutionPolicy Bypass -File $qrScript -ClientName $safeName -BaseDir $BaseDir -Language $Language -Open 2>&1
+                if ($qrOutput) { $qrOutput | Out-Host }
+            }
+        }
+    }
+
+    Start-ConsoleIfAvailable
+}
+
 try {
     Assert-Admin
     $host.UI.RawUI.WindowTitle = "WinWG OneClick Server - One Click"
@@ -385,6 +495,31 @@ try {
         $qrPrompt = "Install the integrated QR code generator? This lets you import the configuration in the WireGuard mobile app by scanning a QR code. The QRCoder dependency will be downloaded from NuGet, but your keys/configurations are not sent to the Internet. Please type yes or no; leaving the field empty is not accepted."
     }
 
+    $serverConfigPath = Join-Path $serverDir "$TunnelName.conf"
+    if (Test-Path $serverConfigPath) {
+        $existingChoice = Show-ExistingConfigMenu -Language $Language -ServerConfigPath $serverConfigPath
+        switch ($existingChoice) {
+            '1' {
+                Restore-ExistingInstallation -BaseDir $baseDir -ServerConfigPath $serverConfigPath -TunnelName $TunnelName -ListenPort $ListenPort -VpnCidr $VpnCidr
+                return
+            }
+            '2' {
+                Add-DeviceToExistingInstallation -BaseDir $baseDir -ServerConfigPath $serverConfigPath -TunnelName $TunnelName -ListenPort $ListenPort -Dns $Dns
+                return
+            }
+            '3' {
+                $confirmText = TInstall "Tape REINSTALLER pour supprimer l'ancienne configuration et regenerer toutes les cles" "Type REINSTALL to delete the old configuration and regenerate all keys"
+                $confirm = (Read-Host $confirmText).Trim()
+                if ($confirm -ne 'REINSTALL' -and $confirm -ne 'REINSTALLER') { throw (TInstall "Reinstallation annulee." "Reinstall cancelled.") }
+                Remove-Item $baseDir -Recurse -Force
+                Ensure-Directory $serverDir
+                Ensure-Directory $clientDir
+                if (Get-Command Set-WinWGLanguage -ErrorAction SilentlyContinue) { Set-WinWGLanguage -BaseDir $baseDir -Language $Language | Out-Null }
+            }
+            default { throw (TInstall "Installation annulee." "Installation cancelled.") }
+        }
+    }
+
     $defaultEndpoint = Get-PublicEndpoint -Port $ListenPort
     $clientName = Ask-Text "WireGuard" $clientNamePrompt "telephone"
     $endpoint = Ask-Text "WireGuard" $endpointPrompt $defaultEndpoint
@@ -419,7 +554,6 @@ try {
     $psk = New-WgPresharedKey $wgExe
 
     $safeClientName = ($clientName -replace '[^a-zA-Z0-9_-]', '_')
-    $serverConfigPath = Join-Path $serverDir "$TunnelName.conf"
     $clientConfigPath = Join-Path $clientDir "$safeClientName.conf"
 
     $serverConfig = @"
@@ -511,13 +645,7 @@ PersistentKeepalive = 25
 
     Start-Process explorer.exe $clientDir
 
-    $projectRoot = Split-Path $PSScriptRoot -Parent
-    $consoleBat = Join-Path $projectRoot "SERVER-CONSOLE.bat"
-    if (Test-Path $consoleBat) {
-        Write-Host ""
-        Write-Host (TInstall "Ouverture de la console serveur de supervision..." "Opening the server monitoring console...") -ForegroundColor Cyan
-        Start-Process -FilePath $consoleBat
-    }
+    Start-ConsoleIfAvailable
 } catch {
     Write-Host ""
     Write-Host "ERREUR : $($_.Exception.Message)" -ForegroundColor Red

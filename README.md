@@ -91,7 +91,7 @@ On the Windows PC that should become the VPN server:
 INSTALLER-ONE-CLICK.bat
 ```
 
-The installer asks for Windows administrator rights, installs WireGuard if needed, generates the server + phone configuration, configures firewall, routing and NAT, then opens the folder containing the `.conf` file to import into the WireGuard mobile app.
+The installer asks for Windows administrator rights, installs WireGuard if needed, generates the server + device configuration, configures firewall, routing and NAT, then opens the folder containing the `.conf` file to import into the WireGuard mobile app.
 
 It also tries to create the router port-forwarding automatically via UPnP. If your router refuses it or UPnP is disabled, the installer shows the PC local IP address and you must manually forward the port:
 
@@ -108,7 +108,7 @@ Ideally, this local IP should be reserved through a **static DHCP lease** in the
 - Windows 10/11.
 - PowerShell running as **administrator**.
 - Router/Internet box admin access for port-forwarding if UPnP fails.
-- WireGuard mobile app installed on your phone:
+- WireGuard app installed on your remote device:
   - Android: Google Play / F-Droid.
   - iPhone: App Store.
 
@@ -152,7 +152,7 @@ The name `WinWG` simply means:
 Windows + WireGuard helper
 ```
 
-## Server vs phone configuration
+## Server vs device configuration
 
 On Windows, there is no official separate “server-only” package. The WireGuard for Windows application also provides the components needed for server mode: `wg.exe`, `wireguard.exe`, the driver, and the tunnel service.
 
@@ -161,10 +161,10 @@ This project does **not** turn your Windows PC into a VPN client. It uses WireGu
 When the script mentions `client` files or the `clients` folder, it means:
 
 ```text
-configuration to import on your phone/remote device
+configuration to import on the remote device
 ```
 
-The phone is the VPN client. The Windows PC remains the server.
+The remote device is the VPN peer/client. The Windows PC remains the server.
 
 ## Quick manual install
 
@@ -173,7 +173,7 @@ Open PowerShell **as administrator**, then:
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force
 cd .\winwg-oneclick-server
-.\scripts\Install-WireGuardServer.ps1 -Endpoint "MY_PUBLIC_IP_OR_DNS" -ClientName "phone"
+.\scripts\Install-WireGuardServer.ps1 -Endpoint "MY_PUBLIC_IP_OR_DNS" -ClientName "device"
 ```
 
 Example with dynamic DNS:
@@ -182,13 +182,13 @@ Example with dynamic DNS:
 .\scripts\Install-WireGuardServer.ps1 -Endpoint "home-vpn.duckdns.org" -ClientName "iphone"
 ```
 
-At the end, the script shows the phone configuration path, for example:
+At the end, the script shows the device configuration path, for example:
 
 ```text
 C:\ProgramData\WireGuardPhoneServer\clients\iphone.conf
 ```
 
-Copy this file to your phone and import it into the WireGuard app.
+Copy this file to your device and import it into the WireGuard app.
 
 
 ## GitHub Actions / CI
@@ -278,7 +278,7 @@ SERVER-CONSOLE.bat
 The console lets you:
 
 - view the WireGuard service status;
-- view connected phones/devices, their handshakes and their RX/TX speed;
+- view connected devices/devices, their handshakes and their RX/TX speed;
 - check firewall, NAT and UDP port status;
 - enable/start the VPN server;
 - disable/stop the VPN server without deleting configurations;
@@ -444,7 +444,7 @@ By default, client configurations use:
 PersistentKeepalive = 25
 ```
 
-This helps keep the client-side NAT mapping open, especially on 4G/5G phones, public Wi-Fi, or strict routers.
+This helps keep the client-side NAT mapping open, especially on 4G/5G devices, public Wi-Fi, or strict routers.
 
 Suggested values:
 
@@ -559,7 +559,7 @@ Removing a device:
 
 ## Usage
 
-### Add a second phone/device
+### Add a second device
 
 ```powershell
 .\scripts\Add-WireGuardPeer.ps1 -ClientName "android" -Endpoint "home-vpn.duckdns.org"
@@ -595,9 +595,9 @@ Get-ChildItem "C:\ProgramData\WireGuardPhoneServer\clients"
 | Client DNS | `1.1.1.1, 8.8.8.8` |
 | Client mode | full-tunnel IPv4: `AllowedIPs = 0.0.0.0/0` |
 
-## Test from your phone
+## Test from your device
 
-1. Disable Wi-Fi on the phone.
+1. Disable Wi-Fi on the device.
 2. Enable 4G/5G.
 3. Enable the WireGuard tunnel.
 4. Open a website such as `https://ifconfig.me`.
@@ -626,7 +626,7 @@ Before public or long-term use:
 - Never share generated `.conf` files: they contain private keys.
 - Prefer a dynamic DNS name instead of copying an IP address everywhere.
 - Keep Windows and WireGuard up to date.
-- Immediately remove a peer if a phone/device is lost.
+- Immediately remove a peer if a device is lost.
 
 ## Known limitations
 

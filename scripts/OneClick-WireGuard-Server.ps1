@@ -1,18 +1,18 @@
 ﻿<#
 .SYNOPSIS
-  Installation one-click d'un serveur WireGuard sur Windows pour connexion telephone hors LAN.
+  Installation one-click d'un serveur WireGuard sur Windows pour connexion appareil hors LAN.
 
 .DESCRIPTION
   Double-clique INSTALLER-ONE-CLICK.bat. Ce script :
   - s'eleve en admin via le .bat ;
   - installe WireGuard si absent ;
   - detecte l'IP publique ;
-  - demande seulement le nom du telephone et l'endpoint si besoin ;
+  - demande seulement le nom de l'appareil et l'endpoint si besoin ;
   - genere serveur + client ;
   - active routage, firewall, NAT ;
   - installe le tunnel WireGuard ;
   - tente une redirection UPnP UDP 51820 sur la box si disponible ;
-  - ouvre le dossier contenant la config telephone.
+  - ouvre le dossier contenant la config appareil.
 #>
 [CmdletBinding()]
 param(
@@ -488,16 +488,16 @@ try {
     if ($Language -eq "fr") {
         Write-Host "Langue selectionnee : Francais" -ForegroundColor Green
         Write-Host "WinWG OneClick Server - installation one click" -ForegroundColor Green
-        Write-Host "Ce script va configurer ce PC comme serveur VPN WireGuard pour ton telephone."
-        $clientNamePrompt = "Nom du telephone/client"
-        $endpointPrompt = "IP publique ou DNS a utiliser cote telephone. Laisse la valeur detectee si tu n'as pas de DNS dynamique."
+        Write-Host "Ce script va configurer ce PC comme serveur VPN WireGuard pour ton appareil."
+        $clientNamePrompt = "Nom de l'appareil/client"
+        $endpointPrompt = "IP publique ou DNS a utiliser cote appareil. Laisse la valeur detectee si tu n'as pas de DNS dynamique."
         $dnsPrompt = "DNS a utiliser sur cet appareil. Laisse vide / ne tape rien pour garder le DNS par defaut. Exemples : 1.1.1.1, 8.8.8.8 ou l'IP DNS de ta box comme 192.168.1.1"
         $qrPrompt = "Installer le generateur de QR code integre ? Cela permet d'importer la configuration dans l'app WireGuard mobile en scannant un QR code. La dependance QRCoder sera telechargee depuis NuGet, mais tes cles/configurations ne sont pas envoyees a Internet. Tape oui ou non ; laisser le champ vide n'est pas accepte."
     } else {
         Write-Host "Selected language: English" -ForegroundColor Green
         Write-Host "WinWG OneClick Server - one-click installation" -ForegroundColor Green
         Write-Host "This script will configure this PC as a WireGuard VPN server for your device."
-        $clientNamePrompt = "Phone/device name"
+        $clientNamePrompt = "Device name"
         $endpointPrompt = "Public IP or DNS to use on the device side. Keep the detected value if you do not have dynamic DNS."
         $dnsPrompt = "DNS to use on this device. Leave empty / type nothing to keep the default DNS. Examples: 1.1.1.1, 8.8.8.8 or your router DNS such as 192.168.1.1"
         $qrPrompt = "Install the integrated QR code generator? This lets you import the configuration in the WireGuard mobile app by scanning a QR code. The QRCoder dependency will be downloaded from NuGet, but your keys/configurations are not sent to the Internet. Please type yes or no; leaving the field empty is not accepted."
@@ -529,7 +529,7 @@ try {
     }
 
     $defaultEndpoint = Get-PublicEndpoint -Port $ListenPort
-    $clientName = Ask-Text "WireGuard" $clientNamePrompt "telephone"
+    $clientName = Ask-Text "WireGuard" $clientNamePrompt "appareil"
     $endpoint = Ask-Text "WireGuard" $endpointPrompt $defaultEndpoint
     $Dns = Ask-Text "WireGuard" $dnsPrompt $Dns
 
@@ -593,7 +593,7 @@ PersistentKeepalive = 25
 
     Set-Content -Path $serverConfigPath -Value $serverConfig -Encoding ASCII
     Set-Content -Path $clientConfigPath -Value $clientConfig -Encoding ASCII
-    Write-Ok (TInstall "Configuration telephone creee : $clientConfigPath" "Device configuration created: $clientConfigPath")
+    Write-Ok (TInstall "Configuration appareil creee : $clientConfigPath" "Device configuration created: $clientConfigPath")
 
     if ($enableQrFeature) {
         $generateFirstQrPrompt = TInstall "Generer un QR code pour ce premier appareil ? Tape oui ou non ; laisser le champ vide n'est pas accepte." "Generate a QR code for this first device? Please type yes or no; leaving the field empty is not accepted."
@@ -631,8 +631,8 @@ PersistentKeepalive = 25
     Write-Host (TInstall "Tunnel serveur : $TunnelName" "Server tunnel: $TunnelName")
     Write-Host (TInstall "Port WireGuard : UDP $ListenPort" "WireGuard port: UDP $ListenPort")
     Write-Host (TInstall "IP VPN serveur : $ServerVpnIp" "VPN server IP: $ServerVpnIp")
-    Write-Host (TInstall "IP VPN telephone : $ClientVpnIp" "Device VPN IP: $ClientVpnIp")
-    Write-Host (TInstall "Fichier a importer dans l'app WireGuard du telephone :" "File to import into the WireGuard app:")
+    Write-Host (TInstall "IP VPN appareil : $ClientVpnIp" "Device VPN IP: $ClientVpnIp")
+    Write-Host (TInstall "Fichier a importer dans l'app WireGuard de l’appareil :" "File to import into the WireGuard app:")
     Write-Host "  $clientConfigPath" -ForegroundColor Yellow
     Write-Host ""
 
@@ -645,7 +645,7 @@ PersistentKeepalive = 25
     }
 
     Write-Host ""
-    Write-Host (TInstall "Etapes telephone :" "Device steps:")
+    Write-Host (TInstall "Etapes appareil :" "Device steps:")
     Write-Host (TInstall "1. Installe l'app WireGuard." "1. Install the WireGuard app.")
     Write-Host (TInstall "2. Copie/import le fichier .conf ci-dessus." "2. Copy/import the .conf file above.")
     Write-Host (TInstall "3. Coupe le Wi-Fi, passe en 4G/5G, active le tunnel." "3. Disable Wi-Fi, use mobile data, enable the tunnel.")

@@ -35,11 +35,11 @@ Reserved IP
 
 This is cleaner than manually setting a static IP inside Windows, because the router keeps managing DHCP and reduces the risk of IP address conflicts.
 
-## 1. The phone does not connect at all
+## 1. The device does not connect at all
 
 Check:
 
-- The phone is on 4G/5G, not on the local Wi-Fi.
+- The device is on 4G/5G, not on the local Wi-Fi.
 - UDP port-forwarding is configured on the router: `UDP 51820 -> Windows PC local IP`.
 - The Windows PC local IP did not change.
 - Windows Firewall contains an inbound UDP 51820 rule.
@@ -53,7 +53,7 @@ Get-NetNat
 Get-Service | Where-Object Name -like "WireGuardTunnel*"
 ```
 
-## 2. The phone connects but Internet does not work
+## 2. The device connects but Internet does not work
 
 Check Windows NAT:
 
@@ -94,7 +94,7 @@ WireGuard uses UDP. Many online “open port” testers only test TCP and are un
 
 The best test is:
 
-1. enable the tunnel from the phone while on 4G/5G;
+1. enable the tunnel from the device while on 4G/5G;
 2. open `SERVER-CONSOLE.bat` on the Windows PC;
 3. check if a recent `latest handshake` appears.
 
@@ -113,7 +113,7 @@ Then use that hostname as the client endpoint, for example:
 Endpoint = home-vpn.duckdns.org:51820
 ```
 
-## 6. The monitoring console does not show my phone name
+## 6. The monitoring console does not show my device name
 
 WireGuard itself identifies peers by public key. WinWG OneClick Server maps public keys to names by reading comments in the server config:
 

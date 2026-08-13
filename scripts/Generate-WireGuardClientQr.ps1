@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Genere un QR code PNG pour une configuration WireGuard telephone/appareil.
+  Genere un QR code PNG pour une configuration WireGuard appareil.
 
 .DESCRIPTION
   Genere un QR code localement a partir d'un fichier .conf existant.

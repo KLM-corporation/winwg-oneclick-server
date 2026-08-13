@@ -1,6 +1,6 @@
 ﻿<#
 .SYNOPSIS
-  Configure un PC Windows en serveur WireGuard pour téléphone hors LAN.
+  Configure un PC Windows en serveur WireGuard pour appareil distant hors LAN.
 
 .EXAMPLE
   .\Install-WireGuardServer.ps1 -Endpoint "vpn-maison.duckdns.org" -ClientName "iphone"
@@ -203,7 +203,7 @@ Write-Host "✅ Serveur WireGuard configuré." -ForegroundColor Green
 Write-Host "Tunnel      : $TunnelName"
 Write-Host "Port UDP    : $ListenPort"
 Write-Host "VPN serveur : $ServerVpnIp"
-Write-Host "Config telephone : $clientConfigPath"
+Write-Host "Config appareil : $clientConfigPath"
 Write-Host ""
 Write-Host "À faire sur ta box : redirige UDP $ListenPort vers l'IP locale de ce PC."
-Write-Host "Puis importe le fichier client dans l'app WireGuard du téléphone."
+Write-Host "Puis importe le fichier appareil dans l'app WireGuard de l'appareil distant."

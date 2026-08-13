@@ -115,6 +115,19 @@ function Get-WinWGText([string]$Language, [string]$Key) {
             StatusRefreshed = 'Statut rafraichi.'
             QrDisabled = "Option QR desactivee. Elle n'apparait pas dans le menu car la dependance QR n'a pas ete installee/activee."
             InvalidChoiceMain = 'Choix invalide. Utilise 1/2/3/4/5/6, A/D/N/R/G, S, V, M, L ou Q.'
+            AdvancedWarningTitle = 'WinWG OneClick Server - Mode avance'
+            Warning = 'ATTENTION'
+            AdvancedWarningIntro1 = 'Le mode avance est destine aux personnes qui connaissent deja WireGuard.'
+            AdvancedWarningIntro2 = 'Il peut donner acces a des actions et fichiers sensibles.'
+            PossibleRisks = 'Risques possibles :'
+            RiskBreakConfig = '- casser la configuration serveur ;'
+            RiskExposeKey = '- exposer une cle privee si tu partages une capture ou un fichier ;'
+            RiskCutAccess = '- couper l''acces VPN a tes appareils ;'
+            RiskUnreachable = '- rendre le serveur inaccessible depuis l''exterieur.'
+            NeverShareSecrets = 'Ne partage jamais les fichiers .conf, les QR codes, les cles privees ou les logs non relus.'
+            AdvancedEnablePrompt = 'Pour activer, tape exactement JE COMPRENDS'
+            AdvancedEnabled = 'Mode avance active. Sois prudent.'
+            AdvancedNotEnabled = 'Mode avance non active.'
         }
         en = @{
             ConsoleTitle = 'WinWG OneClick Server - Unified server console'
@@ -179,6 +192,19 @@ function Get-WinWGText([string]$Language, [string]$Key) {
             StatusRefreshed = 'Status refreshed.'
             QrDisabled = 'QR option disabled. It is hidden from the menu because the QR dependency was not installed/enabled.'
             InvalidChoiceMain = 'Invalid choice. Use 1/2/3/4/5/6, A/D/N/R/G, S, V, M, L or Q.'
+            AdvancedWarningTitle = 'WinWG OneClick Server - Advanced mode'
+            Warning = 'WARNING'
+            AdvancedWarningIntro1 = 'Advanced mode is intended for users who already understand WireGuard.'
+            AdvancedWarningIntro2 = 'It can expose sensitive actions and files.'
+            PossibleRisks = 'Possible risks:'
+            RiskBreakConfig = '- break the server configuration;'
+            RiskExposeKey = '- expose a private key if you share a screenshot or file;'
+            RiskCutAccess = '- cut VPN access for your devices;'
+            RiskUnreachable = '- make the server unreachable from outside.'
+            NeverShareSecrets = 'Never share .conf files, QR codes, private keys, or logs you have not reviewed.'
+            AdvancedEnablePrompt = 'To enable, type exactly JE COMPRENDS'
+            AdvancedEnabled = 'Advanced mode enabled. Be careful.'
+            AdvancedNotEnabled = 'Advanced mode not enabled.'
         }
     }
     if (-not $texts.ContainsKey($Language)) { $Language = 'en' }

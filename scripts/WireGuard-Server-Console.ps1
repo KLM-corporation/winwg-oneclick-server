@@ -612,27 +612,27 @@ function Redact-WinWGSecrets([string]$Text) {
 
 function Enable-AdvancedModeWithWarning {
     Clear-Host
-    Write-UiHost "WinWG OneClick Server - Mode avance" -ForegroundColor Yellow
+    Write-UiHost (Get-WinWGText $script:Language "AdvancedWarningTitle") -ForegroundColor Yellow
     Write-UiHost "====================================" -ForegroundColor DarkGray
     Write-UiHost ""
-    Write-UiHost "ATTENTION" -ForegroundColor Red
-    Write-UiHost "Le mode avance est destine aux personnes qui connaissent deja WireGuard." -ForegroundColor Yellow
-    Write-UiHost "Il peut donner acces a des actions et fichiers sensibles." -ForegroundColor Yellow
+    Write-UiHost (Get-WinWGText $script:Language "Warning") -ForegroundColor Red
+    Write-UiHost (Get-WinWGText $script:Language "AdvancedWarningIntro1") -ForegroundColor Yellow
+    Write-UiHost (Get-WinWGText $script:Language "AdvancedWarningIntro2") -ForegroundColor Yellow
     Write-UiHost ""
-    Write-UiHost "Risques possibles :" -ForegroundColor Yellow
-    Write-UiHost "- casser la configuration serveur ;"
-    Write-UiHost "- exposer une cle privee si tu partages une capture ou un fichier ;"
-    Write-UiHost "- couper l'acces VPN a tes appareils ;"
-    Write-UiHost "- rendre le serveur inaccessible depuis l'exterieur."
+    Write-UiHost (Get-WinWGText $script:Language "PossibleRisks") -ForegroundColor Yellow
+    Write-UiHost (Get-WinWGText $script:Language "RiskBreakConfig")
+    Write-UiHost (Get-WinWGText $script:Language "RiskExposeKey")
+    Write-UiHost (Get-WinWGText $script:Language "RiskCutAccess")
+    Write-UiHost (Get-WinWGText $script:Language "RiskUnreachable")
     Write-UiHost ""
-    Write-UiHost "Ne partage jamais les fichiers .conf, les QR codes, les cles privees ou les logs non relus." -ForegroundColor Red
+    Write-UiHost (Get-WinWGText $script:Language "NeverShareSecrets") -ForegroundColor Red
     Write-UiHost ""
-    $confirm = (Read-UiHost "Pour activer, tape exactement JE COMPRENDS").Trim()
+    $confirm = (Read-UiHost (Get-WinWGText $script:Language "AdvancedEnablePrompt")).Trim()
     if ($confirm -eq "JE COMPRENDS") {
         $script:AdvancedModeEnabled = $true
-        return "Mode avance active. Sois prudent."
+        return (Get-WinWGText $script:Language "AdvancedEnabled")
     }
-    return "Mode avance non active."
+    return (Get-WinWGText $script:Language "AdvancedNotEnabled")
 }
 
 function Export-AdvancedDiagnostic([string]$TunnelName, [string]$BaseDir, [int]$ListenPort) {

@@ -99,6 +99,20 @@ jobs:
             throw 'PSScriptAnalyzer found errors.'
           }
 
+
+  language-tests:
+    name: Language unit tests
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run FR/EN translation tests
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          ./tests/Test-WinWGLanguage.ps1
+
   repository-hygiene:
     name: Repository hygiene
     runs-on: ubuntu-latest

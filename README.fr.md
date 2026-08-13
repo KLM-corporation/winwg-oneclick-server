@@ -247,6 +247,15 @@ Le dépôt contient deux workflows GitHub Actions :
 .github/workflows/release-package.yml
 ```
 
+
+La CI contient aussi un test unitaire de traduction :
+
+```text
+tests/Test-WinWGLanguage.ps1
+```
+
+Il vérifie que les clés principales existent en français et en anglais, et que les textes anglais ne retombent pas accidentellement sur du français.
+
 Le workflow CI vérifie :
 
 - la syntaxe PowerShell sous Windows PowerShell 5.1 ;

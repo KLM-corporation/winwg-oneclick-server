@@ -515,6 +515,15 @@ VPN + LAN maison : permet d'accéder au réseau VPN et au LAN maison.
 Après modification, il faut obligatoirement réimporter le `.conf` ou rescanner le nouveau QR code sur l'appareil. Sinon, l'appareil continuera à utiliser l'ancienne configuration `AllowedIPs`.
 
 
+
+Tu peux aussi gérer la fonctionnalité QR depuis la console :
+
+```text
+7 / K - Parametres QR code
+```
+
+Ce menu permet d'activer/désactiver la fonctionnalité QR, d'installer/vérifier QRCoder et d'ouvrir le dossier des QR codes.
+
 ## QR code WireGuard
 
 L'application WireGuard Android/iOS peut importer une configuration en scannant un QR code.

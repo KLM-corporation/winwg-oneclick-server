@@ -433,6 +433,105 @@ function TConsoleInvalidYesNo {
     return 'Please answer yes/no.'
 }
 
+
+function Get-QrCoderDllCandidates([string]$BaseDir) {
+    $qrDir = Join-Path (Join-Path $BaseDir "tools") "QRCoder"
+    return @(
+        (Join-Path $qrDir "lib\netstandard2.0\QRCoder.dll"),
+        (Join-Path $qrDir "lib\net6.0\QRCoder.dll"),
+        (Join-Path $qrDir "lib\net5.0\QRCoder.dll"),
+        (Join-Path $qrDir "lib\net40\QRCoder.dll")
+    )
+}
+
+function Test-QrDependencyInstalled([string]$BaseDir) {
+    foreach ($dll in (Get-QrCoderDllCandidates -BaseDir $BaseDir)) {
+        if (Test-Path $dll) { return $true }
+    }
+    return $false
+}
+
+function Set-QrFeaturePreference([string]$BaseDir, [bool]$Enabled) {
+    $featureDir = Join-Path $BaseDir "features"
+    if (-not (Test-Path $featureDir)) { New-Item -ItemType Directory -Path $featureDir -Force | Out-Null }
+    $enabledFlag = Join-Path $featureDir "qr-enabled.flag"
+    $disabledFlag = Join-Path $featureDir "qr-disabled.flag"
+    if ($Enabled) {
+        Set-Content -Path $enabledFlag -Value "enabled" -Encoding ASCII
+        Remove-Item $disabledFlag -Force -ErrorAction SilentlyContinue
+    } else {
+        Set-Content -Path $disabledFlag -Value "disabled" -Encoding ASCII
+        Remove-Item $enabledFlag -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Install-QrDependencyFromConsole([string]$BaseDir) {
+    if (Test-QrDependencyInstalled -BaseDir $BaseDir) {
+        return (Get-WinWGText $script:Language "QrDependencyInstalled")
+    }
+
+    $toolsDir = Join-Path $BaseDir "tools"
+    $qrDir = Join-Path $toolsDir "QRCoder"
+    if (-not (Test-Path $toolsDir)) { New-Item -ItemType Directory -Path $toolsDir -Force | Out-Null }
+    if (-not (Test-Path $qrDir)) { New-Item -ItemType Directory -Path $qrDir -Force | Out-Null }
+
+    $nupkg = Join-Path $toolsDir "QRCoder.nupkg"
+    $zip = Join-Path $toolsDir "QRCoder.zip"
+    $url = "https://www.nuget.org/api/v2/package/QRCoder"
+
+    Write-UiHost "QRCoder / NuGet..." -ForegroundColor Yellow
+    Invoke-WebRequest -Uri $url -OutFile $nupkg -UseBasicParsing
+    Copy-Item $nupkg $zip -Force
+    Expand-Archive -Path $zip -DestinationPath $qrDir -Force
+
+    if (-not (Test-QrDependencyInstalled -BaseDir $BaseDir)) {
+        throw "QRCoder.dll not found after installation."
+    }
+    return (Get-WinWGText $script:Language "QrDependencyInstalled")
+}
+
+function Show-QrFeatureSettings([string]$BaseDir) {
+    while ($true) {
+        Clear-Host
+        Write-UiHost (Get-WinWGText $script:Language "QrSettings") -ForegroundColor Cyan
+        Write-UiHost "====================" -ForegroundColor DarkGray
+        $feature = if (Test-QrFeatureEnabled -BaseDir $BaseDir) { Get-WinWGText $script:Language "Enabled" } else { Get-WinWGText $script:Language "Disabled" }
+        $dependency = if (Test-QrDependencyInstalled -BaseDir $BaseDir) { Get-WinWGText $script:Language "Installed" } else { Get-WinWGText $script:Language "NotInstalled" }
+        Write-Line (Get-WinWGText $script:Language "QrFeatureStatus") $feature Cyan
+        Write-Line (Get-WinWGText $script:Language "QrDependencyStatus") $dependency Cyan
+        Write-UiHost ""
+        Write-UiHost ("1 - " + (Get-WinWGText $script:Language "EnableQrFeature"))
+        Write-UiHost ("2 - " + (Get-WinWGText $script:Language "DisableQrFeature"))
+        Write-UiHost ("3 - " + (Get-WinWGText $script:Language "ReinstallQrDependency"))
+        Write-UiHost ("4 - " + (Get-WinWGText $script:Language "OpenQrFolder"))
+        Write-UiHost ("Q - " + (Get-WinWGText $script:Language "Back"))
+        Write-UiHost ""
+        $choice = (Read-UiHost (Get-WinWGText $script:Language "Choice")).Trim().ToLowerInvariant()
+        switch ($choice) {
+            '1' {
+                $msg = Install-QrDependencyFromConsole -BaseDir $BaseDir
+                Set-QrFeaturePreference -BaseDir $BaseDir -Enabled $true
+                Pause-ConsoleAction ((Get-WinWGText $script:Language "QrFeatureEnabled") + "`n$msg")
+            }
+            '2' {
+                Set-QrFeaturePreference -BaseDir $BaseDir -Enabled $false
+                Pause-ConsoleAction (Get-WinWGText $script:Language "QrFeatureDisabled")
+            }
+            '3' {
+                $msg = Install-QrDependencyFromConsole -BaseDir $BaseDir
+                Pause-ConsoleAction $msg
+            }
+            '4' {
+                $dir = Join-Path $BaseDir "qrcodes"
+                if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+                Start-Process explorer.exe $dir
+                Pause-ConsoleAction $dir
+            }
+            'q' { return (Get-WinWGText $script:Language "Back") }
+        }
+    }
+}
+
 function Generate-DeviceQrFromConsole([string]$BaseDir, [string]$DeviceName = "") {
     if (-not (Test-QrFeatureEnabled -BaseDir $BaseDir)) { throw "Fonctionnalite QR desactivee. Relance l'installation et accepte la dependance QR pour l'activer." }
     $scriptPath = Join-Path $PSScriptRoot "Generate-WireGuardDeviceQr.ps1"
@@ -1320,6 +1419,7 @@ function Show-MainMenu {
     Write-UiHost ("4 / N - " + (Get-WinWGText $script:Language "AddDevice"))
     Write-UiHost ("5 / R - " + (Get-WinWGText $script:Language "RemoveDevice"))
     if (Test-QrFeatureEnabled -BaseDir $BaseDir) { Write-UiHost ("6 / G - " + (Get-WinWGText $script:Language "GenerateQr")) }
+    Write-UiHost ("7 / K - " + (Get-WinWGText $script:Language "QrSettings"))
     Write-UiHost ("S     - " + (Get-WinWGText $script:Language "Refresh"))
     Write-UiHost ("V     - " + (Get-WinWGText $script:Language "ToggleVerbose"))
     Write-UiHost ("M     - " + (Get-WinWGText $script:Language "AdvancedTools"))
@@ -1384,6 +1484,9 @@ try {
                 } else {
                     $lastMessage = Get-WinWGText $script:Language "QrDisabled"
                 }
+            }
+            { $_ -in @('7','k') } {
+                try { $lastMessage = Show-QrFeatureSettings -BaseDir $BaseDir } catch { $lastMessage = ((Get-WinWGText $script:Language "ErrorQr") + " : $($_.Exception.Message)") }
             }
             's' { $lastMessage = Get-WinWGText $script:Language "StatusRefreshed" }
             'v' {

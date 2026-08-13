@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, test-debug-feature ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
@@ -98,6 +98,7 @@ jobs:
             $results | Format-Table -AutoSize | Out-String | Write-Error
             throw 'PSScriptAnalyzer found errors.'
           }
+
 
   repository-hygiene:
     name: Repository hygiene

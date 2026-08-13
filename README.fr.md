@@ -247,6 +247,7 @@ Le dépôt contient deux workflows GitHub Actions :
 .github/workflows/release-package.yml
 ```
 
+
 Le workflow CI vérifie :
 
 - la syntaxe PowerShell sous Windows PowerShell 5.1 ;

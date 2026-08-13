@@ -198,6 +198,7 @@ The repository contains two GitHub Actions workflows:
 .github/workflows/release-package.yml
 ```
 
+
 The CI workflow checks:
 
 - PowerShell syntax with Windows PowerShell 5.1;

@@ -535,6 +535,8 @@ L'ajout d'appareil :
 - génère le fichier `.conf` à importer ;
 - ouvre le dossier contenant la configuration générée.
 
+Lors de l'ajout d'un appareil, si la fonctionnalité QR est activée globalement, la console demande maintenant si tu veux générer un QR code pour cet appareil précis. Tu peux répondre `oui` ou `non`.
+
 > Note : si l'ajout crée bien le fichier `.conf` et le peer mais qu'un message d'erreur apparaît pendant le rechargement du service, la console le signale comme un ajout réussi avec avertissement. Tu peux ensuite utiliser `3` pour redémarrer le serveur VPN.
 
 La suppression d'appareil :
@@ -549,19 +551,6 @@ La suppression d'appareil :
 > Note : si la suppression retire bien le fichier `.conf` et le peer mais qu'un message d'erreur apparaît pendant le rechargement du service, la console le signale comme une suppression réussie avec avertissement. Tu peux ensuite utiliser `3` pour redémarrer le serveur VPN.
 
 
-
-## Roadmap / idées prévues
-
-Amélioration prévue : lors de l'ajout d'un nouvel appareil depuis la console, demander si un QR code doit être généré pour cet appareil précis.
-
-Comportement visé :
-
-```text
-Fonction QR désactivée globalement -> pas d'option QR
-Fonction QR activée globalement    -> demander à chaque ajout : générer un QR ? oui/non
-```
-
-Cela permettra de créer uniquement le fichier `.conf` pour certains appareils, sans générer de QR code inutile.
 
 ## Utilisation
 

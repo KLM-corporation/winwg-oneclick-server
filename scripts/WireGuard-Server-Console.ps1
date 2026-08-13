@@ -416,6 +416,23 @@ function Test-QrFeatureEnabled([string]$BaseDir) {
     return (Test-Path $enabledFlag)
 }
 
+
+function Ask-YesNoConsole([string]$Question, [bool]$DefaultYes = $true) {
+    $suffix = if ($DefaultYes) { "Y/o / n" } else { "y/o / N" }
+    while ($true) {
+        $answer = (Read-UiHost "$Question [$suffix]").Trim().ToLowerInvariant()
+        if ([string]::IsNullOrWhiteSpace($answer)) { return $DefaultYes }
+        if ($answer -in @('y','yes','o','oui','1','true')) { return $true }
+        if ($answer -in @('n','no','non','0','false')) { return $false }
+        Write-UiHost (TConsoleInvalidYesNo) -ForegroundColor Yellow
+    }
+}
+
+function TConsoleInvalidYesNo {
+    if ($script:Language -eq 'fr') { return 'Reponds par oui/non.' }
+    return 'Please answer yes/no.'
+}
+
 function Generate-DeviceQrFromConsole([string]$BaseDir, [string]$ClientName = "") {
     if (-not (Test-QrFeatureEnabled -BaseDir $BaseDir)) { throw "Fonctionnalite QR desactivee. Relance l'installation et accepte la dependance QR pour l'activer." }
     $scriptPath = Join-Path $PSScriptRoot "Generate-WireGuardClientQr.ps1"
@@ -523,10 +540,15 @@ function Add-DeviceFromConsole([string]$TunnelName, [int]$ListenPort, [string]$B
 
     $qrMessage = ""
     if (Test-QrFeatureEnabled -BaseDir $BaseDir) {
-        try {
-            $qrMessage = "`n" + (Generate-DeviceQrFromConsole -BaseDir $BaseDir -ClientName $clientName)
-        } catch {
-            $qrMessage = "`nQR non genere automatiquement : $($_.Exception.Message)"
+        $generateQr = Ask-YesNoConsole -Question (Get-WinWGText $script:Language "AskGenerateQrForDevice") -DefaultYes $true
+        if ($generateQr) {
+            try {
+                $qrMessage = "`n" + (Generate-DeviceQrFromConsole -BaseDir $BaseDir -ClientName $clientName)
+            } catch {
+                $qrMessage = "`nQR not generated / QR non genere : $($_.Exception.Message)"
+            }
+        } else {
+            $qrMessage = "`n" + (Get-WinWGText $script:Language "QrSkippedForDevice")
         }
     }
 

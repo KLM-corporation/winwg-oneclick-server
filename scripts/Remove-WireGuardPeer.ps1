@@ -7,11 +7,16 @@ param(
     [Parameter(Mandatory=$true)]
     [string]$ClientName,
 
-    [string]$TunnelName = "wg-phone-server"
+    [string]$TunnelName = "wg-phone-server",
+
+    [ValidateSet("fr","en")]
+    [string]$Language = "fr"
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+function TPeer([string]$Fr, [string]$En) { if ($Language -eq "fr") { return $Fr }; return $En }
 
 function Assert-Admin {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -42,7 +47,7 @@ function Invoke-WireGuardNoThrow([string]$WireGuardExe, [string[]]$Arguments) {
 
 
 function Restart-WireGuardTunnelSafely([string]$WireGuardExe, [string]$TunnelName, [string]$ConfigPath) {
-    Write-Host "Rechargement du service WireGuard..."
+    Write-Host (TPeer "Rechargement du service WireGuard..." "Reloading WireGuard service...")
 
     if (-not (Test-Path $WireGuardExe)) {
         Write-Warning "wireguard.exe introuvable, impossible de recharger le service automatiquement."
@@ -58,7 +63,7 @@ function Restart-WireGuardTunnelSafely([string]$WireGuardExe, [string]$TunnelNam
 
     $install = Invoke-WireGuardNoThrow -WireGuardExe $WireGuardExe -Arguments @('/installtunnelservice', $ConfigPath)
     if ($install.ExitCode -eq 0) {
-        Write-Host "Service WireGuard recharge."
+        Write-Host (TPeer "Service WireGuard recharge." "WireGuard service reloaded.")
         return $true
     }
 
@@ -69,7 +74,7 @@ function Restart-WireGuardTunnelSafely([string]$WireGuardExe, [string]$TunnelNam
 
     $install2 = Invoke-WireGuardNoThrow -WireGuardExe $WireGuardExe -Arguments @('/installtunnelservice', $ConfigPath)
     if ($install2.ExitCode -eq 0) {
-        Write-Host "Service WireGuard recharge apres deuxieme tentative."
+        Write-Host (TPeer "Service WireGuard recharge apres deuxieme tentative." "WireGuard service reloaded after second attempt.")
         return $true
     }
 
@@ -103,4 +108,4 @@ if (-not $reloadOk) {
     Write-Warning "L'operation sur le peer est faite, mais le service doit etre redemarre manuellement."
 }
 
-Write-Host "✅ Client supprimé : $ClientName" -ForegroundColor Green
+Write-Host ((TPeer "✅ Client supprime" "✅ Client removed") + " : $ClientName") -ForegroundColor Green

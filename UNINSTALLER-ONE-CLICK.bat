@@ -17,5 +17,5 @@ cd /d "%~dp0"
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\Uninstall-WireGuard-Server.ps1"
 
 echo.
-echo Termine. Tu peux fermer cette fenetre.
+echo Done / Termine. You can close this window / Tu peux fermer cette fenetre.
 pause

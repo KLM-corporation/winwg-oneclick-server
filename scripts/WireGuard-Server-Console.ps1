@@ -159,9 +159,9 @@ function Enable-Tunnel([string]$TunnelName, [string]$BaseDir) {
         if ($svc.Status -ne 'Running') {
             Start-Service -Name $svc.Name -ErrorAction Stop
             Start-Sleep -Seconds 1
-            return "Service demarre : $($svc.Name)"
+            return ((Get-WinWGText $script:Language "ServiceStarted") + " : $($svc.Name)")
         }
-        return "Service deja actif : $($svc.Name)"
+        return ((Get-WinWGText $script:Language "ServiceAlreadyActive") + " : $($svc.Name)")
     }
 
     $result = Invoke-ExternalNoThrow -FileName $wireguardExe -Arguments @('/installtunnelservice', $configPath)
@@ -170,12 +170,12 @@ function Enable-Tunnel([string]$TunnelName, [string]$BaseDir) {
         if ([string]::IsNullOrWhiteSpace($msg)) { $msg = "wireguard.exe a retourne le code $($result.ExitCode)" }
         throw $msg
     }
-    return "Service installe et demarre : WireGuardTunnel`$$TunnelName"
+    return ((Get-WinWGText $script:Language "ServiceInstalledStarted") + " : WireGuardTunnel`$$TunnelName")
 }
 
 function Disable-Tunnel([string]$TunnelName) {
     $svc = Get-ServiceState -TunnelName $TunnelName
-    if (-not $svc) { return "Service deja desactive / non installe" }
+    if (-not $svc) { return (Get-WinWGText $script:Language "ServiceAlreadyDisabled") }
 
     $wireguardExe = Get-WireGuardExe
     if ($wireguardExe) {
@@ -184,12 +184,12 @@ function Disable-Tunnel([string]$TunnelName) {
         if ($result.ExitCode -ne 0 -and $msg -notmatch 'does not exist|n.existe pas|service.*introuvable|specified service') {
             throw $msg
         }
-        return "Service desactive : WireGuardTunnel`$$TunnelName"
+        return ((Get-WinWGText $script:Language "ServiceDisabled") + " : WireGuardTunnel`$$TunnelName")
     }
 
     if ($svc.Status -ne 'Stopped') { Stop-Service -Name $svc.Name -Force -ErrorAction SilentlyContinue }
     sc.exe delete $svc.Name | Out-Null
-    return "Service residuel supprime : $($svc.Name)"
+    return ((Get-WinWGText $script:Language "ResidualServiceRemoved") + " : $($svc.Name)")
 }
 
 function Restart-Tunnel([string]$TunnelName, [string]$BaseDir) {
@@ -255,12 +255,12 @@ function Format-BytesPerSecond([double]$BytesPerSecond) {
 
 function Get-PeerSpeedText([object]$Peer, [datetime]$Now) {
     if (-not $script:PeerTrafficSamples.ContainsKey($Peer.PublicKey)) {
-        return "calcul au prochain refresh"
+        return (Get-WinWGText $script:Language "SpeedNextRefresh")
     }
 
     $previous = $script:PeerTrafficSamples[$Peer.PublicKey]
     $seconds = ($Now - $previous.Timestamp).TotalSeconds
-    if ($seconds -le 0.5) { return "delai trop court" }
+    if ($seconds -le 0.5) { return (Get-WinWGText $script:Language "DelayTooShort") }
 
     $rxDelta = [double]($Peer.ReceivedBytes - $previous.ReceivedBytes)
     $txDelta = [double]($Peer.SentBytes - $previous.SentBytes)
@@ -280,14 +280,14 @@ function Get-WgPeerSummaries([string]$WgShowText, [hashtable]$PeerNameMap) {
         if ($line -match '^peer:\s*(\S+)') {
             if ($current) { $peers += [pscustomobject]$current }
             $pub = $Matches[1]
-            $name = if ($PeerNameMap.ContainsKey($pub)) { $PeerNameMap[$pub] } else { "telephone inconnu" }
-            $current = [ordered]@{ Name=$name; PublicKey=$pub; Endpoint="-"; AllowedIPs="-"; LatestHandshake="jamais"; Transfer="-"; ReceivedBytes=[int64]0; SentBytes=[int64]0; Status="hors ligne" }
+            $name = if ($PeerNameMap.ContainsKey($pub)) { $PeerNameMap[$pub] } else { Get-WinWGText $script:Language "UnknownDevice" }
+            $current = [ordered]@{ Name=$name; PublicKey=$pub; Endpoint="-"; AllowedIPs="-"; LatestHandshake=(Get-WinWGText $script:Language "Never"); Transfer="-"; ReceivedBytes=[int64]0; SentBytes=[int64]0; Status=(Get-WinWGText $script:Language "Offline") }
             continue
         }
         if (-not $current) { continue }
         if ($line -match '^endpoint:\s*(.+)$') { $current.Endpoint = $Matches[1].Trim(); continue }
         if ($line -match '^allowed ips:\s*(.+)$') { $current.AllowedIPs = $Matches[1].Trim(); continue }
-        if ($line -match '^latest handshake:\s*(.+)$') { $current.LatestHandshake = $Matches[1].Trim(); $current.Status = "connecte"; continue }
+        if ($line -match '^latest handshake:\s*(.+)$') { $current.LatestHandshake = $Matches[1].Trim(); $current.Status = (Get-WinWGText $script:Language "Online"); continue }
         if ($line -match '^transfer:\s*(.+)$') {
             $current.Transfer = $Matches[1].Trim()
             $bytes = Get-WgTransferBytes -TransferText $current.Transfer
@@ -303,20 +303,20 @@ function Get-WgPeerSummaries([string]$WgShowText, [hashtable]$PeerNameMap) {
 function Write-PeerDashboard([string]$WgShowText, [string]$ServerConfigPath) {
     $nameMap = Get-PeerNameMap -ServerConfigPath $ServerConfigPath
     $peers = @(Get-WgPeerSummaries -WgShowText $WgShowText -PeerNameMap $nameMap)
-    Write-UiHost "Telephones / peers" -ForegroundColor Cyan
+    Write-UiHost (Get-WinWGText $script:Language "PhonesPeers") -ForegroundColor Cyan
     Write-UiHost "------------------" -ForegroundColor DarkGray
-    if ($peers.Length -eq 0) { Write-UiHost "Aucun telephone/peer detecte dans wg show." -ForegroundColor Yellow; return }
+    if ($peers.Length -eq 0) { Write-UiHost (Get-WinWGText $script:Language "NoPeerDetected") -ForegroundColor Yellow; return }
     $now = Get-Date
     foreach ($peer in $peers) {
-        $color = if ($peer.Status -eq "connecte") { [ConsoleColor]::Green } else { [ConsoleColor]::Yellow }
+        $color = if ($peer.Status -eq (Get-WinWGText $script:Language "Online")) { [ConsoleColor]::Green } else { [ConsoleColor]::Yellow }
         $speedText = Get-PeerSpeedText -Peer $peer -Now $now
         Write-UiHost ("- " + $peer.Name + " : " + $peer.Status) -ForegroundColor $color
-        Write-UiHost ("  IP VPN       : " + $peer.AllowedIPs) -ForegroundColor DarkCyan
-        Write-UiHost ("  Endpoint     : " + $peer.Endpoint) -ForegroundColor DarkCyan
-        Write-UiHost ("  Handshake    : " + $peer.LatestHandshake) -ForegroundColor DarkCyan
-        Write-UiHost ("  Transfert    : " + $peer.Transfer) -ForegroundColor DarkCyan
-        Write-UiHost ("  Vitesse      : " + $speedText) -ForegroundColor Green
-        Write-UiHost ("  Public key   : " + $peer.PublicKey.Substring(0, 12) + "...") -ForegroundColor DarkGray
+        Write-UiHost ("  " + (Get-WinWGText $script:Language "VpnIp").PadRight(12) + ": " + $peer.AllowedIPs) -ForegroundColor DarkCyan
+        Write-UiHost ("  Endpoint".PadRight(14) + ": " + $peer.Endpoint) -ForegroundColor DarkCyan
+        Write-UiHost ("  " + (Get-WinWGText $script:Language "Handshake").PadRight(12) + ": " + $peer.LatestHandshake) -ForegroundColor DarkCyan
+        Write-UiHost ("  " + (Get-WinWGText $script:Language "Transfer").PadRight(12) + ": " + $peer.Transfer) -ForegroundColor DarkCyan
+        Write-UiHost ("  " + (Get-WinWGText $script:Language "Speed").PadRight(12) + ": " + $speedText) -ForegroundColor Green
+        Write-UiHost ("  " + (Get-WinWGText $script:Language "PublicKey").PadRight(12) + ": " + $peer.PublicKey.Substring(0, 12) + "...") -ForegroundColor DarkGray
 
         $script:PeerTrafficSamples[$peer.PublicKey] = [pscustomobject]@{
             Timestamp = $now
@@ -427,21 +427,21 @@ function Generate-DeviceQrFromConsole([string]$BaseDir, [string]$ClientName = ""
 
     if ([string]::IsNullOrWhiteSpace($ClientName)) {
         Write-UiHost ""
-        Write-UiHost "Generer un QR code WireGuard" -ForegroundColor Cyan
+        Write-UiHost (Get-WinWGText $script:Language "GenerateQrTitle") -ForegroundColor Cyan
         Write-UiHost "----------------------------" -ForegroundColor DarkGray
 
         if ($clients.Length -eq 0) {
             throw "Aucune configuration .conf trouvee dans $clientDir"
         } elseif ($clients.Length -eq 1) {
             $ClientName = $clients[0].BaseName
-            Write-UiHost "Un seul appareil detecte : $ClientName" -ForegroundColor Yellow
+            Write-UiHost ((Get-WinWGText $script:Language "SingleDeviceDetected") + " : $ClientName") -ForegroundColor Yellow
         } else {
-            Write-UiHost "0 - Annuler"
+            Write-UiHost ("0 - " + (Get-WinWGText $script:Language "Cancel"))
             for ($i = 0; $i -lt $clients.Length; $i++) {
                 Write-UiHost ("{0} - {1}" -f ($i + 1), $clients[$i].BaseName)
             }
             Write-UiHost ""
-            $choice = (Read-UiHost "Tape le numero de l'appareil, ou son nom exact").Trim()
+            $choice = (Read-UiHost (Get-WinWGText $script:Language "TypeNumberOrExactName")).Trim()
             if ($choice -eq '0' -or [string]::IsNullOrWhiteSpace($choice)) { return "Generation QR annulee." }
             if ($choice -match '^\d+$' -and [int]$choice -ge 1 -and [int]$choice -le $clients.Length) {
                 $ClientName = $clients[[int]$choice - 1].BaseName
@@ -452,7 +452,7 @@ function Generate-DeviceQrFromConsole([string]$BaseDir, [string]$ClientName = ""
     }
 
     Write-Ultra "Generation QR: ClientName=$ClientName Script=$scriptPath"
-    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -ClientName $ClientName -BaseDir $BaseDir -Open 2>&1
+    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -ClientName $ClientName -BaseDir $BaseDir -Language $script:Language -Open 2>&1
     $code = $LASTEXITCODE
     $outputText = ($output | Out-String).Trim()
     if (-not [string]::IsNullOrWhiteSpace($outputText)) {
@@ -461,7 +461,7 @@ function Generate-DeviceQrFromConsole([string]$BaseDir, [string]$ClientName = ""
     }
     if ($code -ne 0) { throw "Echec de generation du QR code pour '$ClientName'." }
 
-    return "QR code genere pour : $ClientName"
+    return ((Get-WinWGText $script:Language "QrGeneratedFor") + " : $ClientName")
 }
 
 
@@ -484,24 +484,24 @@ function Add-DeviceFromConsole([string]$TunnelName, [int]$ListenPort, [string]$B
     if (-not (Test-Path $scriptPath)) { throw "Script d'ajout introuvable : $scriptPath" }
 
     Write-UiHost ""
-    Write-UiHost "Ajouter un appareil" -ForegroundColor Cyan
+    Write-UiHost (Get-WinWGText $script:Language "AddDeviceTitle") -ForegroundColor Cyan
     Write-UiHost "-------------------" -ForegroundColor DarkGray
-    $clientName = (Read-UiHost "Nom de l'appareil, ex: iphone, android, laptop").Trim()
+    $clientName = (Read-UiHost (Get-WinWGText $script:Language "DeviceNamePrompt")).Trim()
     if ([string]::IsNullOrWhiteSpace($clientName)) { throw "Nom d'appareil vide." }
 
     $defaultEndpoint = Get-DefaultEndpoint -ListenPort $ListenPort -BaseDir $BaseDir
-    $endpointInput = (Read-UiHost "Endpoint public ou DNS [$defaultEndpoint]").Trim()
+    $endpointInput = (Read-UiHost ((Get-WinWGText $script:Language "EndpointPrompt") + " [$defaultEndpoint]")).Trim()
     $endpoint = if ([string]::IsNullOrWhiteSpace($endpointInput)) { $defaultEndpoint } else { $endpointInput }
 
     $defaultDns = Get-DefaultClientDns -BaseDir $BaseDir
-    $dnsInput = (Read-UiHost "DNS pour cet appareil [$defaultDns] - laisse vide pour garder cette valeur").Trim()
+    $dnsInput = (Read-UiHost ((Get-WinWGText $script:Language "DnsPrompt") + " [$defaultDns] - " + (Get-WinWGText $script:Language "KeepDefault"))).Trim()
     $clientDns = if ([string]::IsNullOrWhiteSpace($dnsInput)) { $defaultDns } else { $dnsInput }
 
     $clientNumber = Get-NextClientNumber -TunnelName $TunnelName -BaseDir $BaseDir
-    Write-UiHost "IP VPN attribuee automatiquement : 10.66.66.$clientNumber" -ForegroundColor DarkCyan
+    Write-UiHost ((Get-WinWGText $script:Language "AssignedVpnIp") + " : 10.66.66.$clientNumber") -ForegroundColor DarkCyan
     Write-Ultra "Ajout appareil: ClientName=$clientName Endpoint=$endpoint Dns=$clientDns ClientNumber=$clientNumber ListenPort=$ListenPort TunnelName=$TunnelName Script=$scriptPath"
 
-    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -ClientName $clientName -Endpoint $endpoint -ClientNumber $clientNumber -ListenPort $ListenPort -Dns $clientDns -TunnelName $TunnelName 2>&1
+    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -ClientName $clientName -Endpoint $endpoint -ClientNumber $clientNumber -ListenPort $ListenPort -Dns $clientDns -TunnelName $TunnelName -Language $script:Language 2>&1
     $code = $LASTEXITCODE
     Write-Ultra "Code retour script ajout: $code"
     $outputText = ($output | Out-String).Trim()
@@ -531,10 +531,10 @@ function Add-DeviceFromConsole([string]$TunnelName, [int]$ListenPort, [string]$B
     }
 
     if ($code -ne 0 -and $added) {
-        return "Appareil ajoute : $clientName. Note : le script a retourne une erreur apres creation, probablement pendant le rechargement du service. Fichier .conf genere dans $clientDir. Si besoin, utilise 3 pour redemarrer le serveur VPN.$qrMessage"
+        return ((Get-WinWGText $script:Language "DeviceAddedFinal") + " : $clientName. Note: script returned an error after creation, probably while reloading the service. " + (Get-WinWGText $script:Language "ConfGeneratedIn") + " $clientDir. $qrMessage")
     }
 
-    return "Appareil ajoute : $clientName. Fichier .conf genere dans $clientDir.$qrMessage"
+    return ((Get-WinWGText $script:Language "DeviceAddedFinal") + " : $clientName. " + (Get-WinWGText $script:Language "ConfGeneratedIn") + " $clientDir.$qrMessage")
 }
 
 function Remove-DeviceFromConsole([string]$TunnelName, [string]$BaseDir) {
@@ -548,20 +548,20 @@ function Remove-DeviceFromConsole([string]$TunnelName, [string]$BaseDir) {
     if (Test-Path $clientDir) { $clients = @(Get-ChildItem $clientDir -Filter "*.conf" -ErrorAction SilentlyContinue) }
 
     Write-UiHost ""
-    Write-UiHost "Supprimer un appareil" -ForegroundColor Cyan
+    Write-UiHost (Get-WinWGText $script:Language "RemoveDeviceTitle") -ForegroundColor Cyan
     Write-UiHost "---------------------" -ForegroundColor DarkGray
     if ($clients.Length -eq 1) {
         $clientName = $clients[0].BaseName
         Write-UiHost "1 - $clientName" -ForegroundColor DarkCyan
         Write-UiHost ""
-        Write-UiHost "Un seul appareil est configure. Selection automatique : $clientName" -ForegroundColor Yellow
+        Write-UiHost ((Get-WinWGText $script:Language "SingleDeviceAuto") + " : $clientName") -ForegroundColor Yellow
     } elseif ($clients.Length -gt 1) {
-        Write-UiHost "0 - Annuler"
+        Write-UiHost ("0 - " + (Get-WinWGText $script:Language "Cancel"))
         for ($i = 0; $i -lt $clients.Length; $i++) {
             Write-UiHost ("{0} - {1}" -f ($i + 1), $clients[$i].BaseName)
         }
         Write-UiHost ""
-        $choice = (Read-UiHost "Tape le numero de l'appareil a supprimer, ou son nom exact").Trim()
+        $choice = (Read-UiHost (Get-WinWGText $script:Language "TypeNumberOrExactNameRemove")).Trim()
         if ($choice -eq '0') { return "Suppression annulee." }
         if ($choice -match '^\d+$' -and [int]$choice -ge 1 -and [int]$choice -le $clients.Length) {
             $clientName = $clients[[int]$choice - 1].BaseName
@@ -575,11 +575,11 @@ function Remove-DeviceFromConsole([string]$TunnelName, [string]$BaseDir) {
     }
 
     if ([string]::IsNullOrWhiteSpace($clientName)) { return "Suppression annulee." }
-    $confirm = (Read-UiHost "Confirmer la suppression de '$clientName' ? Tape O pour confirmer [o/N]").Trim().ToLowerInvariant()
+    $confirm = (Read-UiHost ((Get-WinWGText $script:Language "ConfirmRemove") + " '$clientName' ? " + (Get-WinWGText $script:Language "TypeOConfirm") + " [o/N]")).Trim().ToLowerInvariant()
     if ($confirm -notin @('o','oui','y','yes')) { return "Suppression annulee." }
 
     Write-Ultra "Suppression appareil: ClientName=$clientName TunnelName=$TunnelName Script=$scriptPath"
-    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -ClientName $clientName -TunnelName $TunnelName 2>&1
+    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -ClientName $clientName -TunnelName $TunnelName -Language $script:Language 2>&1
     $code = $LASTEXITCODE
     Write-Ultra "Code retour script suppression: $code"
     $outputText = ($output | Out-String).Trim()
@@ -595,10 +595,10 @@ function Remove-DeviceFromConsole([string]$TunnelName, [string]$BaseDir) {
     }
 
     if ($code -ne 0 -and $removed) {
-        return "Appareil supprime : $clientName. Note : le script a retourne une erreur apres suppression, probablement pendant le rechargement du service. Si besoin, utilise 3 pour redemarrer le serveur VPN."
+        return ((Get-WinWGText $script:Language "ClientRemoved") + " : $clientName. Note: script returned an error after removal, probably while reloading the service. If needed, use 3 to restart the VPN server.")
     }
 
-    return "Appareil supprime : $clientName"
+    return ((Get-WinWGText $script:Language "ClientRemoved") + " : $clientName")
 }
 
 
@@ -612,27 +612,28 @@ function Redact-WinWGSecrets([string]$Text) {
 
 function Enable-AdvancedModeWithWarning {
     Clear-Host
-    Write-UiHost "WinWG OneClick Server - Mode avance" -ForegroundColor Yellow
+    Write-UiHost (Get-WinWGText $script:Language "AdvancedWarningTitle") -ForegroundColor Yellow
     Write-UiHost "====================================" -ForegroundColor DarkGray
     Write-UiHost ""
-    Write-UiHost "ATTENTION" -ForegroundColor Red
-    Write-UiHost "Le mode avance est destine aux personnes qui connaissent deja WireGuard." -ForegroundColor Yellow
-    Write-UiHost "Il peut donner acces a des actions et fichiers sensibles." -ForegroundColor Yellow
+    Write-UiHost (Get-WinWGText $script:Language "Warning") -ForegroundColor Red
+    Write-UiHost (Get-WinWGText $script:Language "AdvancedWarningIntro1") -ForegroundColor Yellow
+    Write-UiHost (Get-WinWGText $script:Language "AdvancedWarningIntro2") -ForegroundColor Yellow
     Write-UiHost ""
-    Write-UiHost "Risques possibles :" -ForegroundColor Yellow
-    Write-UiHost "- casser la configuration serveur ;"
-    Write-UiHost "- exposer une cle privee si tu partages une capture ou un fichier ;"
-    Write-UiHost "- couper l'acces VPN a tes appareils ;"
-    Write-UiHost "- rendre le serveur inaccessible depuis l'exterieur."
+    Write-UiHost (Get-WinWGText $script:Language "PossibleRisks") -ForegroundColor Yellow
+    Write-UiHost (Get-WinWGText $script:Language "RiskBreakConfig")
+    Write-UiHost (Get-WinWGText $script:Language "RiskExposeKey")
+    Write-UiHost (Get-WinWGText $script:Language "RiskCutAccess")
+    Write-UiHost (Get-WinWGText $script:Language "RiskUnreachable")
     Write-UiHost ""
-    Write-UiHost "Ne partage jamais les fichiers .conf, les QR codes, les cles privees ou les logs non relus." -ForegroundColor Red
+    Write-UiHost (Get-WinWGText $script:Language "NeverShareSecrets") -ForegroundColor Red
     Write-UiHost ""
-    $confirm = (Read-UiHost "Pour activer, tape exactement JE COMPRENDS").Trim()
-    if ($confirm -eq "JE COMPRENDS") {
+    $expectedPhrase = Get-WinWGText $script:Language "AdvancedConfirmPhrase"
+    $confirm = (Read-UiHost (Get-WinWGText $script:Language "AdvancedEnablePrompt")).Trim()
+    if ($confirm -eq $expectedPhrase) {
         $script:AdvancedModeEnabled = $true
-        return "Mode avance active. Sois prudent."
+        return (Get-WinWGText $script:Language "AdvancedEnabled")
     }
-    return "Mode avance non active."
+    return (Get-WinWGText $script:Language "AdvancedNotEnabled")
 }
 
 function Export-AdvancedDiagnostic([string]$TunnelName, [string]$BaseDir, [int]$ListenPort) {
@@ -687,16 +688,16 @@ function Select-ClientConfigName([string]$BaseDir, [string]$Title = "Selection a
 
     if ($clients.Length -eq 1) {
         Write-UiHost "1 - $($clients[0].BaseName)" -ForegroundColor DarkCyan
-        Write-UiHost "Un seul appareil detecte : $($clients[0].BaseName)" -ForegroundColor Yellow
+        Write-UiHost ((Get-WinWGText $script:Language "SingleDeviceDetected") + " : $($clients[0].BaseName)") -ForegroundColor Yellow
         return $clients[0].BaseName
     }
 
-    Write-UiHost "0 - Annuler"
+    Write-UiHost ("0 - " + (Get-WinWGText $script:Language "Cancel"))
     for ($i = 0; $i -lt $clients.Length; $i++) {
         Write-UiHost ("{0} - {1}" -f ($i + 1), $clients[$i].BaseName)
     }
     Write-UiHost ""
-    $choice = (Read-UiHost "Tape le numero de l'appareil, ou son nom exact").Trim()
+    $choice = (Read-UiHost (Get-WinWGText $script:Language "TypeNumberOrExactName")).Trim()
     if ($choice -eq '0' -or [string]::IsNullOrWhiteSpace($choice)) { return $null }
     if ($choice -match '^\d+$' -and [int]$choice -ge 1 -and [int]$choice -le $clients.Length) {
         return $clients[[int]$choice - 1].BaseName
@@ -742,7 +743,7 @@ function Edit-ClientAllowedIPsAdvanced([string]$BaseDir) {
     Write-UiHost "2 - VPN uniquement : 10.66.66.0/24"
     Write-UiHost "3 - VPN + LAN maison : 10.66.66.0/24, 192.168.1.0/24"
     Write-UiHost "4 - Valeur personnalisee"
-    Write-UiHost "0 - Annuler"
+    Write-UiHost ("0 - " + (Get-WinWGText $script:Language "Cancel"))
     Write-UiHost ""
     $choice = (Read-UiHost "Choix").Trim()
 
@@ -1021,7 +1022,7 @@ function Get-AllowedIPsPresetFromMenu([string]$BaseDir) {
     Write-UiHost "2 - VPN uniquement : 10.66.66.0/24"
     Write-UiHost "3 - VPN + LAN maison : 10.66.66.0/24, 192.168.1.0/24"
     Write-UiHost "4 - Valeur personnalisee"
-    Write-UiHost "0 - Annuler"
+    Write-UiHost ("0 - " + (Get-WinWGText $script:Language "Cancel"))
     $choice = (Read-UiHost "Choix").Trim()
     switch ($choice) {
         '1' { return "0.0.0.0/0" }
@@ -1078,7 +1079,7 @@ function Show-AdvancedDefaultConfigEditor([string]$TunnelName, [string]$BaseDir,
         Write-UiHost "5 - Changer le DNS d'UN client"
         Write-UiHost "6 - Changer AllowedIPs d'UN client"
         Write-UiHost "7 - Changer PersistentKeepalive d'UN client"
-        Write-UiHost "Q - Retour"
+        Write-UiHost ("Q - " + (Get-WinWGText $script:Language "Back"))
         Write-UiHost ""
         $choice = (Read-UiHost (Get-WinWGText $script:Language "Choice")).Trim().ToLowerInvariant()
         switch ($choice) {
@@ -1149,19 +1150,19 @@ function Show-AdvancedMenu([string]$TunnelName, [string]$BaseDir, [int]$ListenPo
 
     while ($true) {
         Clear-Host
-        Write-UiHost "WinWG OneClick Server - Outils avances" -ForegroundColor Yellow
+        Write-UiHost (Get-WinWGText $script:Language "AdvancedToolsTitle") -ForegroundColor Yellow
         Write-UiHost "======================================" -ForegroundColor DarkGray
-        Write-UiHost "Mode avance actif - attention aux cles et fichiers .conf" -ForegroundColor Red
+        Write-UiHost (Get-WinWGText $script:Language "AdvancedToolsActive") -ForegroundColor Red
         Write-UiHost ""
-        Write-UiHost "1 - Afficher wg show brut"
-        Write-UiHost "2 - Ouvrir le dossier serveur"
-        Write-UiHost "3 - Ouvrir le dossier clients"
-        Write-UiHost "4 - Ouvrir le dossier QR codes"
-        Write-UiHost "5 - Exporter un diagnostic redige"
-        Write-UiHost "6 - Modifier configuration avancee (port, DNS, AllowedIPs)"
-        Write-UiHost "7 - Ouvrir wg-phone-server.conf dans Notepad (contient la cle privee)"
-        Write-UiHost "8 - Desactiver le mode avance"
-        Write-UiHost "Q - Retour"
+        Write-UiHost ("1 - " + (Get-WinWGText $script:Language "AdvRawWgShow"))
+        Write-UiHost ("2 - " + (Get-WinWGText $script:Language "AdvOpenServerFolder"))
+        Write-UiHost ("3 - " + (Get-WinWGText $script:Language "AdvOpenClientsFolder"))
+        Write-UiHost ("4 - " + (Get-WinWGText $script:Language "AdvOpenQrFolder"))
+        Write-UiHost ("5 - " + (Get-WinWGText $script:Language "AdvExportDiagnostic"))
+        Write-UiHost ("6 - " + (Get-WinWGText $script:Language "AdvEditConfig"))
+        Write-UiHost ("7 - " + (Get-WinWGText $script:Language "AdvOpenServerConf"))
+        Write-UiHost ("8 - " + (Get-WinWGText $script:Language "AdvDisable"))
+        Write-UiHost ("Q - " + (Get-WinWGText $script:Language "Back"))
         Write-UiHost ""
         $choice = (Read-UiHost (Get-WinWGText $script:Language "Choice")).Trim().ToLowerInvariant()
         $serverConfig = Get-ServerConfigPath -TunnelName $TunnelName -BaseDir $BaseDir
@@ -1216,8 +1217,8 @@ function Show-Status([string]$LastMessage = "") {
     Write-UiHost (Get-WinWGText $script:Language "ConsoleTitle") -ForegroundColor Green
     Write-UiHost (Get-WinWGText $script:Language "ConsoleSubtitle") -ForegroundColor DarkGray
     Write-UiHost (Get-WinWGText $script:Language "MenuNoAutoRefresh") -ForegroundColor Cyan
-    $verboseText = if ($script:UltraVerboseMode) { "active" } else { "desactive" }
-    $advancedText = if ($script:AdvancedModeEnabled) { "active" } else { "desactive" }
+    $verboseText = if ($script:UltraVerboseMode) { Get-WinWGText $script:Language "Enabled" } else { Get-WinWGText $script:Language "Disabled" }
+    $advancedText = if ($script:AdvancedModeEnabled) { Get-WinWGText $script:Language "Enabled" } else { Get-WinWGText $script:Language "Disabled" }
     $advancedColor = if ($script:AdvancedModeEnabled) { [ConsoleColor]::Red } else { [ConsoleColor]::DarkRed }
     Write-UiHost ((Get-WinWGText $script:Language "VerboseMode") + ": $verboseText") -ForegroundColor DarkYellow
     Write-UiHost ((Get-WinWGText $script:Language "AdvancedMode") + ": $advancedText") -ForegroundColor $advancedColor
@@ -1234,13 +1235,13 @@ function Show-Status([string]$LastMessage = "") {
     $installed = Test-ProjectInstalled -TunnelName $TunnelName -BaseDir $BaseDir
     $svc = Get-ServiceState -TunnelName $TunnelName
 
-    if ($installed) { Write-Line (Get-WinWGText $script:Language "Installation") "presente" Green } else { Write-Line (Get-WinWGText $script:Language "Installation") "absente / desinstallee" Yellow }
+    if ($installed) { Write-Line (Get-WinWGText $script:Language "Installation") (Get-WinWGText $script:Language "Present") Green } else { Write-Line (Get-WinWGText $script:Language "Installation") (Get-WinWGText $script:Language "AbsentUninstalled") Yellow }
     if ($svc) {
         $color = if ($svc.Status -eq 'Running') { [ConsoleColor]::Green } else { [ConsoleColor]::Yellow }
         Write-Line (Get-WinWGText $script:Language "Service") "$($svc.Name) - $($svc.Status)" $color
         if (-not $installed) { Write-Line "Attention" "service residuel sans configuration" Yellow }
     } else {
-        Write-Line (Get-WinWGText $script:Language "Service") "introuvable / desactive" Yellow
+        Write-Line (Get-WinWGText $script:Language "Service") (Get-WinWGText $script:Language "NotInstalledDisabled") Yellow
     }
 
     Write-Line (Get-WinWGText $script:Language "Tunnel") $TunnelName Cyan
@@ -1249,20 +1250,20 @@ function Show-Status([string]$LastMessage = "") {
     Write-Line (Get-WinWGText $script:Language "ServerConfig") $serverConfig Cyan
 
     $fw = @(Get-NetFirewallRule -DisplayName "WireGuard Server UDP $ListenPort" -ErrorAction SilentlyContinue)
-    if ($fw.Length -gt 0) { Write-Line (Get-WinWGText $script:Language "Firewall") "regle presente" Green } else { Write-Line (Get-WinWGText $script:Language "Firewall") "regle manquante" Red }
+    if ($fw.Length -gt 0) { Write-Line (Get-WinWGText $script:Language "Firewall") (Get-WinWGText $script:Language "FirewallPresent") Green } else { Write-Line (Get-WinWGText $script:Language "Firewall") (Get-WinWGText $script:Language "FirewallMissing") Red }
 
     $nat = Get-NetNat -Name "WireGuardPhoneServerNAT" -ErrorAction SilentlyContinue
-    if ($nat) { Write-Line (Get-WinWGText $script:Language "Nat") "$($nat.InternalIPInterfaceAddressPrefix)" Green } else { Write-Line (Get-WinWGText $script:Language "Nat") "manquant" Yellow }
+    if ($nat) { Write-Line (Get-WinWGText $script:Language "Nat") "$($nat.InternalIPInterfaceAddressPrefix)" Green } else { Write-Line (Get-WinWGText $script:Language "Nat") (Get-WinWGText $script:Language "Missing") Yellow }
 
     $udp = @(Get-NetUDPEndpoint -LocalPort $ListenPort -ErrorAction SilentlyContinue)
-    if ($udp.Length -gt 0) { Write-Line (Get-WinWGText $script:Language "UdpEndpoint") "present" Green } else { Write-Line (Get-WinWGText $script:Language "UdpEndpoint") "non visible / normal selon driver" Yellow }
+    if ($udp.Length -gt 0) { Write-Line (Get-WinWGText $script:Language "UdpEndpoint") (Get-WinWGText $script:Language "UdpPresent") Green } else { Write-Line (Get-WinWGText $script:Language "UdpEndpoint") (Get-WinWGText $script:Language "UdpNotVisible") Yellow }
 
     if (Test-Path $clientDir) {
         $clients = @(Get-ChildItem $clientDir -Filter "*.conf" -ErrorAction SilentlyContinue)
-        Write-Line (Get-WinWGText $script:Language "PhoneConfigs") "$($clients.Length) fichier(s)" Cyan
+        Write-Line (Get-WinWGText $script:Language "PhoneConfigs") ("$($clients.Length) " + (Get-WinWGText $script:Language "FileCount")) Cyan
         foreach ($c in $clients) { Write-UiHost "  - $($c.FullName)" -ForegroundColor DarkCyan }
     } else {
-        Write-Line (Get-WinWGText $script:Language "PhoneConfigs") "dossier introuvable" Yellow
+        Write-Line (Get-WinWGText $script:Language "PhoneConfigs") (Get-WinWGText $script:Language "FolderMissing") Yellow
     }
 
     Write-UiHost ""
@@ -1273,12 +1274,12 @@ function Show-Status([string]$LastMessage = "") {
         } else {
             Write-PeerDashboard -WgShowText $show -ServerConfigPath $serverConfig
             Write-UiHost ""
-            Write-UiHost "Details WireGuard bruts" -ForegroundColor Cyan
+            Write-UiHost (Get-WinWGText $script:Language "RawWireGuardDetails") -ForegroundColor Cyan
             Write-UiHost "-----------------------" -ForegroundColor DarkGray
             Write-UiHost $show
         }
     } else {
-        Write-UiHost "WireGuard n'est pas actif, aucun handshake a afficher." -ForegroundColor Yellow
+        Write-UiHost (Get-WinWGText $script:Language "NoActiveTunnel") -ForegroundColor Yellow
     }
 
     Write-UiHost ""
@@ -1312,7 +1313,7 @@ function Pause-ConsoleAction([string]$Message) {
         Write-UiHost $Message -ForegroundColor Yellow
     }
     Write-UiHost ""
-    [void](Read-UiHost "Appuie sur Entree pour revenir au menu")
+    [void](Read-UiHost (Get-WinWGText $script:Language "PressEnterReturn"))
 }
 
 try {
@@ -1329,48 +1330,48 @@ try {
         $choice = (Read-UiHost (Get-WinWGText $script:Language "Choice")).Trim().ToLowerInvariant()
         switch ($choice) {
             { $_ -in @('1','a') } {
-                try { $lastMessage = Enable-Tunnel -TunnelName $TunnelName -BaseDir $BaseDir } catch { $lastMessage = "ERREUR activation : $($_.Exception.Message)" }
+                try { $lastMessage = Enable-Tunnel -TunnelName $TunnelName -BaseDir $BaseDir } catch { $lastMessage = ((Get-WinWGText $script:Language "ErrorActivation") + " : $($_.Exception.Message)") }
                 Pause-ConsoleAction $lastMessage
                 $lastMessage = ""
             }
             { $_ -in @('2','d') } {
-                try { $lastMessage = Disable-Tunnel -TunnelName $TunnelName } catch { $lastMessage = "ERREUR desactivation : $($_.Exception.Message)" }
+                try { $lastMessage = Disable-Tunnel -TunnelName $TunnelName } catch { $lastMessage = ((Get-WinWGText $script:Language "ErrorDeactivation") + " : $($_.Exception.Message)") }
                 Pause-ConsoleAction $lastMessage
                 $lastMessage = ""
             }
             { $_ -in @('3') } {
-                try { $lastMessage = Restart-Tunnel -TunnelName $TunnelName -BaseDir $BaseDir } catch { $lastMessage = "ERREUR redemarrage : $($_.Exception.Message)" }
+                try { $lastMessage = Restart-Tunnel -TunnelName $TunnelName -BaseDir $BaseDir } catch { $lastMessage = ((Get-WinWGText $script:Language "ErrorRestart") + " : $($_.Exception.Message)") }
                 Pause-ConsoleAction $lastMessage
                 $lastMessage = ""
             }
             { $_ -in @('4','n') } {
-                try { $lastMessage = Add-DeviceFromConsole -TunnelName $TunnelName -ListenPort $ListenPort -BaseDir $BaseDir } catch { $lastMessage = "ERREUR ajout appareil : $($_.Exception.Message)" }
+                try { $lastMessage = Add-DeviceFromConsole -TunnelName $TunnelName -ListenPort $ListenPort -BaseDir $BaseDir } catch { $lastMessage = ((Get-WinWGText $script:Language "ErrorAddDevice") + " : $($_.Exception.Message)") }
                 Pause-ConsoleAction $lastMessage
                 $lastMessage = ""
             }
             { $_ -in @('5','r','x') } {
-                try { $lastMessage = Remove-DeviceFromConsole -TunnelName $TunnelName -BaseDir $BaseDir } catch { $lastMessage = "ERREUR suppression appareil : $($_.Exception.Message)" }
+                try { $lastMessage = Remove-DeviceFromConsole -TunnelName $TunnelName -BaseDir $BaseDir } catch { $lastMessage = ((Get-WinWGText $script:Language "ErrorRemoveDevice") + " : $($_.Exception.Message)") }
                 Pause-ConsoleAction $lastMessage
                 $lastMessage = ""
             }
             { $_ -in @('6','g') } {
                 if (Test-QrFeatureEnabled -BaseDir $BaseDir) {
-                    try { $lastMessage = Generate-DeviceQrFromConsole -BaseDir $BaseDir } catch { $lastMessage = "ERREUR QR code : $($_.Exception.Message)" }
+                    try { $lastMessage = Generate-DeviceQrFromConsole -BaseDir $BaseDir } catch { $lastMessage = ((Get-WinWGText $script:Language "ErrorQr") + " : $($_.Exception.Message)") }
                     Pause-ConsoleAction $lastMessage
                     $lastMessage = ""
                 } else {
-                    $lastMessage = "Option QR desactivee. Elle n'apparait pas dans le menu car la dependance QR n'a pas ete installee/activee."
+                    $lastMessage = Get-WinWGText $script:Language "QrDisabled"
                 }
             }
-            's' { $lastMessage = "Statut rafraichi." }
+            's' { $lastMessage = Get-WinWGText $script:Language "StatusRefreshed" }
             'v' {
                 $script:UltraVerboseMode = -not $script:UltraVerboseMode
-                $state = if ($script:UltraVerboseMode) { "active" } else { "desactive" }
-                $lastMessage = "Mode ultra verbeux $state. Log: $script:LogFilePath"
+                $state = if ($script:UltraVerboseMode) { Get-WinWGText $script:Language "Enabled" } else { Get-WinWGText $script:Language "Disabled" }
+                $lastMessage = ((Get-WinWGText $script:Language "VerboseMode") + " $state. Log: $script:LogFilePath")
                 Write-Log $lastMessage
             }
             'm' {
-                try { $lastMessage = Show-AdvancedMenu -TunnelName $TunnelName -BaseDir $BaseDir -ListenPort $ListenPort } catch { $lastMessage = "ERREUR mode avance : $($_.Exception.Message)" }
+                try { $lastMessage = Show-AdvancedMenu -TunnelName $TunnelName -BaseDir $BaseDir -ListenPort $ListenPort } catch { $lastMessage = ((Get-WinWGText $script:Language "ErrorAdvanced") + " : $($_.Exception.Message)") }
             }
             'l' {
                 if (Get-Command Select-WinWGLanguage -ErrorAction SilentlyContinue) {
@@ -1381,7 +1382,7 @@ try {
                 }
             }
             'q' { return }
-            default { $lastMessage = "Choix invalide. Utilise 1/2/3/4/5/6, A/D/N/R/G, S, V, M, L ou Q." }
+            default { $lastMessage = Get-WinWGText $script:Language "InvalidChoiceMain" }
         }
     }
 } catch {

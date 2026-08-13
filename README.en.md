@@ -559,13 +559,15 @@ The console asks whether the device should be temporary. If yes, you can choose 
 5 - custom duration in hours
 ```
 
-WinWG then creates a metadata file:
+WinWG now creates a metadata file for every device. For a temporary device, this file also contains the expiration date:
 
 ```text
 C:\ProgramData\WinWGOneClickServer\devices\NAME.meta.json
 ```
 
-The console displays the expiration in the peer list.
+For a permanent device, the same `.meta.json` file is created with `temporary = false` and no expiration.
+
+The console displays the expiration in the peer list only for temporary devices.
 
 To remove expired temporary devices:
 

@@ -576,13 +576,15 @@ La console demande si l'appareil doit être temporaire. Si oui, tu peux choisir 
 5 - durée personnalisée en heures
 ```
 
-WinWG crée alors un fichier de métadonnées :
+WinWG crée maintenant un fichier de métadonnées pour chaque appareil. Pour un appareil temporaire, ce fichier contient aussi la date d'expiration :
 
 ```text
 C:\ProgramData\WinWGOneClickServer\devices\NOM.meta.json
 ```
 
-La console affiche l'expiration dans la liste des peers.
+Pour un appareil permanent, le même fichier `.meta.json` est créé avec `temporary = false` et sans expiration.
+
+La console affiche l'expiration dans la liste des peers uniquement pour les appareils temporaires.
 
 Pour supprimer les appareils temporaires expirés :
 

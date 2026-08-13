@@ -606,18 +606,19 @@ function Get-DeviceMetadata([string]$BaseDir, [string]$DeviceName) {
     try { return (Get-Content $path -Raw | ConvertFrom-Json) } catch { return $null }
 }
 
-function Save-TemporaryDeviceMetadata([string]$BaseDir, [string]$DeviceName, [string]$VpnIp, [datetime]$ExpiresAt) {
+function Save-DeviceMetadata([string]$BaseDir, [string]$DeviceName, [string]$VpnIp, [AllowNull()][Nullable[datetime]]$ExpiresAt) {
     $path = Get-DeviceMetadataPath -BaseDir $BaseDir -DeviceName $DeviceName
-    $metadata = [pscustomobject]@{
+    $isTemporary = ($null -ne $ExpiresAt)
+    $metadata = [ordered]@{
         name = $DeviceName
-        type = 'temporary'
-        temporary = $true
+        type = if ($isTemporary) { 'temporary' } else { 'permanent' }
+        temporary = $isTemporary
         createdAt = (Get-Date).ToUniversalTime().ToString('o')
-        expiresAt = $ExpiresAt.ToUniversalTime().ToString('o')
+        expiresAt = if ($isTemporary) { $ExpiresAt.Value.ToUniversalTime().ToString('o') } else { $null }
         vpnIp = $VpnIp
         configPath = (Join-Path $BaseDir "devices\$DeviceName.conf")
     }
-    $metadata | ConvertTo-Json -Depth 5 | Set-Content -Path $path -Encoding UTF8
+    [pscustomobject]$metadata | ConvertTo-Json -Depth 5 | Set-Content -Path $path -Encoding UTF8
     return $path
 }
 
@@ -732,9 +733,11 @@ function Add-DeviceFromConsole([string]$TunnelName, [int]$ListenPort, [string]$B
     }
 
     $deviceDir = Join-Path $BaseDir "devices"
+    $metaPath = Save-DeviceMetadata -BaseDir $BaseDir -DeviceName $deviceName -VpnIp "10.66.66.$deviceNumber" -ExpiresAt $expiresAt
     if ($expiresAt) {
-        $metaPath = Save-TemporaryDeviceMetadata -BaseDir $BaseDir -DeviceName $deviceName -VpnIp "10.66.66.$deviceNumber" -ExpiresAt $expiresAt
         Write-UiHost ((Get-WinWGText $script:Language "TemporaryMetadataCreated") + " : $metaPath") -ForegroundColor Yellow
+    } else {
+        Write-UiHost ((Get-WinWGText $script:Language "DeviceMetadataCreated") + " : $metaPath") -ForegroundColor DarkCyan
     }
     if (Test-Path $deviceDir) { Start-Process explorer.exe $deviceDir }
 

@@ -1078,7 +1078,7 @@ function Show-AdvancedDefaultConfigEditor([string]$TunnelName, [string]$BaseDir,
         Write-UiHost "5 - Changer le DNS d'UN client"
         Write-UiHost "6 - Changer AllowedIPs d'UN client"
         Write-UiHost "7 - Changer PersistentKeepalive d'UN client"
-        Write-UiHost "Q - Retour"
+        Write-UiHost ("Q - " + (Get-WinWGText $script:Language "Back"))
         Write-UiHost ""
         $choice = (Read-UiHost (Get-WinWGText $script:Language "Choice")).Trim().ToLowerInvariant()
         switch ($choice) {
@@ -1149,19 +1149,19 @@ function Show-AdvancedMenu([string]$TunnelName, [string]$BaseDir, [int]$ListenPo
 
     while ($true) {
         Clear-Host
-        Write-UiHost "WinWG OneClick Server - Outils avances" -ForegroundColor Yellow
+        Write-UiHost (Get-WinWGText $script:Language "AdvancedToolsTitle") -ForegroundColor Yellow
         Write-UiHost "======================================" -ForegroundColor DarkGray
-        Write-UiHost "Mode avance actif - attention aux cles et fichiers .conf" -ForegroundColor Red
+        Write-UiHost (Get-WinWGText $script:Language "AdvancedToolsActive") -ForegroundColor Red
         Write-UiHost ""
-        Write-UiHost "1 - Afficher wg show brut"
-        Write-UiHost "2 - Ouvrir le dossier serveur"
-        Write-UiHost "3 - Ouvrir le dossier clients"
-        Write-UiHost "4 - Ouvrir le dossier QR codes"
-        Write-UiHost "5 - Exporter un diagnostic redige"
-        Write-UiHost "6 - Modifier configuration avancee (port, DNS, AllowedIPs)"
-        Write-UiHost "7 - Ouvrir wg-phone-server.conf dans Notepad (contient la cle privee)"
-        Write-UiHost "8 - Desactiver le mode avance"
-        Write-UiHost "Q - Retour"
+        Write-UiHost ("1 - " + (Get-WinWGText $script:Language "AdvRawWgShow"))
+        Write-UiHost ("2 - " + (Get-WinWGText $script:Language "AdvOpenServerFolder"))
+        Write-UiHost ("3 - " + (Get-WinWGText $script:Language "AdvOpenClientsFolder"))
+        Write-UiHost ("4 - " + (Get-WinWGText $script:Language "AdvOpenQrFolder"))
+        Write-UiHost ("5 - " + (Get-WinWGText $script:Language "AdvExportDiagnostic"))
+        Write-UiHost ("6 - " + (Get-WinWGText $script:Language "AdvEditConfig"))
+        Write-UiHost ("7 - " + (Get-WinWGText $script:Language "AdvOpenServerConf"))
+        Write-UiHost ("8 - " + (Get-WinWGText $script:Language "AdvDisable"))
+        Write-UiHost ("Q - " + (Get-WinWGText $script:Language "Back"))
         Write-UiHost ""
         $choice = (Read-UiHost (Get-WinWGText $script:Language "Choice")).Trim().ToLowerInvariant()
         $serverConfig = Get-ServerConfigPath -TunnelName $TunnelName -BaseDir $BaseDir

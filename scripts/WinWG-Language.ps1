@@ -128,6 +128,17 @@ function Get-WinWGText([string]$Language, [string]$Key) {
             AdvancedEnablePrompt = 'Pour activer, tape exactement JE COMPRENDS'
             AdvancedEnabled = 'Mode avance active. Sois prudent.'
             AdvancedNotEnabled = 'Mode avance non active.'
+            AdvancedToolsTitle = 'WinWG OneClick Server - Outils avances'
+            AdvancedToolsActive = 'Mode avance actif - attention aux cles et fichiers .conf'
+            AdvRawWgShow = 'Afficher wg show brut'
+            AdvOpenServerFolder = 'Ouvrir le dossier serveur'
+            AdvOpenClientsFolder = 'Ouvrir le dossier clients'
+            AdvOpenQrFolder = 'Ouvrir le dossier QR codes'
+            AdvExportDiagnostic = 'Exporter un diagnostic redige'
+            AdvEditConfig = 'Modifier configuration avancee (port, DNS, AllowedIPs)'
+            AdvOpenServerConf = 'Ouvrir wg-phone-server.conf dans Notepad (contient la cle privee)'
+            AdvDisable = 'Desactiver le mode avance'
+            Back = 'Retour'
         }
         en = @{
             ConsoleTitle = 'WinWG OneClick Server - Unified server console'
@@ -205,6 +216,17 @@ function Get-WinWGText([string]$Language, [string]$Key) {
             AdvancedEnablePrompt = 'To enable, type exactly JE COMPRENDS'
             AdvancedEnabled = 'Advanced mode enabled. Be careful.'
             AdvancedNotEnabled = 'Advanced mode not enabled.'
+            AdvancedToolsTitle = 'WinWG OneClick Server - Advanced tools'
+            AdvancedToolsActive = 'Advanced mode enabled - be careful with keys and .conf files'
+            AdvRawWgShow = 'Show raw wg show output'
+            AdvOpenServerFolder = 'Open server folder'
+            AdvOpenClientsFolder = 'Open clients folder'
+            AdvOpenQrFolder = 'Open QR codes folder'
+            AdvExportDiagnostic = 'Export redacted diagnostic'
+            AdvEditConfig = 'Edit advanced configuration (port, DNS, AllowedIPs)'
+            AdvOpenServerConf = 'Open wg-phone-server.conf in Notepad (contains private key)'
+            AdvDisable = 'Disable advanced mode'
+            Back = 'Back'
         }
     }
     if (-not $texts.ContainsKey($Language)) { $Language = 'en' }

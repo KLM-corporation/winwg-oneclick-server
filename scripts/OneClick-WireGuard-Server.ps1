@@ -28,8 +28,14 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
+$script:InstallLanguage = "en"
 $languageScript = Join-Path $PSScriptRoot "WinWG-Language.ps1"
 if (Test-Path $languageScript) { . $languageScript }
+
+function TInstall([string]$Fr, [string]$En) {
+    if ($script:InstallLanguage -eq "fr") { return $Fr }
+    return $En
+}
 
 function Write-Step([string]$Text) {
     Write-Host ""
@@ -114,11 +120,11 @@ function Ensure-WireGuard {
     $wgExe = Join-Path $env:ProgramFiles "WireGuard\wg.exe"
     $wireguardExe = Join-Path $env:ProgramFiles "WireGuard\wireguard.exe"
     if ((Test-Path $wgExe) -and (Test-Path $wireguardExe)) {
-        Write-Ok "WireGuard est deja installe"
+        Write-Ok (TInstall "WireGuard est deja installe" "WireGuard is already installed")
         return [pscustomobject]@{ WgExe = $wgExe; WireGuardExe = $wireguardExe }
     }
 
-    Write-Step "Installation de WireGuard"
+    Write-Step (TInstall "Installation de WireGuard" "Installing WireGuard")
     $winget = Get-Command winget -ErrorAction SilentlyContinue
     if (-not $winget) {
         Start-Process "https://www.wireguard.com/install/"
@@ -130,7 +136,7 @@ function Ensure-WireGuard {
     if (-not ((Test-Path $wgExe) -and (Test-Path $wireguardExe))) {
         throw "WireGuard n'a pas ete trouve apres installation. Redemarre PowerShell ou installe WireGuard manuellement."
     }
-    Write-Ok "WireGuard installe"
+    Write-Ok (TInstall "WireGuard installe" "WireGuard installed")
     return [pscustomobject]@{ WgExe = $wgExe; WireGuardExe = $wireguardExe }
 }
 
@@ -184,33 +190,33 @@ function New-WgPresharedKey([string]$WgExe) {
 function Ensure-Directory([string]$Path) { if (-not (Test-Path $Path)) { New-Item -ItemType Directory -Path $Path | Out-Null } }
 
 function Enable-IPv4Forwarding {
-    Write-Step "Activation du routage IPv4 Windows"
+    Write-Step (TInstall "Activation du routage IPv4 Windows" "Enabling Windows IPv4 routing")
     Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -Name IPEnableRouter -Value 1
     Get-NetIPInterface -AddressFamily IPv4 | ForEach-Object {
         try { Set-NetIPInterface -InterfaceIndex $_.InterfaceIndex -Forwarding Enabled -ErrorAction Stop } catch {}
     }
-    Write-Ok "Routage IPv4 active"
+    Write-Ok (TInstall "Routage IPv4 active" "IPv4 routing enabled")
 }
 
 function Ensure-Firewall([int]$Port) {
-    Write-Step "Configuration du pare-feu Windows"
+    Write-Step (TInstall "Configuration du pare-feu Windows" "Configuring Windows Firewall")
     $fwName = "WireGuard Server UDP $Port"
     Get-NetFirewallRule -DisplayName $fwName -ErrorAction SilentlyContinue | Remove-NetFirewallRule
     New-NetFirewallRule -DisplayName $fwName -Direction Inbound -Action Allow -Protocol UDP -LocalPort $Port | Out-Null
-    Write-Ok "Port UDP $Port autorise dans le pare-feu"
+    Write-Ok (TInstall "Port UDP $Port autorise dans le pare-feu" "UDP port $Port allowed in firewall")
 }
 
 function Ensure-Nat([string]$Cidr) {
-    Write-Step "Configuration du NAT Windows"
+    Write-Step (TInstall "Configuration du NAT Windows" "Configuring Windows NAT")
     $natName = "WireGuardPhoneServerNAT"
     Get-NetNat -Name $natName -ErrorAction SilentlyContinue | Remove-NetNat -Confirm:$false
     New-NetNat -Name $natName -InternalIPInterfaceAddressPrefix $Cidr | Out-Null
-    Write-Ok "NAT cree pour $Cidr"
+    Write-Ok (TInstall "NAT cree pour $Cidr" "NAT created for $Cidr")
 }
 
 function Try-UpnpPortForward([int]$Port, [string]$LanIp) {
     if (-not $LanIp) { return $false }
-    Write-Step "Tentative de redirection automatique du port sur la box via UPnP"
+    Write-Step (TInstall "Tentative de redirection automatique du port sur la box via UPnP" "Trying automatic router port forwarding via UPnP")
     try {
         $nat = New-Object -ComObject HNetCfg.NATUPnP
         $mappings = $nat.StaticPortMappingCollection
@@ -220,7 +226,7 @@ function Try-UpnpPortForward([int]$Port, [string]$LanIp) {
         }
         try { $mappings.Remove($Port, "UDP") } catch {}
         $mappings.Add($Port, "UDP", $Port, $LanIp, $true, "WinWG OneClick Server") | Out-Null
-        Write-Ok "Redirection UPnP ajoutee : UDP $Port -> $LanIp`:$Port"
+        Write-Ok (TInstall "Redirection UPnP ajoutee : UDP $Port -> $LanIp`:$Port" "UPnP forwarding added: UDP $Port -> $LanIp`:$Port")
         return $true
     } catch {
         Write-Host "Redirection UPnP impossible : $($_.Exception.Message)" -ForegroundColor Yellow
@@ -277,7 +283,7 @@ function Install-QrDependency([string]$BaseDir) {
 
     foreach ($dll in $dllCandidates) {
         if (Test-Path $dll) {
-            Write-Ok "Dependance QR deja presente : QRCoder"
+            Write-Ok (TInstall "Dependance QR deja presente : QRCoder" "QR dependency already present: QRCoder")
             return $dll
         }
     }
@@ -289,15 +295,15 @@ function Install-QrDependency([string]$BaseDir) {
     $zip = Join-Path $toolsDir "QRCoder.zip"
     $url = "https://www.nuget.org/api/v2/package/QRCoder"
 
-    Write-Step "Installation de la dependance optionnelle QR code"
-    Write-Host "Telechargement de QRCoder depuis NuGet. Les configurations WireGuard ne sont pas envoyees a Internet." -ForegroundColor Yellow
+    Write-Step (TInstall "Installation de la dependance optionnelle QR code" "Installing optional QR code dependency")
+    Write-Host (TInstall "Telechargement de QRCoder depuis NuGet. Les configurations WireGuard ne sont pas envoyees a Internet." "Downloading QRCoder from NuGet. WireGuard configurations are not sent to the Internet.") -ForegroundColor Yellow
     Invoke-WebRequest -Uri $url -OutFile $nupkg -UseBasicParsing
     Copy-Item $nupkg $zip -Force
     Expand-Archive -Path $zip -DestinationPath $qrDir -Force
 
     foreach ($dll in $dllCandidates) {
         if (Test-Path $dll) {
-            Write-Ok "Dependance QR installee : QRCoder"
+            Write-Ok (TInstall "Dependance QR installee : QRCoder" "QR dependency installed: QRCoder")
             return $dll
         }
     }
@@ -306,7 +312,7 @@ function Install-QrDependency([string]$BaseDir) {
 }
 
 function Install-Tunnel([string]$WireGuardExe, [string]$TunnelName, [string]$ConfigPath) {
-    Write-Step "Installation/redemarrage du tunnel WireGuard"
+    Write-Step (TInstall "Installation/redemarrage du tunnel WireGuard" "Installing/restarting WireGuard tunnel")
 
     # WireGuard renvoie une erreur si le service n'existe pas encore.
     # C'est normal lors de la premiere installation, donc on l'ignore.
@@ -321,7 +327,7 @@ function Install-Tunnel([string]$WireGuardExe, [string]$TunnelName, [string]$Con
         if ([string]::IsNullOrWhiteSpace($message)) { $message = "wireguard.exe a retourne le code $($install.ExitCode)" }
         throw $message
     }
-    Write-Ok "Tunnel installe : $TunnelName"
+    Write-Ok (TInstall "Tunnel installe : $TunnelName" "Tunnel installed: $TunnelName")
 }
 
 try {
@@ -340,6 +346,8 @@ try {
     if (Get-Command Select-WinWGLanguage -ErrorAction SilentlyContinue) {
         $Language = Select-WinWGLanguage -BaseDir $baseDir
     }
+
+    $script:InstallLanguage = $Language
 
     if ($Language -eq "fr") {
         Write-Host "Langue selectionnee : Francais" -ForegroundColor Green
@@ -384,7 +392,7 @@ try {
         Write-Host "Fonctionnalite QR desactivee par choix utilisateur." -ForegroundColor Yellow
     }
 
-    Write-Step "Generation des cles et configurations"
+    Write-Step (TInstall "Generation des cles et configurations" "Generating keys and configurations")
     $serverPrivateKey = New-WgPrivateKey $wgExe
     $serverPublicKey = Get-WgPublicKey $wgExe $serverPrivateKey
     $clientPrivateKey = New-WgPrivateKey $wgExe
@@ -424,7 +432,7 @@ PersistentKeepalive = 25
 
     Set-Content -Path $serverConfigPath -Value $serverConfig -Encoding ASCII
     Set-Content -Path $clientConfigPath -Value $clientConfig -Encoding ASCII
-    Write-Ok "Configuration telephone creee : $clientConfigPath"
+    Write-Ok (TInstall "Configuration telephone creee : $clientConfigPath" "Device configuration created: $clientConfigPath")
 
     Enable-IPv4Forwarding
     Ensure-Firewall -Port $ListenPort
@@ -436,30 +444,30 @@ PersistentKeepalive = 25
 
     Write-Host ""
     Write-Host "============================================================" -ForegroundColor Green
-    Write-Host "INSTALLATION TERMINEE" -ForegroundColor Green
+    Write-Host (TInstall "INSTALLATION TERMINEE" "INSTALLATION COMPLETE") -ForegroundColor Green
     Write-Host "============================================================" -ForegroundColor Green
-    Write-Host "Tunnel serveur : $TunnelName"
-    Write-Host "Port WireGuard : UDP $ListenPort"
-    Write-Host "IP VPN serveur : $ServerVpnIp"
-    Write-Host "IP VPN telephone : $ClientVpnIp"
-    Write-Host "Fichier a importer dans l'app WireGuard du telephone :"
+    Write-Host (TInstall "Tunnel serveur : $TunnelName" "Server tunnel: $TunnelName")
+    Write-Host (TInstall "Port WireGuard : UDP $ListenPort" "WireGuard port: UDP $ListenPort")
+    Write-Host (TInstall "IP VPN serveur : $ServerVpnIp" "VPN server IP: $ServerVpnIp")
+    Write-Host (TInstall "IP VPN telephone : $ClientVpnIp" "Device VPN IP: $ClientVpnIp")
+    Write-Host (TInstall "Fichier a importer dans l'app WireGuard du telephone :" "File to import into the WireGuard app:")
     Write-Host "  $clientConfigPath" -ForegroundColor Yellow
     Write-Host ""
 
     if ($upnpOk) {
-        Write-Host "La redirection de port automatique UPnP a reussi. Tu peux tester en 4G/5G." -ForegroundColor Green
+        Write-Host (TInstall "La redirection de port automatique UPnP a reussi. Tu peux tester en 4G/5G." "Automatic UPnP port forwarding succeeded. You can test from mobile data.") -ForegroundColor Green
     } else {
-        Write-Host "Action manuelle probablement necessaire sur ta box :" -ForegroundColor Yellow
-        Write-Host "  Rediriger UDP $ListenPort vers l'IP locale du PC : $lanIp"
-        Write-Host "Si ta box est en CG-NAT, il faudra demander une IPv4 publique a ton operateur."
+        Write-Host (TInstall "Action manuelle probablement necessaire sur ta box :" "Manual action probably required on your router:") -ForegroundColor Yellow
+        Write-Host (TInstall "  Rediriger UDP $ListenPort vers l'IP locale du PC : $lanIp" "  Forward UDP $ListenPort to the PC local IP: $lanIp")
+        Write-Host (TInstall "Si ta box est en CG-NAT, il faudra demander une IPv4 publique a ton operateur." "If your ISP uses CG-NAT, ask for a public/full-stack IPv4 address.")
     }
 
     Write-Host ""
-    Write-Host "Etapes telephone :"
-    Write-Host "1. Installe l'app WireGuard."
-    Write-Host "2. Copie/import le fichier .conf ci-dessus."
-    Write-Host "3. Coupe le Wi-Fi, passe en 4G/5G, active le tunnel."
-    Write-Host "4. Verifie l'IP sur https://ifconfig.me."
+    Write-Host (TInstall "Etapes telephone :" "Device steps:")
+    Write-Host (TInstall "1. Installe l'app WireGuard." "1. Install the WireGuard app.")
+    Write-Host (TInstall "2. Copie/import le fichier .conf ci-dessus." "2. Copy/import the .conf file above.")
+    Write-Host (TInstall "3. Coupe le Wi-Fi, passe en 4G/5G, active le tunnel." "3. Disable Wi-Fi, use mobile data, enable the tunnel.")
+    Write-Host (TInstall "4. Verifie l'IP sur https://ifconfig.me." "4. Check the IP on https://ifconfig.me.")
 
     Start-Process explorer.exe $clientDir
 
@@ -467,7 +475,7 @@ PersistentKeepalive = 25
     $consoleBat = Join-Path $projectRoot "SERVER-CONSOLE.bat"
     if (Test-Path $consoleBat) {
         Write-Host ""
-        Write-Host "Ouverture de la console serveur de supervision..." -ForegroundColor Cyan
+        Write-Host (TInstall "Ouverture de la console serveur de supervision..." "Opening the server monitoring console...") -ForegroundColor Cyan
         Start-Process -FilePath $consoleBat
     }
 } catch {

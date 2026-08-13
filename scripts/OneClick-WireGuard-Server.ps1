@@ -86,6 +86,24 @@ function Ask-YesNo([string]$Title, [string]$Prompt, [bool]$DefaultYes = $true) {
     }
 }
 
+
+function Ask-YesNoRequired([string]$Title, [string]$Prompt) {
+    while ($true) {
+        try {
+            Add-Type -AssemblyName Microsoft.VisualBasic -ErrorAction Stop
+            $value = [Microsoft.VisualBasic.Interaction]::InputBox("$Prompt`n`nType yes/no or oui/non. Empty is not accepted.", $Title, "")
+            $v = $value.Trim().ToLowerInvariant()
+        } catch {
+            $v = (Read-Host "$Prompt [yes/no - oui/non]").Trim().ToLowerInvariant()
+        }
+
+        if ($v -in @('o','oui','y','yes','1','true')) { return $true }
+        if ($v -in @('n','non','no','0','false')) { return $false }
+
+        Write-Host "Please answer yes/no or oui/non. Empty input is not accepted." -ForegroundColor Yellow
+    }
+}
+
 function Get-PublicEndpoint([int]$Port) {
     $services = @(
         "https://api.ipify.org",
@@ -356,7 +374,7 @@ try {
         $clientNamePrompt = "Nom du telephone/client"
         $endpointPrompt = "IP publique ou DNS a utiliser cote telephone. Laisse la valeur detectee si tu n'as pas de DNS dynamique."
         $dnsPrompt = "DNS a utiliser sur cet appareil. Laisse vide / ne tape rien pour garder le DNS par defaut. Exemples : 1.1.1.1, 8.8.8.8 ou l'IP DNS de ta box comme 192.168.1.1"
-        $qrPrompt = "Installer le generateur de QR code integre ? Cela permet d'importer la configuration dans l'app WireGuard mobile en scannant un QR code. La dependance QRCoder sera telechargee depuis NuGet, mais tes cles/configurations ne sont pas envoyees a Internet."
+        $qrPrompt = "Installer le generateur de QR code integre ? Cela permet d'importer la configuration dans l'app WireGuard mobile en scannant un QR code. La dependance QRCoder sera telechargee depuis NuGet, mais tes cles/configurations ne sont pas envoyees a Internet. Tape oui ou non ; laisser le champ vide n'est pas accepte."
     } else {
         Write-Host "Selected language: English" -ForegroundColor Green
         Write-Host "WinWG OneClick Server - one-click installation" -ForegroundColor Green
@@ -364,7 +382,7 @@ try {
         $clientNamePrompt = "Phone/device name"
         $endpointPrompt = "Public IP or DNS to use on the device side. Keep the detected value if you do not have dynamic DNS."
         $dnsPrompt = "DNS to use on this device. Leave empty / type nothing to keep the default DNS. Examples: 1.1.1.1, 8.8.8.8 or your router DNS such as 192.168.1.1"
-        $qrPrompt = "Install the integrated QR code generator? This lets you import the configuration in the WireGuard mobile app by scanning a QR code. The QRCoder dependency will be downloaded from NuGet, but your keys/configurations are not sent to the Internet."
+        $qrPrompt = "Install the integrated QR code generator? This lets you import the configuration in the WireGuard mobile app by scanning a QR code. The QRCoder dependency will be downloaded from NuGet, but your keys/configurations are not sent to the Internet. Please type yes or no; leaving the field empty is not accepted."
     }
 
     $defaultEndpoint = Get-PublicEndpoint -Port $ListenPort
@@ -377,7 +395,7 @@ try {
     $wgExe = $tools.WgExe
     $wireguardExe = $tools.WireGuardExe
 
-    $enableQrFeature = Ask-YesNo "WinWG QR Code" $qrPrompt $true
+    $enableQrFeature = Ask-YesNoRequired "WinWG QR Code" $qrPrompt
     if ($enableQrFeature) {
         try {
             Install-QrDependency -BaseDir $baseDir | Out-Null

@@ -735,8 +735,9 @@ function Add-DeviceFromConsole([string]$TunnelName, [int]$ListenPort, [string]$B
     if ($expiresAt) {
         $metaPath = Save-TemporaryDeviceMetadata -BaseDir $BaseDir -DeviceName $deviceName -VpnIp "10.66.66.$deviceNumber" -ExpiresAt $expiresAt
         Write-UiHost ((Get-WinWGText $script:Language "TemporaryMetadataCreated") + " : $metaPath") -ForegroundColor Yellow
+    } else {
+        if (Test-Path $deviceDir) { Start-Process explorer.exe $deviceDir }
     }
-    if (Test-Path $deviceDir) { Start-Process explorer.exe $deviceDir }
 
     $qrMessage = ""
     if (Test-QrFeatureEnabled -BaseDir $BaseDir) {

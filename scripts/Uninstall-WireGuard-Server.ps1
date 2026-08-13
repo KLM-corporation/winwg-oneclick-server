@@ -26,6 +26,14 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
+$script:UninstallLanguage = "en"
+$languageScript = Join-Path $PSScriptRoot "WinWG-Language.ps1"
+if (Test-Path $languageScript) { . $languageScript }
+
+function TUninstall([string]$Fr, [string]$En) {
+    if ($script:UninstallLanguage -eq "fr") { return $Fr }
+    return $En
+}
 
 function Write-Step([string]$Text) {
     Write-Host ""
@@ -50,7 +58,7 @@ function Assert-Admin {
 
 function Ask-YesNo([string]$Question, [bool]$DefaultYes = $true) {
     if ($Quiet) { return $DefaultYes }
-    $suffix = if ($DefaultYes) { "O/n" } else { "o/N" }
+    $suffix = if ($DefaultYes) { (TUninstall "O/n" "Y/n") } else { (TUninstall "o/N" "y/N") }
     while ($true) {
         $answer = Read-Host "$Question [$suffix]"
         if ([string]::IsNullOrWhiteSpace($answer)) { return $DefaultYes }
@@ -62,7 +70,7 @@ function Ask-YesNo([string]$Question, [bool]$DefaultYes = $true) {
             "n" { return $false }
             "non" { return $false }
             "no" { return $false }
-            default { Write-Host "Reponds par oui ou non." -ForegroundColor Yellow }
+            default { Write-Host (TUninstall "Reponds par oui ou non." "Please answer yes or no.") -ForegroundColor Yellow }
         }
     }
 }
@@ -85,19 +93,19 @@ function Invoke-ExternalNoThrow([string]$FileName, [string[]]$Arguments) {
 }
 
 function Remove-WireGuardTunnel([string]$TunnelName) {
-    Write-Step "Suppression du tunnel/service WireGuard"
+    Write-Step (TUninstall "Suppression du tunnel/service WireGuard" "Removing WireGuard tunnel/service")
     $wireguardExe = Join-Path $env:ProgramFiles "WireGuard\wireguard.exe"
     if (-not (Test-Path $wireguardExe)) {
-        Write-Warn "wireguard.exe introuvable. Le service sera quand meme verifie via PowerShell."
+        Write-Warn (TUninstall "wireguard.exe introuvable. Le service sera quand meme verifie via PowerShell." "wireguard.exe not found. The service will still be checked through PowerShell.")
     } else {
         $result = Invoke-ExternalNoThrow -FileName $wireguardExe -Arguments @('/uninstalltunnelservice', $TunnelName)
         $msg = ($result.StdErr + $result.StdOut).Trim()
         if ($result.ExitCode -eq 0) {
-            Write-Ok "Tunnel WireGuard supprime : $TunnelName"
+            Write-Ok (TUninstall "Tunnel WireGuard supprime : $TunnelName" "WireGuard tunnel removed: $TunnelName")
         } elseif ($msg -match 'does not exist|n.existe pas|service.*introuvable|specified service') {
-            Write-Ok "Aucun tunnel WireGuard a supprimer : $TunnelName"
+            Write-Ok (TUninstall "Aucun tunnel WireGuard a supprimer : $TunnelName" "No WireGuard tunnel to remove: $TunnelName")
         } else {
-            Write-Warn "WireGuard a retourne une erreur : $msg"
+            Write-Warn (TUninstall "WireGuard a retourne une erreur : $msg" "WireGuard returned an error: $msg")
         }
     }
 
@@ -110,16 +118,16 @@ function Remove-WireGuardTunnel([string]$TunnelName) {
             try {
                 if ($_.Status -ne 'Stopped') { Stop-Service -Name $_.Name -Force -ErrorAction SilentlyContinue }
                 sc.exe delete $_.Name | Out-Null
-                Write-Ok "Service supprime : $($_.Name)"
+                Write-Ok (TUninstall "Service supprime : $($_.Name)" "Service removed: $($_.Name)")
             } catch {
-                Write-Warn "Impossible de supprimer le service $($_.Name) : $($_.Exception.Message)"
+                Write-Warn (TUninstall "Impossible de supprimer le service $($_.Name) : $($_.Exception.Message)" "Unable to remove service $($_.Name): $($_.Exception.Message)")
             }
         }
     }
 }
 
 function Remove-FirewallRules([int]$Port) {
-    Write-Step "Suppression des regles pare-feu"
+    Write-Step (TUninstall "Suppression des regles pare-feu" "Removing firewall rules")
     $rules = @(Get-NetFirewallRule -DisplayName "WireGuard Server UDP $Port" -ErrorAction SilentlyContinue)
     $rules += @(Get-NetFirewallRule -DisplayName "WinWG OneClick Server*" -ErrorAction SilentlyContinue)
 
@@ -129,81 +137,81 @@ function Remove-FirewallRules([int]$Port) {
     $rules = @($rules | Where-Object { $null -ne $_ } | Sort-Object Name -Unique)
 
     if ($rules.Length -eq 0) {
-        Write-Ok "Aucune regle pare-feu specifique trouvee"
+        Write-Ok (TUninstall "Aucune regle pare-feu specifique trouvee" "No specific firewall rule found")
         return
     }
     $rules | Remove-NetFirewallRule
-    Write-Ok "$($rules.Length) regle(s) pare-feu supprimee(s)"
+    Write-Ok (TUninstall "$($rules.Length) regle(s) pare-feu supprimee(s)" "$($rules.Length) firewall rule(s) removed")
 }
 
 function Remove-WindowsNat {
-    Write-Step "Suppression du NAT Windows"
+    Write-Step (TUninstall "Suppression du NAT Windows" "Removing Windows NAT")
     $nat = Get-NetNat -Name "WireGuardPhoneServerNAT" -ErrorAction SilentlyContinue
     if ($null -eq $nat) {
-        Write-Ok "Aucun NAT WireGuardPhoneServerNAT trouve"
+        Write-Ok (TUninstall "Aucun NAT WireGuardPhoneServerNAT trouve" "No WireGuardPhoneServerNAT NAT found")
     } else {
         $nat | Remove-NetNat -Confirm:$false
-        Write-Ok "NAT WireGuardPhoneServerNAT supprime"
+        Write-Ok (TUninstall "NAT WireGuardPhoneServerNAT supprime" "WireGuardPhoneServerNAT NAT removed")
     }
 }
 
 function Remove-UpnpMapping([int]$Port) {
-    Write-Step "Suppression de la redirection UPnP si presente"
+    Write-Step (TUninstall "Suppression de la redirection UPnP si presente" "Removing UPnP port mapping if present")
     try {
         $nat = New-Object -ComObject HNetCfg.NATUPnP
         $mappings = $nat.StaticPortMappingCollection
         if ($null -eq $mappings) {
-            Write-Ok "UPnP indisponible ou desactive, rien a supprimer"
+            Write-Ok (TUninstall "UPnP indisponible ou desactive, rien a supprimer" "UPnP unavailable or disabled, nothing to remove")
             return
         }
         try {
             $mappings.Remove($Port, "UDP")
-            Write-Ok "Redirection UPnP UDP $Port supprimee"
+            Write-Ok (TUninstall "Redirection UPnP UDP $Port supprimee" "UDP $Port UPnP mapping removed")
         } catch {
-            Write-Ok "Aucune redirection UPnP UDP $Port trouvee"
+            Write-Ok (TUninstall "Aucune redirection UPnP UDP $Port trouvee" "No UDP $Port UPnP mapping found")
         }
     } catch {
-        Write-Warn "Impossible de verifier UPnP : $($_.Exception.Message)"
+        Write-Warn (TUninstall "Impossible de verifier UPnP : $($_.Exception.Message)" "Unable to check UPnP: $($_.Exception.Message)")
     }
 }
 
 function Remove-ConfigDirectory([string]$BaseDir) {
-    Write-Step "Suppression des fichiers de configuration"
+    Write-Step (TUninstall "Suppression des fichiers de configuration" "Removing configuration files")
     if (-not (Test-Path $BaseDir)) {
-        Write-Ok "Aucun dossier de configuration trouve : $BaseDir"
+        Write-Ok (TUninstall "Aucun dossier de configuration trouve : $BaseDir" "No configuration folder found: $BaseDir")
         return
     }
 
     if ($KeepConfigs) {
-        Write-Warn "Conservation demandee des configurations : $BaseDir"
+        Write-Warn (TUninstall "Conservation demandee des configurations : $BaseDir" "Keeping configurations as requested: $BaseDir")
         return
     }
 
-    $removeConfigs = Ask-YesNo "Supprimer les fichiers de configuration, cles, QR codes et dependances optionnelles dans $BaseDir ?" $true
+    $removeConfigs = Ask-YesNo (TUninstall "Supprimer les fichiers de configuration, cles, QR codes et dependances optionnelles dans $BaseDir ?" "Remove configuration files, keys, QR codes and optional dependencies in $BaseDir ?") $true
     if (-not $removeConfigs) {
-        Write-Warn "Configurations conservees : $BaseDir"
+        Write-Warn (TUninstall "Configurations conservees : $BaseDir" "Configurations kept: $BaseDir")
         return
     }
 
     Remove-Item $BaseDir -Recurse -Force
-    Write-Ok "Dossier supprime : $BaseDir"
-    Write-Ok "Configurations, cles, QR codes, flags de fonctionnalite et dependance QRCoder supprimes si presents"
+    Write-Ok (TUninstall "Dossier supprime : $BaseDir" "Folder removed: $BaseDir")
+    Write-Ok (TUninstall "Configurations, cles, QR codes, flags de fonctionnalite et dependance QRCoder supprimes si presents" "Configurations, keys, QR codes, feature flags and QRCoder dependency removed if present")
 }
 
 function Uninstall-WireGuardAppIfRequested {
     if (-not $RemoveWireGuardApp) {
-        $removeApp = Ask-YesNo "Desinstaller aussi l'application WireGuard de Windows ?" $false
+        $removeApp = Ask-YesNo (TUninstall "Desinstaller aussi l'application WireGuard de Windows ?" "Also uninstall the WireGuard Windows application ?") $false
         if (-not $removeApp) {
-            Write-Ok "Application WireGuard conservee"
+            Write-Ok (TUninstall "Application WireGuard conservee" "WireGuard application kept")
             return
         }
     }
 
-    Write-Step "Desinstallation de l'application WireGuard"
+    Write-Step (TUninstall "Desinstallation de l'application WireGuard" "Uninstalling WireGuard application")
 
     $wireguardExe = Join-Path $env:ProgramFiles "WireGuard\wireguard.exe"
     if (-not (Test-Path $wireguardExe)) {
-        Write-Ok "Application WireGuard deja absente ou chemin introuvable"
+        Write-Ok (TUninstall "Application WireGuard deja absente ou chemin introuvable" "WireGuard application already absent or path not found")
         return
     }
 
@@ -212,13 +220,13 @@ function Uninstall-WireGuardAppIfRequested {
         $result = Invoke-ExternalNoThrow -FileName "winget" -Arguments @('uninstall', '--id', 'WireGuard.WireGuard', '-e', '--accept-source-agreements')
         $msg = ($result.StdErr + $result.StdOut).Trim()
         if ($result.ExitCode -eq 0) {
-            Write-Ok "WireGuard desinstalle via winget"
+            Write-Ok (TUninstall "WireGuard desinstalle via winget" "WireGuard uninstalled through winget")
             return
         }
         if ($msg -match 'No installed package found|Aucun package installe|aucun package installe|not found|introuvable') {
-            Write-Warn "Aucun paquet WireGuard trouve via winget, verification du registre Windows..."
+            Write-Warn (TUninstall "Aucun paquet WireGuard trouve via winget, verification du registre Windows..." "No WireGuard package found through winget, checking Windows registry...")
         } else {
-            Write-Warn "winget n'a pas reussi : $msg"
+            Write-Warn (TUninstall "winget n'a pas reussi : $msg" "winget failed: $msg")
         }
     }
 
@@ -238,43 +246,44 @@ function Uninstall-WireGuardAppIfRequested {
             if (-not $hasDisplayName -or -not $hasUninstallString) { continue }
             if ($item.DisplayName -like 'WireGuard*' -and -not [string]::IsNullOrWhiteSpace($item.UninstallString)) {
                 $found = $true
-                Write-Warn "WireGuard est detecte mais n'a pas pu etre desinstalle automatiquement. Desinstalle-le manuellement via Parametres Windows > Applications."
+                Write-Warn (TUninstall "WireGuard est detecte mais n'a pas pu etre desinstalle automatiquement. Desinstalle-le manuellement via Parametres Windows > Applications." "WireGuard was detected but could not be uninstalled automatically. Uninstall it manually through Windows Settings > Apps.")
                 Write-Host "UninstallString: $($item.UninstallString)" -ForegroundColor DarkGray
             }
         }
     }
 
     if (-not $found) {
-        Write-Ok "Aucune installation WireGuard restante detectee"
+        Write-Ok (TUninstall "Aucune installation WireGuard restante detectee" "No remaining WireGuard installation detected")
     }
 }
 
 function Show-RemainingState([string]$TunnelName, [int]$Port, [string]$BaseDir) {
-    Write-Step "Verification finale"
+    Write-Step (TUninstall "Verification finale" "Final verification")
     $services = @(Get-Service -Name "WireGuardTunnel*$TunnelName*" -ErrorAction SilentlyContinue)
     $fw = @(Get-NetFirewallRule -DisplayName "WireGuard Server UDP $Port" -ErrorAction SilentlyContinue)
     $nat = @(Get-NetNat -Name "WireGuardPhoneServerNAT" -ErrorAction SilentlyContinue)
 
     if ($services.Length -eq 0 -and $fw.Length -eq 0 -and $nat.Length -eq 0 -and -not (Test-Path $BaseDir)) {
-        Write-Ok "Nettoyage complet confirme"
+        Write-Ok (TUninstall "Nettoyage complet confirme" "Complete cleanup confirmed")
     } else {
-        if ($services.Length -gt 0) { Write-Warn "Service(s) restant(s): $($services.Name -join ', ')" }
-        if ($fw.Length -gt 0) { Write-Warn "Regle(s) pare-feu restante(s): $($fw.DisplayName -join ', ')" }
-        if ($nat.Length -gt 0) { Write-Warn "NAT restant: WireGuardPhoneServerNAT" }
-        if (Test-Path $BaseDir) { Write-Warn "Dossier encore present: $BaseDir" }
+        if ($services.Length -gt 0) { Write-Warn (TUninstall "Service(s) restant(s): $($services.Name -join ', ')" "Remaining service(s): $($services.Name -join ', ')") }
+        if ($fw.Length -gt 0) { Write-Warn (TUninstall "Regle(s) pare-feu restante(s): $($fw.DisplayName -join ', ')" "Remaining firewall rule(s): $($fw.DisplayName -join ', ')") }
+        if ($nat.Length -gt 0) { Write-Warn (TUninstall "NAT restant: WireGuardPhoneServerNAT" "Remaining NAT: WireGuardPhoneServerNAT") }
+        if (Test-Path $BaseDir) { Write-Warn (TUninstall "Dossier encore present: $BaseDir" "Folder still present: $BaseDir") }
     }
 }
 
 try {
     Assert-Admin
+    if (Get-Command Get-WinWGLanguage -ErrorAction SilentlyContinue) { $script:UninstallLanguage = Get-WinWGLanguage -BaseDir $BaseDir }
     $host.UI.RawUI.WindowTitle = "WinWG OneClick Server - Uninstaller"
 
-    Write-Host "WinWG OneClick Server - desinstallation propre" -ForegroundColor Green
-    Write-Host "Ce script va supprimer la configuration serveur WireGuard creee par ce projet."
+    Write-Host (TUninstall "WinWG OneClick Server - desinstallation propre" "WinWG OneClick Server - clean uninstall") -ForegroundColor Green
+    Write-Host (TUninstall "Ce script va supprimer la configuration serveur WireGuard creee par ce projet." "This script will remove the WireGuard server configuration created by this project.")
 
     if (-not $Quiet) {
-        $continue = Ask-YesNo "Continuer la desinstallation ?" $true
-        if (-not $continue) { throw "Desinstallation annulee par l'utilisateur." }
+        $continue = Ask-YesNo (TUninstall "Continuer la desinstallation ?" "Continue uninstall?") $true
+        if (-not $continue) { throw (TUninstall "Desinstallation annulee par l'utilisateur." "Uninstall cancelled by user.") }
     }
 
     Remove-WireGuardTunnel -TunnelName $TunnelName
@@ -287,12 +296,12 @@ try {
 
     Write-Host ""
     Write-Host "============================================================" -ForegroundColor Green
-    Write-Host "DESINSTALLATION TERMINEE" -ForegroundColor Green
+    Write-Host (TUninstall "DESINSTALLATION TERMINEE" "UNINSTALL COMPLETE") -ForegroundColor Green
     Write-Host "============================================================" -ForegroundColor Green
-    Write-Host "Si tu avais cree une redirection de port manuelle sur ta box, supprime-la aussi : UDP $ListenPort vers ce PC."
+    Write-Host (TUninstall "Si tu avais cree une redirection de port manuelle sur ta box, supprime-la aussi : UDP $ListenPort vers ce PC." "If you created a manual port-forwarding rule on your router, remove it too: UDP $ListenPort to this PC.")
 } catch {
     Write-Host ""
-    Write-Host "ERREUR : $($_.Exception.Message)" -ForegroundColor Red
-    Write-Host "Tu peux relancer ce script en administrateur."
+    Write-Host (TUninstall "ERREUR : $($_.Exception.Message)" "ERROR: $($_.Exception.Message)") -ForegroundColor Red
+    Write-Host (TUninstall "Tu peux relancer ce script en administrateur." "You can rerun this script as administrator.")
     exit 1
 }

@@ -79,6 +79,8 @@ The project automatically configures what is usually painful to do manually:
 
 During one-click installation, the first device DNS is also requested. If you do not know what to enter, type nothing and keep the default `1.1.1.1, 8.8.8.8`. You can also use your router DNS, for example `192.168.1.1`.
 
+If the QR feature is enabled during installation, the installer also asks whether a QR code should be generated for the first device. You can answer `yes` or `no`. If you decline, the `.conf` file remains available and you can generate the QR later from the console.
+
 
 On the Windows PC that should become the VPN server:
 

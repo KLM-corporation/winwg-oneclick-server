@@ -404,6 +404,7 @@ try {
             Write-Host "Installation QR impossible : $($_.Exception.Message)" -ForegroundColor Yellow
             Write-Host "La fonctionnalite QR sera desactivee. Tu pourras toujours importer le fichier .conf manuellement." -ForegroundColor Yellow
             Set-QrFeaturePreference -BaseDir $baseDir -Enabled $false
+            $enableQrFeature = $false
         }
     } else {
         Set-QrFeaturePreference -BaseDir $baseDir -Enabled $false
@@ -451,6 +452,27 @@ PersistentKeepalive = 25
     Set-Content -Path $serverConfigPath -Value $serverConfig -Encoding ASCII
     Set-Content -Path $clientConfigPath -Value $clientConfig -Encoding ASCII
     Write-Ok (TInstall "Configuration telephone creee : $clientConfigPath" "Device configuration created: $clientConfigPath")
+
+    if ($enableQrFeature) {
+        $generateFirstQrPrompt = TInstall "Generer un QR code pour ce premier appareil ? Tape oui ou non ; laisser le champ vide n'est pas accepte." "Generate a QR code for this first device? Please type yes or no; leaving the field empty is not accepted."
+        $generateFirstQr = Ask-YesNoRequired "WinWG QR Code" $generateFirstQrPrompt
+        if ($generateFirstQr) {
+            $qrScript = Join-Path $PSScriptRoot "Generate-WireGuardClientQr.ps1"
+            if (Test-Path $qrScript) {
+                Write-Step (TInstall "Generation du QR code du premier appareil" "Generating QR code for the first device")
+                $qrOutput = & powershell -NoProfile -ExecutionPolicy Bypass -File $qrScript -ClientName $safeClientName -BaseDir $baseDir -Language $Language -Open 2>&1
+                $qrCode = $LASTEXITCODE
+                if ($qrOutput) { $qrOutput | Out-Host }
+                if ($qrCode -ne 0) {
+                    Write-Host (TInstall "QR code non genere automatiquement. Tu peux le generer plus tard depuis la console." "QR code was not generated automatically. You can generate it later from the console.") -ForegroundColor Yellow
+                }
+            } else {
+                Write-Host (TInstall "Script QR introuvable. Tu peux importer le fichier .conf manuellement." "QR script not found. You can import the .conf file manually.") -ForegroundColor Yellow
+            }
+        } else {
+            Write-Host (TInstall "QR code non genere pour ce premier appareil. Le fichier .conf reste disponible." "QR code not generated for this first device. The .conf file is still available.") -ForegroundColor Yellow
+        }
+    }
 
     Enable-IPv4Forwarding
     Ensure-Firewall -Port $ListenPort

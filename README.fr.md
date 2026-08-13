@@ -77,6 +77,8 @@ Le projet configure automatiquement ce qui est normalement pénible à faire à 
 
 Pendant l’installation one-click, le DNS du premier appareil est aussi demandé. Si tu ne sais pas quoi mettre, ne tape rien et garde la valeur par défaut `1.1.1.1, 8.8.8.8`. Tu peux aussi mettre le DNS de ta box, par exemple `192.168.1.1`.
 
+Si la fonctionnalité QR est activée pendant l'installation, l'installateur demande aussi si un QR code doit être généré pour le premier appareil. Tu peux répondre `oui` ou `non`. Si tu refuses, le fichier `.conf` reste disponible et tu peux générer le QR plus tard depuis la console.
+
 
 Sur le PC Windows qui doit devenir serveur VPN :
 

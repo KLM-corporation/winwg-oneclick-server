@@ -1,5 +1,7 @@
 # WinWG OneClick Server
 
+English | [Français](README.fr.md)
+
 ![Status](https://img.shields.io/badge/status-beta-orange) ![Platform](https://img.shields.io/badge/platform-Windows-blue) ![License](https://img.shields.io/badge/license-MIT-green)
 
 **One script. One click. Your Windows PC becomes a WireGuard VPN server.**

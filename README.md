@@ -1,600 +1,583 @@
 # WinWG OneClick Server
 
+English | [Français](README.fr.md)
+
 ![Status](https://img.shields.io/badge/status-beta-orange) ![Platform](https://img.shields.io/badge/platform-Windows-blue) ![License](https://img.shields.io/badge/license-MIT-green)
 
-[English documentation](README.en.md) | Documentation française
-
-**One script. One click. Ton PC Windows devient un serveur VPN WireGuard.**
+**One script. One click. Your Windows PC becomes a WireGuard VPN server.**
 
 
-> 💙 **Soutenir le projet** : WinWG OneClick Server est gratuit et open source. Les dons sont optionnels.  
-> BTC : `bc1qp3lzycrpngpk00tecj85pfkhrqqr49gmslzmsg` — voir [`docs/DONATE.md`](docs/DONATE.md).
+> 💙 **Support the project**: WinWG OneClick Server is free and open source. Donations are optional.  
+> BTC: `bc1qp3lzycrpngpk00tecj85pfkhrqqr49gmslzmsg` — see [`docs/DONATE.md`](docs/DONATE.md).
 
-Un projet Windows simple et propre pour transformer un PC Windows 10/11 en **serveur d’accès distant WireGuard** avec une installation en **un seul script / un seul double-clic**. Il génère aussi la configuration à importer sur ton téléphone, ta tablette ou ton PC portable.
+WinWG OneClick Server is a simple Windows project that turns a Windows 10/11 PC into a **WireGuard remote access server** with a **single script / single double-click** installation. It also generates the configuration file to import on your phone, tablet, or laptop.
+
+> ⚠️ Important: to connect from outside your local network, the Windows PC must be reachable from the Internet. In most home setups, this means:
+> 1. forwarding a UDP port on your router/Internet box to the Windows PC;
+> 2. using your public IP address or a dynamic DNS hostname;
+> 3. avoiding CG-NAT, or asking your ISP for a public/full-stack IPv4 address.
 
 
+## Project status
 
+WinWG OneClick Server is currently in **beta**. It is usable, but it still needs testing on multiple Windows machines before being considered stable.
 
-## Statut du projet
+Use it first for personal, home-lab, or test environments. Avoid installing it directly on a critical machine without validation.
 
-WinWG OneClick Server est actuellement en **beta**. Il est utilisable, mais il doit encore être testé sur plusieurs machines Windows avant d'être considéré comme stable.
+## Project promise
 
-À utiliser d'abord pour un usage personnel, home-lab ou test. Évite de l'installer directement sur une machine critique sans validation.
-
-## Promesse du projet
-
-Le but de WinWG OneClick Server est simple :
+The goal of WinWG OneClick Server is simple:
 
 ```text
 1 script
-1 double-clic
-1 serveur WireGuard fonctionnel sur Windows
+1 double-click
+1 working WireGuard server on Windows
 ```
 
-Le projet configure automatiquement ce qui est normalement pénible à faire à la main :
+The project automatically configures what is usually painful to do manually:
 
-- installation de WireGuard pour Windows si absent ;
-- génération des clés serveur et appareil distant ;
-- création du service tunnel WireGuard ;
-- pare-feu Windows ;
-- NAT Windows ;
-- tentative de redirection UPnP ;
-- fichier `.conf` prêt à importer dans l'app WireGuard mobile ;
-- console de supervision ;
-- bouton d'activation/désactivation du service ;
-- désinstallation propre.
+- WireGuard for Windows installation if missing;
+- server and remote-device key generation;
+- WireGuard tunnel service creation;
+- Windows Firewall rule;
+- Windows NAT;
+- optional UPnP port-forwarding attempt;
+- `.conf` file ready to import into the WireGuard mobile app;
+- local monitoring console;
+- service start/stop toggle;
+- clean uninstaller.
+
+> Compatibility note: some internal paths keep the historical name `WireGuardPhoneServer`, for example `C:\ProgramData\WireGuardPhoneServer`. This is intentional to avoid breaking existing installations.
+
+## Recommended one-click installation
+
+During one-click installation, the first device DNS is also requested. If you do not know what to enter, type nothing and keep the default `1.1.1.1, 8.8.8.8`. You can also use your router DNS, for example `192.168.1.1`.
 
 
-> Compatibilité : certains chemins internes gardent le nom historique `WireGuardPhoneServer`, par exemple `C:\ProgramData\WireGuardPhoneServer`. C'est volontaire pour ne pas casser les installations existantes.
+On the Windows PC that should become the VPN server:
 
-## Installation one-click recommandée
-
-Pendant l’installation one-click, le DNS du premier appareil est aussi demandé. Si tu ne sais pas quoi mettre, ne tape rien et garde la valeur par défaut `1.1.1.1, 8.8.8.8`. Tu peux aussi mettre le DNS de ta box, par exemple `192.168.1.1`.
-
-
-Sur le PC Windows qui doit devenir serveur VPN :
-
-1. Télécharge/copie ce repo sur le PC.
-2. Double-clique simplement :
+1. Download/copy this repository to the PC.
+2. Double-click:
 
 ```text
 INSTALLER-ONE-CLICK.bat
 ```
 
-L'installeur demande les droits administrateur Windows, installe WireGuard si besoin, génère la configuration serveur + téléphone, configure le pare-feu, le routage, le NAT, puis ouvre le dossier contenant le fichier `.conf` à importer dans l'application WireGuard du téléphone.
+The installer asks for Windows administrator rights, installs WireGuard if needed, generates the server + phone configuration, configures firewall, routing and NAT, then opens the folder containing the `.conf` file to import into the WireGuard mobile app.
 
-Il tente aussi de créer automatiquement la redirection de port sur la box via UPnP. Si ta box refuse ou si UPnP est désactivé, l'installeur affiche l'IP locale du PC et tu devras faire la redirection manuellement :
+It also tries to create the router port-forwarding automatically via UPnP. If your router refuses it or UPnP is disabled, the installer shows the PC local IP address and you must manually forward the port:
 
 ```text
-UDP 51820 -> IP locale du PC Windows -> UDP 51820
+UDP 51820 -> Windows PC local IP -> UDP 51820
 ```
 
-Idéalement, cette IP locale doit être réservée via un **bail DHCP statique** dans la box/routeur.
+Ideally, this local IP should be reserved through a **static DHCP lease** in the router/Internet box.
 
-> Note : aucune installation ne peut contourner automatiquement le CG-NAT de ton opérateur. Si tu es derrière CG-NAT, il faut demander une IPv4 publique/full stack ou utiliser un VPS relais.
+> Note: no local installer can bypass your ISP CG-NAT. If you are behind CG-NAT, ask your ISP for a public/full-stack IPv4 address or use a relay/VPS.
 
-> ⚠️ Important : pour se connecter depuis l'extérieur, il faut que le PC soit joignable depuis Internet. Dans la majorité des cas, cela veut dire :
-> 1. ouvrir/forwarder un port UDP sur la box/routeur vers le PC Windows ;
-> 2. utiliser l'IP publique de la box, ou un nom DNS dynamique ;
-> 3. éviter le CG-NAT, ou demander une IPv4 publique à l'opérateur.
-
-## Ce que le projet automatise
-
-- Installation de WireGuard pour Windows via `winget` si nécessaire.
-- Génération des clés serveur/client.
-- Création d'un tunnel WireGuard serveur.
-- Activation du routage IPv4 Windows.
-- Création d'une règle pare-feu UDP.
-- Création d'une règle NAT Windows pour permettre au téléphone de sortir vers Internet via le PC.
-- Génération d'un fichier client `.conf` à importer dans l'app WireGuard mobile.
-
-## Pré-requis
+## Requirements
 
 - Windows 10/11.
-- PowerShell lancé **en administrateur**.
-- Accès administrateur au routeur/à la box pour faire une redirection de port.
-- WireGuard mobile installé sur le téléphone :
-  - Android : Google Play / F-Droid.
-  - iPhone : App Store.
+- PowerShell running as **administrator**.
+- Router/Internet box admin access for port-forwarding if UPnP fails.
+- WireGuard mobile app installed on your phone:
+  - Android: Google Play / F-Droid.
+  - iPhone: App Store.
 
 
 
+## Optional donations
 
+WinWG OneClick Server is free and open source.
 
-## Donations optionnelles
+Donations are fully optional and are never required to use, modify, redistribute, or contribute to the project.
 
-WinWG OneClick Server est gratuit et open source.
-
-Les dons sont totalement optionnels et ne sont jamais nécessaires pour utiliser, modifier, redistribuer ou contribuer au projet.
-
-Adresse Bitcoin BTC :
+Bitcoin BTC address:
 
 ```text
 bc1qp3lzycrpngpk00tecj85pfkhrqqr49gmslzmsg
 ```
 
-Plus d'informations : [`docs/DONATE.md`](docs/DONATE.md).
+More information: [`docs/DONATE.md`](docs/DONATE.md).
 
 ## Attribution
 
-Licence : MIT.
+License: MIT.
 
-Tu peux utiliser, copier, modifier, redistribuer et intégrer ce projet, y compris commercialement, à condition de conserver la notice de copyright et la licence.
+You may use, copy, modify, redistribute, and include this project in other projects, including commercially, as long as the copyright and license notice are preserved.
 
-Projet original : **WinWG OneClick Server**  
-Auteur : **KLM-DEV**  
-Dépôt : `https://github.com/KLM-corporation/winwg-oneclick-server`
+Original project: **WinWG OneClick Server**  
+Author: **KLM-DEV**  
+Repository: `https://github.com/KLM-corporation/winwg-oneclick-server`
 
-## Originalité, attribution et marque WireGuard
+## Originality, attribution and WireGuard trademark
 
-WinWG OneClick Server est un projet indépendant. Il n'est pas un fork et n'est pas basé sur une copie d'un autre projet open source.
+WinWG OneClick Server is an independent project. It is not a fork and is not based on a copy of another open source project.
 
-Le projet utilise les outils officiels WireGuard pour Windows (`wg.exe` et `wireguard.exe`) et des commandes natives Windows/PowerShell (`New-NetNat`, `New-NetFirewallRule`, services Windows, etc.).
+It uses the official WireGuard for Windows tools (`wg.exe` and `wireguard.exe`) and native Windows/PowerShell commands (`New-NetNat`, `New-NetFirewallRule`, Windows services, etc.).
 
-WireGuard est un projet et une marque appartenant à ses auteurs respectifs. Ce dépôt n'est pas affilié, sponsorisé, validé ou approuvé par le projet WireGuard.
+WireGuard is a project and trademark owned by its respective authors. This repository is not affiliated with, sponsored by, endorsed by, or approved by the WireGuard project.
 
-Le nom `WinWG` signifie simplement :
+The name `WinWG` simply means:
 
 ```text
 Windows + WireGuard helper
 ```
 
-## Serveur WireGuard vs configuration téléphone
+## Server vs phone configuration
 
-Sur Windows, il n'existe pas vraiment de paquet officiel séparé "serveur seulement". L'application WireGuard Windows installe aussi les composants nécessaires au mode serveur : `wg.exe`, `wireguard.exe`, le driver et le service tunnel.
+On Windows, there is no official separate “server-only” package. The WireGuard for Windows application also provides the components needed for server mode: `wg.exe`, `wireguard.exe`, the driver, and the tunnel service.
 
-Le projet ne transforme pas ton PC en "client VPN". Il utilise WireGuard pour créer un **tunnel serveur** sur le PC.
+This project does **not** turn your Windows PC into a VPN client. It uses WireGuard to create a **server tunnel** on the PC.
 
-Quand le script parle de fichier `client` ou de dossier `clients`, cela veut dire :
+When the script mentions `client` files or the `clients` folder, it means:
 
 ```text
-configuration à importer sur le téléphone
+configuration to import on your phone/remote device
 ```
 
-Le téléphone est le client VPN. Le PC Windows reste le serveur.
+The phone is the VPN client. The Windows PC remains the server.
 
-## Installation rapide
+## Quick manual install
 
-Ouvre PowerShell **en administrateur**, puis :
+Open PowerShell **as administrator**, then:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force
 cd .\winwg-oneclick-server
-.\scripts\Install-WireGuardServer.ps1 -Endpoint "MON_IP_PUBLIQUE_OU_DNS" -ClientName "telephone"
+.\scripts\Install-WireGuardServer.ps1 -Endpoint "MY_PUBLIC_IP_OR_DNS" -ClientName "phone"
 ```
 
-Exemple :
+Example with dynamic DNS:
 
 ```powershell
-.\scripts\Install-WireGuardServer.ps1 -Endpoint "vpn-maison.duckdns.org" -ClientName "iphone"
+.\scripts\Install-WireGuardServer.ps1 -Endpoint "home-vpn.duckdns.org" -ClientName "iphone"
 ```
 
-À la fin, le script affiche le chemin du fichier client, par exemple :
+At the end, the script shows the phone configuration path, for example:
 
 ```text
 C:\ProgramData\WireGuardPhoneServer\clients\iphone.conf
 ```
 
-Copie ce fichier sur ton téléphone puis importe-le dans l'application WireGuard.
-
-## Redirection de port sur la box
-
-Dans l'interface de ta box/routeur :
-
-| Paramètre | Valeur par défaut |
-|---|---|
-| Protocole | UDP |
-| Port externe | 51820 |
-| IP locale cible | IP LAN du PC Windows |
-| Port interne | 51820 |
-
-Recommandation réseau : crée un **bail DHCP statique** / une **réservation DHCP** pour le PC Windows dans l'interface de ta box/routeur. L'objectif est que le serveur VPN garde toujours la même adresse LAN, par exemple `192.168.1.14`.
-
-Concrètement, dans la box, associe :
-
-```text
-Adresse MAC du PC Windows -> Adresse IP LAN fixe réservée
-```
-
-Exemple :
-
-```text
-D4:3A:2E:85:CA:DF -> 192.168.1.14
-```
-
-Ensuite, la redirection de port doit pointer vers cette IP réservée :
-
-```text
-UDP 51820 -> 192.168.1.14 -> UDP 51820
-```
-
-C'est préférable à une IP configurée manuellement dans Windows, car la box reste maître du plan d'adressage et évite les conflits DHCP.
-
+Copy this file to your phone and import it into the WireGuard app.
 
 
 ## GitHub Actions / CI
 
-Le dépôt contient deux workflows GitHub Actions :
+The repository contains two GitHub Actions workflows:
 
 ```text
 .github/workflows/ci.yml
 .github/workflows/release-package.yml
 ```
 
-Le workflow CI vérifie :
+The CI workflow checks:
 
-- la syntaxe PowerShell sous Windows PowerShell 5.1 ;
-- la syntaxe PowerShell sous PowerShell 7 ;
-- les erreurs PSScriptAnalyzer ;
-- l'absence de fichiers sensibles générés (`.conf`, `.key`, `.psk`, `.env`, etc.) ;
-- la présence des fichiers publics importants ;
-- les liens Markdown relatifs cassés.
+- PowerShell syntax with Windows PowerShell 5.1;
+- PowerShell syntax with PowerShell 7;
+- PSScriptAnalyzer errors;
+- absence of generated sensitive files (`.conf`, `.key`, `.psk`, `.env`, etc.);
+- presence of important public-facing files;
+- broken relative Markdown links.
 
-Le workflow release permet de générer un ZIP propre du projet via `workflow_dispatch` ou via un tag `v*`, par exemple :
+The release workflow can generate a clean ZIP package through `workflow_dispatch` or a `v*` tag, for example:
 
 ```text
 v0.1.0-beta
 ```
 
-## Désinstallation one-click
+## One-click uninstall
 
-Pour supprimer proprement tout ce que le projet a configuré sur le PC Windows, double-clique :
+To cleanly remove everything configured by this project from the Windows PC, double-click:
 
 ```text
 UNINSTALLER-ONE-CLICK.bat
 ```
 
-Le désinstalleur supprime :
+The uninstaller removes:
 
-- le tunnel/service WireGuard `wg-phone-server` ;
-- la règle pare-feu UDP `51820` ;
-- le NAT Windows `WireGuardPhoneServerNAT` ;
-- la redirection UPnP UDP `51820` si elle avait été créée automatiquement ;
-- les configurations et clés dans `C:\ProgramData\WireGuardPhoneServer` ;
-- les QR codes générés dans `qrcodes` ;
-- la dépendance QR optionnelle QRCoder dans `tools` ;
-- les flags de fonctionnalité dans `features` ;
-- optionnellement l'application WireGuard elle-même.
+- the WireGuard tunnel/service `wg-phone-server`;
+- the UDP `51820` firewall rule;
+- the Windows NAT `WireGuardPhoneServerNAT`;
+- the UDP `51820` UPnP mapping if it was automatically created;
+- configurations and keys in `C:\ProgramData\WireGuardPhoneServer`;
+- generated QR codes in `qrcodes`;
+- optional QRCoder QR dependency in `tools`;
+- feature flags in `features`;
+- optionally the WireGuard application itself.
 
-Si tu avais créé une redirection de port manuelle sur ta box, il faut aussi la supprimer dans l'interface de la box.
+If you manually created port-forwarding on your router, you must also remove it in the router admin UI.
 
-> Sécurité : le désinstalleur ne désactive plus le routage IPv4 global de Windows, afin d'éviter de casser Hyper-V, WSL, le partage de connexion ou d'autres outils réseau.
+> Safety note: the uninstaller no longer disables global Windows IPv4 routing, to avoid breaking Hyper-V, WSL, Internet Connection Sharing, or other networking tools.
 
-Mode silencieux avancé :
+Advanced silent mode:
 
 ```powershell
 .\scripts\Uninstall-WireGuard-Server.ps1 -Quiet -RemoveWireGuardApp
 ```
 
 
+## Unified server console
 
-
-## Console serveur unifiée
-
-WireGuard Windows tourne comme un service en arrière-plan. WinWG regroupe maintenant la supervision et le contrôle du serveur dans une seule console :
+WireGuard for Windows runs as a background service. WinWG now combines monitoring and service control in a single console:
 
 ```text
 SERVER-CONSOLE.bat
 ```
 
-Cette console permet de :
+The console lets you:
 
-- voir l'état du service WireGuard ;
-- voir les téléphones/appareils connectés, leurs handshakes et leur vitesse RX/TX ;
-- vérifier le pare-feu, le NAT et le port UDP ;
-- activer/démarrer le serveur VPN ;
-- désactiver/arrêter le serveur VPN sans supprimer les configurations ;
-- redémarrer le serveur VPN ;
-- ajouter un téléphone, une tablette ou un PC portable ;
-- supprimer un appareil existant.
+- view the WireGuard service status;
+- view connected phones/devices, their handshakes and their RX/TX speed;
+- check firewall, NAT and UDP port status;
+- enable/start the VPN server;
+- disable/stop the VPN server without deleting configurations;
+- restart the VPN server;
+- add a phone, tablet, or laptop;
+- remove an existing device.
 
-Menu disponible dans la console :
-
-```text
-1 / A - Activer / démarrer le serveur VPN
-2 / D - Désactiver / arrêter le serveur VPN
-3     - Redémarrer le serveur VPN
-4 / N - Ajouter un nouvel appareil
-5 / R - Retirer / supprimer un appareil
-6 / G - Générer un QR code pour un appareil
-S     - Rafraîchir le statut
-V     - Activer/désactiver le mode ultra verbeux
-M     - Mode avancé / outils experts
-Q     - Quitter la console
-```
-
-La console ne se rafraîchit pas automatiquement toutes les 5 secondes : elle attend ton choix au clavier, ce qui évite les problèmes de saisie et l’affichage qui bouge tout seul.
-
-> Affichage : la console ajoute une petite marge à gauche pour éviter que les premières lettres soient coupées dans certains terminaux Windows.
-
-Dans cette version, `R` veut dire `Retirer un appareil`. Pour redémarrer le serveur VPN, utilise le numéro `3`, afin d’éviter la confusion entre `redémarrer` et `retirer`.
-
-
-La console affiche aussi une vitesse estimée par peer :
+Available menu inside the console:
 
 ```text
-Vitesse : RX 120.50 KiB/s / TX 42.10 KiB/s
+1 / A - Enable / start the VPN server
+2 / D - Disable / stop the VPN server
+3     - Restart the VPN server
+4 / N - Add a new device
+5 / R - Remove a device
+6 / G - Generate a QR code for a device
+S     - Refresh status
+V     - Enable/disable ultra verbose mode
+M     - Advanced mode / expert tools
+Q     - Quit the console
 ```
 
-Cette vitesse est calculée entre deux affichages du statut. Appuie sur `S` après quelques secondes pour obtenir une mesure. Au premier affichage, la console indique `calcul au prochain refresh`.
+The console does not auto-refresh every 5 seconds anymore: it waits for your keyboard choice, which avoids input issues and constantly moving output.
 
-Si le désinstalleur a supprimé les configurations, la console ne peut plus réactiver le VPN et demandera de relancer `INSTALLER-ONE-CLICK.bat`.
+> Display: the console adds a small left margin to avoid the first letters being clipped in some Windows terminals.
 
-> Note : l'ancien script séparé `WIREGUARD-SERVICE-TOGGLE.bat` a été retiré dans cette version de test, car ses fonctions sont maintenant intégrées dans `SERVER-CONSOLE.bat`.
-
-
+In this version, `R` means `Remove a device`. To restart the VPN server, use number `3`, to avoid confusion between restart and remove.
 
 
-### Mode ultra verbeux
+The console also displays an estimated speed per peer:
 
-Dans `SERVER-CONSOLE.bat`, appuie sur :
+```text
+Speed: RX 120.50 KiB/s / TX 42.10 KiB/s
+```
+
+This speed is calculated between two status displays. Press `S` after a few seconds to get a measurement. On first display, the console shows `calcul au prochain refresh`.
+
+If the uninstaller removed the configurations, the console cannot re-enable the VPN and will ask you to run `INSTALLER-ONE-CLICK.bat` again.
+
+> Note: the old separate `WIREGUARD-SERVICE-TOGGLE.bat` script has been removed in this test version because its functions are now integrated into `SERVER-CONSOLE.bat`.
+
+
+## Router port-forwarding
+
+In your router/Internet box admin panel:
+
+| Setting | Default value |
+|---|---|
+| Protocol | UDP |
+| External port | 51820 |
+| Local target IP | Windows PC LAN IP |
+| Internal port | 51820 |
+
+Network recommendation: create a **static DHCP lease** / **DHCP reservation** for the Windows PC in your router/Internet box. The goal is for the VPN server to always keep the same LAN address, for example `192.168.1.14`.
+
+In practice, bind:
+
+```text
+Windows PC MAC address -> reserved LAN IP address
+```
+
+Example:
+
+```text
+D4:3A:2E:85:CA:DF -> 192.168.1.14
+```
+
+Then point the port-forwarding rule to that reserved IP:
+
+```text
+UDP 51820 -> 192.168.1.14 -> UDP 51820
+```
+
+This is usually better than manually configuring a static IP inside Windows, because the router remains in charge of the address plan and avoids DHCP conflicts.
+
+
+
+
+### Ultra verbose mode
+
+Inside `SERVER-CONSOLE.bat`, press:
 
 ```text
 V
 ```
 
-Ce mode affiche davantage de détails pendant les actions sensibles, notamment :
+This mode shows more details during sensitive actions, including:
 
-- script PowerShell appelé ;
-- paramètres utilisés ;
-- code retour ;
-- sortie complète du script ;
-- résultat de vérification après ajout/suppression d'appareil ;
-- chemin du fichier log.
+- called PowerShell script;
+- parameters used;
+- exit code;
+- full script output;
+- verification result after adding/removing a device;
+- log file path.
 
-Un fichier log est aussi écrit dans :
+A log file is also written to:
 
 ```text
 C:\ProgramData\WireGuardPhoneServer\logs
 ```
 
-C'est utile pour diagnostiquer les cas où l'appareil est bien créé/supprimé mais où le rechargement du service WireGuard retourne un avertissement.
+This is useful to diagnose cases where a device is correctly created/removed but the WireGuard service reload returns a warning.
 
 
 
-## Mode avancé / outils experts
+## Advanced mode / expert tools
 
-La console contient un mode avancé destiné aux utilisateurs qui connaissent déjà WireGuard.
+The console includes an advanced mode intended for users who already understand WireGuard.
 
 ```text
-M - Mode avancé / outils experts
+M - Advanced mode / expert tools
 ```
 
-Avant activation, la console affiche un avertissement et demande de taper exactement :
+Before activation, the console displays a warning and asks you to type exactly:
 
 ```text
 JE COMPRENDS
 ```
 
-Ce mode peut donner accès à des fichiers et actions sensibles. Il permet notamment :
+This mode may expose sensitive files and actions. It can:
 
-- afficher `wg show` brut ;
-- ouvrir les dossiers serveur, clients et QR codes ;
-- exporter un diagnostic redigé ;
-- modifier la configuration avancée : port WireGuard, DNS clients et `AllowedIPs` ;
-- ouvrir le fichier serveur `wg-phone-server.conf` dans Notepad.
+- show raw `wg show` output;
+- open server, clients and QR code folders;
+- export a redacted diagnostic file;
+- edit advanced configuration: WireGuard port, client DNS and `AllowedIPs`;
+- open the server `wg-phone-server.conf` file in Notepad.
 
-Attention : le fichier serveur contient la clé privée WireGuard. Ne partage jamais ce fichier, son contenu, ni une capture d'écran non redigée.
+Warning: the server configuration file contains the WireGuard private key. Never share this file, its content, or an unredacted screenshot.
 
 
 
-### Configuration avancée personnalisable
+### Customizable advanced configuration
 
-Le mode avancé contient aussi :
-
-```text
-6 - Modifier configuration avancée (port, DNS, AllowedIPs)
-```
-
-Options disponibles :
-
-- changer le port WireGuard UDP global ;
-- changer le DNS de tous les clients ;
-- changer le DNS d'un seul client ;
-- changer le mode client `AllowedIPs` de tous les clients ;
-- modifier `AllowedIPs` d'un seul client ;
-- changer `PersistentKeepalive` de tous les clients ;
-- changer `PersistentKeepalive` d'un seul client.
-
-Principe : quand un paramètre concerne les clients, la console propose autant que possible deux niveaux :
+Advanced mode also contains:
 
 ```text
-Global = appliquer la même valeur à tous les clients
-Individuel = personnaliser uniquement un client/appareil
+6 - Edit advanced configuration (port, DNS, AllowedIPs)
+```
+
+Available options:
+
+- change the global WireGuard UDP port;
+- change DNS for all clients;
+- change DNS for a single client;
+- change client `AllowedIPs` mode for all clients;
+- edit `AllowedIPs` for a single client;
+- change `PersistentKeepalive` for all clients;
+- change `PersistentKeepalive` for a single client.
+
+Principle: when a setting affects clients, the console offers two levels whenever possible:
+
+```text
+Global = apply the same value to all clients
+Individual = customize only one client/device
 ```
 
 
-### Exemple avancé : modifier PersistentKeepalive
+### Advanced example: edit PersistentKeepalive
 
-Par défaut, les configurations client utilisent :
+By default, client configurations use:
 
 ```ini
 PersistentKeepalive = 25
 ```
 
-Cela aide à garder ouverte la translation NAT côté client, notamment sur téléphone 4G/5G, Wi-Fi public ou routeur strict.
+This helps keep the client-side NAT mapping open, especially on 4G/5G phones, public Wi-Fi, or strict routers.
 
-Valeurs proposées :
+Suggested values:
 
 ```text
-0  = désactivé
-15 = réseaux mobiles/NAT très stricts
-25 = recommandé / défaut WireGuard
-60 = moins fréquent
+0  = disabled
+15 = mobile networks / very strict NAT
+25 = recommended / WireGuard default
+60 = less frequent
 ```
 
-Comme pour le DNS et `AllowedIPs`, la console permet de modifier cette valeur globalement pour tous les clients ou individuellement pour un seul appareil.
+As with DNS and `AllowedIPs`, the console can change this value globally for all clients or individually for a single device.
 
-Après modification, il faut obligatoirement réimporter le `.conf` ou rescanner le nouveau QR code sur l'appareil.
+After changing this, you must re-import the `.conf` file or rescan the new QR code on the device.
 
-### Exemple avancé : modifier AllowedIPs
+### Advanced example: edit AllowedIPs
 
-Par défaut, les configurations client utilisent :
+By default, client configurations use:
 
 ```ini
 AllowedIPs = 0.0.0.0/0
 ```
 
-Cela signifie **full tunnel IPv4** : tout le trafic IPv4 de l'appareil passe par le VPN.
+This means **IPv4 full tunnel**: all IPv4 traffic from the device goes through the VPN.
 
-Dans le mode avancé, tu peux modifier cette valeur pour un appareil :
+In advanced mode, you can edit this value for a device:
 
 ```text
-6 - Modifier AllowedIPs d'un appareil
+6 - Edit AllowedIPs for a device
 ```
 
-Exemples utiles :
+Useful examples:
 
 ```ini
 AllowedIPs = 0.0.0.0/0
 ```
 
-Full tunnel : tout le trafic IPv4 passe par le VPN.
+Full tunnel: all IPv4 traffic goes through the VPN.
 
 ```ini
 AllowedIPs = 10.66.66.0/24
 ```
 
-VPN uniquement : utile pour une LAN party WireGuard ou accès entre peers sans faire passer tout Internet dans le VPN.
+VPN only: useful for WireGuard LAN party or peer-to-peer VPN access without routing all Internet traffic through the VPN.
 
 ```ini
 AllowedIPs = 10.66.66.0/24, 192.168.1.0/24
 ```
 
-VPN + LAN maison : permet d'accéder au réseau VPN et au LAN maison.
+VPN + home LAN: allows access to the VPN network and the home LAN.
 
-Après modification, il faut obligatoirement réimporter le `.conf` ou rescanner le nouveau QR code sur l'appareil. Sinon, l'appareil continuera à utiliser l'ancienne configuration `AllowedIPs`.
+After changing this, you must re-import the `.conf` file or rescan the new QR code on the device. Otherwise, the device will keep using the previous `AllowedIPs` configuration.
 
 
-## QR code WireGuard
+## WireGuard QR code
 
-L'application WireGuard Android/iOS peut importer une configuration en scannant un QR code.
+The WireGuard Android/iOS app can import a configuration by scanning a QR code.
 
-Pendant l'installation, WinWG demande si tu veux installer la dépendance optionnelle de génération QR code. Si tu refuses, l'option QR n'apparait pas dans la console.
+During installation, WinWG asks whether you want to install the optional QR code generation dependency. If you decline, the QR option is hidden from the console.
 
-Si l'option est activée, WinWG peut générer ce QR localement depuis `SERVER-CONSOLE.bat` :
+If enabled, WinWG can generate this QR locally from `SERVER-CONSOLE.bat`:
 
 ```text
-6 / G - Générer un QR code pour un appareil
+6 / G - Generate a QR code for a device
 ```
 
-Après l'ajout d'un nouvel appareil, la console essaie aussi de générer automatiquement son QR code uniquement si la fonctionnalité QR a été activée à l'installation.
+After adding a new device, the console also tries to automatically generate its QR code only if the QR feature was enabled during installation.
 
-Les QR codes sont stockés ici :
+QR codes are stored here:
 
 ```text
 C:\ProgramData\WireGuardPhoneServer\qrcodes
 ```
 
-Important : un QR code WireGuard contient la clé privée de l'appareil, exactement comme le fichier `.conf`. Ne le partage jamais publiquement.
+Important: a WireGuard QR code contains the device private key, exactly like the `.conf` file. Never share it publicly.
 
-Pour générer les QR codes localement sans envoyer les configurations à un service tiers, WinWG télécharge si besoin la bibliothèque .NET open source **QRCoder** depuis NuGet et l'utilise localement.
+To generate QR codes locally without sending configurations to a third-party service, WinWG downloads the open source .NET **QRCoder** library from NuGet if needed and uses it locally.
 
-## Gestion des appareils depuis la console
+## Device management from the console
 
-Depuis `SERVER-CONSOLE.bat`, tu peux maintenant gérer les appareils sans commande PowerShell manuelle :
+From `SERVER-CONSOLE.bat`, you can now manage devices without manual PowerShell commands:
 
 ```text
-N - Ajouter un nouvel appareil
-X - Supprimer un appareil
+N - Add a new device
+X - Remove a device
 ```
 
-L'ajout d'appareil :
+Adding a device:
 
-- demande le nom de l'appareil ;
-- propose automatiquement l'endpoint public/DNS déjà utilisé si possible ;
-- demande le DNS à utiliser pour cet appareil, avec possibilité de ne rien taper pour garder le DNS par défaut ;
-- choisit automatiquement la prochaine IP VPN disponible ;
-- génère le fichier `.conf` à importer ;
-- ouvre le dossier contenant la configuration générée.
+- asks for the device name;
+- suggests the already-used public/DNS endpoint when possible;
+- asks which DNS should be used by this device, with the option to type nothing and keep the default DNS;
+- automatically selects the next available VPN IP;
+- generates the `.conf` file to import;
+- opens the folder containing the generated configuration.
 
-> Note : si l'ajout crée bien le fichier `.conf` et le peer mais qu'un message d'erreur apparaît pendant le rechargement du service, la console le signale comme un ajout réussi avec avertissement. Tu peux ensuite utiliser `3` pour redémarrer le serveur VPN.
+> Note: if adding creates the `.conf` file and peer but an error appears while reloading the service, the console reports it as a successful addition with a warning. You can then use `3` to restart the VPN server.
 
-La suppression d'appareil :
+Removing a device:
 
-- liste les fichiers `.conf` existants ;
-- s’il n’y a qu’un seul appareil, le sélectionne automatiquement ;
-- demande confirmation ;
-- supprime le peer du serveur ;
-- supprime le fichier `.conf` local correspondant ;
-- recharge le service WireGuard.
+- lists existing `.conf` files;
+- if there is only one device, selects it automatically;
+- asks for confirmation;
+- removes the peer from the server;
+- deletes the matching local `.conf` file;
+- reloads the WireGuard service.
 
-> Note : si la suppression retire bien le fichier `.conf` et le peer mais qu'un message d'erreur apparaît pendant le rechargement du service, la console le signale comme une suppression réussie avec avertissement. Tu peux ensuite utiliser `3` pour redémarrer le serveur VPN.
+> Note: if removal deletes the `.conf` file and peer but an error appears while reloading the service, the console reports it as a successful removal with a warning. You can then use `3` to restart the VPN server.
 
 
-## Utilisation
+## Usage
 
-### Ajouter un deuxième téléphone
+### Add a second phone/device
 
 ```powershell
-.\scripts\Add-WireGuardPeer.ps1 -ClientName "android" -Endpoint "vpn-maison.duckdns.org"
+.\scripts\Add-WireGuardPeer.ps1 -ClientName "android" -Endpoint "home-vpn.duckdns.org"
 ```
 
-### Supprimer un client
+### Remove a device
 
 ```powershell
 .\scripts\Remove-WireGuardPeer.ps1 -ClientName "android"
 ```
 
-### Voir les clients configurés
+### List generated device configurations
 
 ```powershell
 Get-ChildItem "C:\ProgramData\WireGuardPhoneServer\clients"
 ```
 
-### Redémarrer le tunnel
+### Restart the tunnel manually
 
 ```powershell
 & "$env:ProgramFiles\WireGuard\wireguard.exe" /uninstalltunnelservice "wg-phone-server"
 & "$env:ProgramFiles\WireGuard\wireguard.exe" /installtunnelservice "C:\ProgramData\WireGuardPhoneServer\server\wg-phone-server.conf"
 ```
 
-## Configuration par défaut
+## Default configuration
 
-| Option | Valeur |
+| Option | Value |
 |---|---|
-| Nom tunnel | `wg-phone-server` |
-| Port WireGuard | `51820/UDP` |
-| Réseau VPN | `10.66.66.0/24` |
-| IP serveur VPN | `10.66.66.1` |
-| DNS client | `1.1.1.1, 8.8.8.8` |
-| Mode client | full-tunnel IPv4 : `AllowedIPs = 0.0.0.0/0` |
+| Tunnel name | `wg-phone-server` |
+| WireGuard port | `51820/UDP` |
+| VPN network | `10.66.66.0/24` |
+| VPN server IP | `10.66.66.1` |
+| Client DNS | `1.1.1.1, 8.8.8.8` |
+| Client mode | full-tunnel IPv4: `AllowedIPs = 0.0.0.0/0` |
 
-## Tester depuis le téléphone
+## Test from your phone
 
-1. Désactive le Wi-Fi du téléphone.
-2. Active la 4G/5G.
-3. Active le tunnel WireGuard.
-4. Ouvre un site comme `https://ifconfig.me`.
-5. L'IP affichée doit être celle de ta connexion maison.
+1. Disable Wi-Fi on the phone.
+2. Enable 4G/5G.
+3. Enable the WireGuard tunnel.
+4. Open a website such as `https://ifconfig.me`.
+5. The displayed IP should be your home Internet public IP.
 
-## Dépannage rapide
+## Troubleshooting
 
-Consulte [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md).
+See [`docs/TROUBLESHOOTING.en.md`](docs/TROUBLESHOOTING.en.md).
 
 
-## Avertissement sécurité
+## Security warning
 
-Ce projet configure un serveur VPN et peut exposer un port UDP sur Internet. Tu es responsable de ta configuration réseau.
+This project configures a VPN server and may expose a UDP port to the Internet. You are responsible for your network configuration.
 
-Avant usage public ou prolongé :
+Before public or long-term use:
 
-- garde Windows et WireGuard à jour ;
-- ne partage jamais les fichiers `.conf` générés ;
-- supprime immédiatement un appareil perdu ou compromis ;
-- vérifie ta redirection de port ;
-- comprends les limites CG-NAT ;
-- teste la désinstallation avant de dépendre du serveur.
+- keep Windows and WireGuard up to date;
+- never share generated `.conf` files;
+- immediately remove lost or compromised devices;
+- verify your port-forwarding configuration;
+- understand CG-NAT limitations;
+- test uninstall before depending on the server.
 
-## Sécurité
+## Security
 
-- Ne partage jamais les fichiers `.conf` générés : ils contiennent des clés privées.
-- Utilise un nom DNS dynamique plutôt qu'une IP copiée partout.
-- Garde Windows et WireGuard à jour.
-- Supprime immédiatement un peer si un téléphone est perdu.
+- Never share generated `.conf` files: they contain private keys.
+- Prefer a dynamic DNS name instead of copying an IP address everywhere.
+- Keep Windows and WireGuard up to date.
+- Immediately remove a peer if a phone/device is lost.
 
-## Limites connues
+## Known limitations
 
-- Si ton opérateur utilise du CG-NAT, la redirection de port ne fonctionnera pas. Solutions : demander une IPv4 publique, utiliser IPv6, ou passer par un VPS relais.
-- Le script configure l'IPv4. L'IPv6 n'est pas activé par défaut.
-- Certains antivirus/firewalls tiers peuvent bloquer le trafic UDP.
+- If your ISP uses CG-NAT, port-forwarding will not work. Solutions: ask for a public/full-stack IPv4, use IPv6, or use a relay/VPS.
+- The script configures IPv4. IPv6 is not enabled by default.
+- Some third-party antivirus/firewall products may block UDP traffic.

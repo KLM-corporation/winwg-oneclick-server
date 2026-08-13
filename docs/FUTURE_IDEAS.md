@@ -4,12 +4,12 @@ Ce document sert de bloc-notes pour réfléchir aux prochaines étapes du projet
 
 ## Verdict actuel
 
-Le projet est publiable en public, mais plutôt en **beta** qu'en version stable.
+Le projet est maintenant **public** et publié en **beta**.
 
 ```text
-État actuel : publiable
-Niveau maturité : environ 8/10 pour une beta
-Version conseillée : v0.2.0-beta
+État actuel : public
+Niveau maturité : beta utilisable
+Version publiée : v0.2.0-beta
 ```
 
 Positionnement conseillé :
@@ -36,6 +36,29 @@ auto-hébergement Windows
 serveur WireGuard personnel
 ```
 
+
+---
+
+## Déjà réalisé
+
+Ces idées ont été faites ou largement traitées depuis la première version de ce document :
+
+- [x] Rendre le repo public.
+- [x] Créer une release `v0.2.0-beta` avec ZIP téléchargeable.
+- [x] Ajouter les topics GitHub principaux.
+- [x] Mettre le README anglais par défaut et garder la documentation française.
+- [x] Nettoyer la terminologie user-facing vers `device` / `appareil`.
+- [x] Tester puis intégrer le renommage interne complet : `WinWGOneClickServer`, `winwg-server`, `devices`.
+- [x] Ajouter la console unifiée.
+- [x] Ajouter le QR code optionnel.
+- [x] Ajouter le choix QR par appareil lors de l'ajout.
+- [x] Ajouter le menu `QR code settings` / `Paramètres QR code` dans la console.
+- [x] Ajouter la restauration d'une configuration existante.
+- [x] Ajouter le compteur de vitesse par peer.
+- [x] Ajouter le mode avancé avec avertissement.
+- [x] Ajouter l'édition avancée du port, DNS, `AllowedIPs` et `PersistentKeepalive`.
+- [x] Ajouter les donations optionnelles BTC/ETH.
+
 ---
 
 ## Checklist avant publication publique
@@ -49,7 +72,7 @@ serveur WireGuard personnel
   - `.psk`
   - `.env`
   - logs contenant des clés
-- [ ] Vérifier que la CI GitHub Actions passe.
+- [x] Vérifier que la CI GitHub Actions passe.
 - [ ] Tester l'installation sur une machine Windows propre.
 - [ ] Tester la désinstallation complète.
 - [ ] Tester la restauration d'une configuration existante.
@@ -57,25 +80,23 @@ serveur WireGuard personnel
 - [ ] Tester la suppression d'un appareil.
 - [ ] Tester la génération QR si activée.
 - [ ] Tester le mode FR/EN.
-- [ ] Créer une release beta récente.
+- [x] Créer une release beta récente.
 
 ### Recommandé
 
 - [ ] Ajouter des screenshots de la console.
 - [ ] Ajouter une section `Use cases` / `Cas d'utilisation` dans le README.
-- [ ] Ajouter les topics GitHub.
-- [ ] Vérifier que le README anglais est bien le README par défaut.
-- [ ] Garder seulement les branches nécessaires :
+- [x] Ajouter les topics GitHub.
+- [x] Vérifier que le README anglais est bien le README par défaut.
+- [x] Garder seulement les branches nécessaires :
   - `main`
-  - `test-debug-feature` ou éventuellement `dev`
+  - `dev`
 
 ---
 
-## Release conseillée
+## Release actuelle
 
-La release actuelle peut devenir obsolète si beaucoup de fonctionnalités ont été ajoutées depuis.
-
-Version recommandée pour la prochaine publication :
+La release publique actuelle est :
 
 ```text
 v0.2.0-beta
@@ -87,11 +108,17 @@ Pourquoi pas `v1.0.0` ?
 Le projet est utilisable, mais il reste encore à tester sur plusieurs machines Windows et plusieurs scénarios réseau.
 ```
 
+Prochaine release possible après nouvelles fonctionnalités :
+
+```text
+v0.3.0-beta
+```
+
 ---
 
-## Topics GitHub recommandés
+## Topics GitHub appliqués
 
-À ajouter dans les paramètres GitHub du repo :
+Topics actuellement ajoutés dans les paramètres GitHub du repo :
 
 ```text
 wireguard
@@ -111,11 +138,11 @@ qr-code
 dynamic-dns
 ```
 
-Objectif : rendre le projet plus trouvable sur GitHub.
+Objectif : rendre le projet plus trouvable sur GitHub. Statut : fait.
 
 ---
 
-## Section README à ajouter : Use cases
+## Section README proposée : Use cases
 
 ### Version anglaise
 
@@ -345,36 +372,21 @@ Cela éviterait aux utilisateurs de devoir passer par le mode avancé.
 
 ---
 
-### 8. Nettoyage terminologique device/appareil
+### 8. Nettoyage terminologique device/appareil — fait
 
-Historiquement, certains noms internes utilisent :
+État : réalisé.
 
-```text
-Phone
-telephone
-WinWGOneClickServer
-winwg-server
-```
+Le projet utilise maintenant majoritairement `device` / `appareil` côté interface et documentation.
 
-Pour compatibilité, on peut garder les chemins internes.
-
-Mais côté interface et documentation publique, il serait préférable d'utiliser :
+Les anciens termes historiques `phone` / `telephone` ont été nettoyés autant que possible, et le renommage interne expérimental a été intégré :
 
 ```text
-device
-remote device
-appareil
+WireGuardPhoneServer -> WinWGOneClickServer
+wg-phone-server -> winwg-server
+clients -> devices
 ```
 
-Objectif : montrer que le projet marche aussi pour :
-
-```text
-appareil
-tablette
-PC portable
-PC ami
-machine de jeu
-```
+À surveiller : il peut rester quelques occurrences légitimes dans les exemples, par exemple `iPhone` ou des explications historiques.
 
 ---
 
@@ -407,20 +419,31 @@ Support plus facile via GitHub Issues.
 
 ---
 
-### 10. Activer/désactiver QR depuis la console
+### 10. Activer/désactiver QR depuis la console — fait
 
-Aujourd'hui, la fonctionnalité QR est choisie à l'installation.
+État : réalisé.
 
-État : nettoyage user-facing largement appliqué. Idée restante : ajouter dans la console :
+La console contient maintenant :
 
 ```text
-QR feature settings
-1 - Enable QR feature
-2 - Disable QR feature
-3 - Reinstall QRCoder dependency
+7 / K - QR code settings
 ```
 
-Cela évite de relancer l'installateur uniquement pour changer ce choix.
+Ce menu permet :
+
+```text
+1 - Enable QR feature and install QRCoder
+2 - Disable QR feature
+3 - Reinstall/check QRCoder
+4 - Open QR codes folder
+```
+
+Le comportement actuel :
+
+```text
+QR désactivé globalement -> l'option de génération QR est cachée
+QR activé globalement    -> la console demande à chaque ajout si un QR doit être généré
+```
 
 ---
 
@@ -657,9 +680,9 @@ dynamic-dns
 
 ---
 
-## 23. Faire une release v0.2.0-beta
+## 23. Faire une release v0.2.0-beta — fait
 
-Quand les derniers changements seront validés :
+Release publiée :
 
 ```text
 v0.2.0-beta
@@ -679,24 +702,25 @@ organisation scripts/docs
 
 ---
 
-# Recommandation stratégique
+# Recommandation stratégique mise à jour
 
-Avant publication publique :
+Déjà fait :
 
 ```text
-1. Ajouter les topics GitHub
-2. Ajouter quelques screenshots
-3. Vérifier la CI
-4. Créer v0.2.0-beta
-5. Rendre public
+- Repo public
+- Topics GitHub
+- CI OK
+- Release v0.2.0-beta
+- QR feature settings
 ```
 
-Après publication :
+Priorités restantes après publication :
 
 ```text
-1. LAN Party helper
-2. Export pack invité
-3. Health check
-4. QR feature enable/disable depuis console
-5. Diagnostic CG-NAT
+1. Ajouter quelques screenshots
+2. Ajouter une section Use cases / Cas d'utilisation dans le README
+3. LAN Party helper
+4. Export pack invité
+5. Health check
+6. Diagnostic CG-NAT
 ```

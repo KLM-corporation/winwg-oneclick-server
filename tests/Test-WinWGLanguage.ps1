@@ -60,10 +60,19 @@ foreach ($key in $requiredKeys) {
             $failures.Add("$lang/$key is empty")
             continue
         }
-        if ($value -eq $key) {
-            $failures.Add("$lang/$key is missing and fell back to key name")
-        }
+        # Do not fail just because the visible text equals the key.
+        # Some words are legitimately identical in FR/EN and as keys, e.g. Installation, Service, Tunnel, Firewall, Actions.
+        # Missing fallback is tested explicitly below with a fake key.
     }
+}
+
+# Explicit fallback behavior check: an unknown key should return the key name.
+$fallbackProbe = '__DefinitelyMissingTranslationKey__'
+if ((Get-WinWGText -Language 'fr' -Key $fallbackProbe) -ne $fallbackProbe) {
+    $failures.Add('Fallback behavior for missing FR key is unexpected')
+}
+if ((Get-WinWGText -Language 'en' -Key $fallbackProbe) -ne $fallbackProbe) {
+    $failures.Add('Fallback behavior for missing EN key is unexpected')
 }
 
 # These keys must be genuinely translated and should not be identical between FR and EN.

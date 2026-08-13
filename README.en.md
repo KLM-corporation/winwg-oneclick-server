@@ -518,6 +518,8 @@ Adding a device:
 - generates the `.conf` file to import;
 - opens the folder containing the generated configuration.
 
+When adding a device, if the QR feature is globally enabled, the console now asks whether you want to generate a QR code for that specific device. You can answer `yes` or `no`.
+
 > Note: if adding creates the `.conf` file and peer but an error appears while reloading the service, the console reports it as a successful addition with a warning. You can then use `3` to restart the VPN server.
 
 Removing a device:
@@ -532,19 +534,6 @@ Removing a device:
 > Note: if removal deletes the `.conf` file and peer but an error appears while reloading the service, the console reports it as a successful removal with a warning. You can then use `3` to restart the VPN server.
 
 
-
-## Roadmap / planned ideas
-
-Planned improvement: when adding a new device from the console, ask whether a QR code should be generated for that specific device.
-
-Target behavior:
-
-```text
-QR feature globally disabled -> no QR option
-QR feature globally enabled  -> ask on each add: generate a QR? yes/no
-```
-
-This will allow creating only the `.conf` file for some devices without generating an unnecessary QR code.
 
 ## Usage
 

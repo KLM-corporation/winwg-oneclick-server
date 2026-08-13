@@ -555,6 +555,43 @@ Important : un QR code WireGuard contient la clé privée de l'appareil, exactem
 
 Pour générer les QR codes localement sans envoyer les configurations à un service tiers, WinWG télécharge si besoin la bibliothèque .NET open source **QRCoder** depuis NuGet et l'utilise localement.
 
+
+## Appareils temporaires
+
+WinWG permet maintenant de créer un appareil temporaire depuis la console.
+
+Lors de l'ajout d'un appareil :
+
+```text
+4 / N - Ajouter un nouvel appareil
+```
+
+La console demande si l'appareil doit être temporaire. Si oui, tu peux choisir une durée :
+
+```text
+1 - 1 heure
+2 - 6 heures
+3 - 24 heures
+4 - 7 jours
+5 - durée personnalisée en heures
+```
+
+WinWG crée alors un fichier de métadonnées :
+
+```text
+C:\ProgramData\WinWGOneClickServer\devices\NOM.meta.json
+```
+
+La console affiche l'expiration dans la liste des peers.
+
+Pour supprimer les appareils temporaires expirés :
+
+```text
+8 / E - Supprimer les appareils temporaires expires
+```
+
+Mode simple actuel : le nettoyage est manuel depuis la console. Il n'y a pas encore de tâche planifiée Windows automatique.
+
 ## Gestion des appareils depuis la console
 
 Depuis `SERVER-CONSOLE.bat`, tu peux maintenant gérer les appareils sans commande PowerShell manuelle :

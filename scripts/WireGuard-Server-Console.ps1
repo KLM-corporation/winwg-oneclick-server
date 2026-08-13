@@ -300,7 +300,7 @@ function Get-WgPeerSummaries([string]$WgShowText, [hashtable]$PeerNameMap) {
     return @($peers)
 }
 
-function Write-PeerDashboard([string]$WgShowText, [string]$ServerConfigPath) {
+function Write-PeerDashboard([string]$WgShowText, [string]$ServerConfigPath, [string]$BaseDir) {
     $nameMap = Get-PeerNameMap -ServerConfigPath $ServerConfigPath
     $peers = @(Get-WgPeerSummaries -WgShowText $WgShowText -PeerNameMap $nameMap)
     Write-UiHost (Get-WinWGText $script:Language "PhonesPeers") -ForegroundColor Cyan
@@ -316,6 +316,8 @@ function Write-PeerDashboard([string]$WgShowText, [string]$ServerConfigPath) {
         Write-UiHost ("  " + (Get-WinWGText $script:Language "Handshake").PadRight(12) + ": " + $peer.LatestHandshake) -ForegroundColor DarkCyan
         Write-UiHost ("  " + (Get-WinWGText $script:Language "Transfer").PadRight(12) + ": " + $peer.Transfer) -ForegroundColor DarkCyan
         Write-UiHost ("  " + (Get-WinWGText $script:Language "Speed").PadRight(12) + ": " + $speedText) -ForegroundColor Green
+        $temporaryText = Get-TemporaryInfoText -BaseDir $BaseDir -DeviceName $peer.Name
+        if ($temporaryText) { Write-UiHost ("  " + $temporaryText) -ForegroundColor Yellow }
         Write-UiHost ("  " + (Get-WinWGText $script:Language "PublicKey").PadRight(12) + ": " + $peer.PublicKey.Substring(0, 12) + "...") -ForegroundColor DarkGray
 
         $script:PeerTrafficSamples[$peer.PublicKey] = [pscustomobject]@{
@@ -593,6 +595,100 @@ function Get-DefaultDeviceDns([string]$BaseDir) {
     return "1.1.1.1, 8.8.8.8"
 }
 
+
+function Get-DeviceMetadataPath([string]$BaseDir, [string]$DeviceName) {
+    return (Join-Path $BaseDir "devices\$DeviceName.meta.json")
+}
+
+function Get-DeviceMetadata([string]$BaseDir, [string]$DeviceName) {
+    $path = Get-DeviceMetadataPath -BaseDir $BaseDir -DeviceName $DeviceName
+    if (-not (Test-Path $path)) { return $null }
+    try { return (Get-Content $path -Raw | ConvertFrom-Json) } catch { return $null }
+}
+
+function Save-TemporaryDeviceMetadata([string]$BaseDir, [string]$DeviceName, [string]$VpnIp, [datetime]$ExpiresAt) {
+    $path = Get-DeviceMetadataPath -BaseDir $BaseDir -DeviceName $DeviceName
+    $metadata = [pscustomobject]@{
+        name = $DeviceName
+        type = 'temporary'
+        temporary = $true
+        createdAt = (Get-Date).ToUniversalTime().ToString('o')
+        expiresAt = $ExpiresAt.ToUniversalTime().ToString('o')
+        vpnIp = $VpnIp
+        configPath = (Join-Path $BaseDir "devices\$DeviceName.conf")
+    }
+    $metadata | ConvertTo-Json -Depth 5 | Set-Content -Path $path -Encoding UTF8
+    return $path
+}
+
+function Read-TemporaryDeviceExpiration([string]$BaseDir) {
+    $isTemporary = Ask-YesNoConsole -Question (Get-WinWGText $script:Language "AskTemporaryDevice") -DefaultYes $false
+    if (-not $isTemporary) { return $null }
+
+    Write-UiHost ""
+    Write-UiHost (Get-WinWGText $script:Language "TemporaryDurationMenu") -ForegroundColor Cyan
+    Write-UiHost "----------------" -ForegroundColor DarkGray
+    Write-UiHost (Get-WinWGText $script:Language "Duration1h")
+    Write-UiHost (Get-WinWGText $script:Language "Duration6h")
+    Write-UiHost (Get-WinWGText $script:Language "Duration24h")
+    Write-UiHost (Get-WinWGText $script:Language "Duration7d")
+    Write-UiHost (Get-WinWGText $script:Language "DurationCustomHours")
+    Write-UiHost ""
+    $choice = (Read-UiHost (Get-WinWGText $script:Language "Choice")).Trim()
+    switch ($choice) {
+        '1' { $hours = 1 }
+        '2' { $hours = 6 }
+        '3' { $hours = 24 }
+        '4' { $hours = 168 }
+        '5' {
+            $raw = (Read-UiHost "Hours / Heures").Trim().Replace(',', '.')
+            $hours = [double]::Parse($raw, [System.Globalization.CultureInfo]::InvariantCulture)
+            if ($hours -le 0) { throw "Invalid duration" }
+        }
+        default { $hours = 24 }
+    }
+    return (Get-Date).ToUniversalTime().AddHours($hours)
+}
+
+function Get-TemporaryInfoText([string]$BaseDir, [string]$DeviceName) {
+    $meta = Get-DeviceMetadata -BaseDir $BaseDir -DeviceName $DeviceName
+    if (-not $meta -or -not $meta.temporary) { return $null }
+    try { $expires = [datetime]::Parse($meta.expiresAt).ToUniversalTime() } catch { return $null }
+    $now = (Get-Date).ToUniversalTime()
+    if ($expires -le $now) {
+        return ((Get-WinWGText $script:Language "Temporary") + ": yes / " + (Get-WinWGText $script:Language "Expired"))
+    }
+    $remaining = $expires - $now
+    $remainingText = if ($remaining.TotalDays -ge 1) { "{0:N1}d" -f $remaining.TotalDays } elseif ($remaining.TotalHours -ge 1) { "{0:N1}h" -f $remaining.TotalHours } else { "{0:N0}m" -f $remaining.TotalMinutes }
+    return ((Get-WinWGText $script:Language "Temporary") + ": yes / " + (Get-WinWGText $script:Language "ExpiresAt") + ": " + $expires.ToLocalTime().ToString('yyyy-MM-dd HH:mm') + " / " + (Get-WinWGText $script:Language "Remaining") + ": " + $remainingText)
+}
+
+function Remove-ExpiredTemporaryDevices([string]$TunnelName, [string]$BaseDir) {
+    $deviceDir = Join-Path $BaseDir "devices"
+    if (-not (Test-Path $deviceDir)) { return (Get-WinWGText $script:Language "NoExpiredDevices") }
+    $scriptPath = Join-Path $PSScriptRoot "Remove-WireGuardPeer.ps1"
+    $expired = @()
+    foreach ($metaFile in Get-ChildItem $deviceDir -Filter "*.meta.json" -ErrorAction SilentlyContinue) {
+        try {
+            $meta = Get-Content $metaFile.FullName -Raw | ConvertFrom-Json
+            if ($meta.temporary -and ([datetime]::Parse($meta.expiresAt).ToUniversalTime() -le (Get-Date).ToUniversalTime())) {
+                $expired += $meta
+            }
+        } catch {}
+    }
+    if ($expired.Count -eq 0) { return (Get-WinWGText $script:Language "NoExpiredDevices") }
+    $removed = 0
+    foreach ($meta in $expired) {
+        $name = [string]$meta.name
+        if ([string]::IsNullOrWhiteSpace($name)) { continue }
+        $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -DeviceName $name -TunnelName $TunnelName -Language $script:Language 2>&1
+        if ($output) { Write-UiHost (($output | Out-String).Trim()) }
+        if ($LASTEXITCODE -eq 0 -or -not (Test-Path (Join-Path $deviceDir "$name.conf"))) { $removed++ }
+        Remove-Item (Get-DeviceMetadataPath -BaseDir $BaseDir -DeviceName $name) -Force -ErrorAction SilentlyContinue
+    }
+    return ((Get-WinWGText $script:Language "ExpiredDevicesRemoved") + ": $removed")
+}
+
 function Add-DeviceFromConsole([string]$TunnelName, [int]$ListenPort, [string]$BaseDir) {
     Write-Ultra "Action: ajout appareil"
     Assert-ProjectInstalled -TunnelName $TunnelName -BaseDir $BaseDir
@@ -615,7 +711,8 @@ function Add-DeviceFromConsole([string]$TunnelName, [int]$ListenPort, [string]$B
 
     $deviceNumber = Get-NextDeviceNumber -TunnelName $TunnelName -BaseDir $BaseDir
     Write-UiHost ((Get-WinWGText $script:Language "AssignedVpnIp") + " : 10.66.66.$deviceNumber") -ForegroundColor DarkCyan
-    Write-Ultra "Ajout appareil: DeviceName=$deviceName Endpoint=$endpoint Dns=$deviceDns DeviceNumber=$deviceNumber ListenPort=$ListenPort TunnelName=$TunnelName Script=$scriptPath"
+    $expiresAt = Read-TemporaryDeviceExpiration -BaseDir $BaseDir
+    Write-Ultra "Ajout appareil: DeviceName=$deviceName Endpoint=$endpoint Dns=$deviceDns DeviceNumber=$deviceNumber ListenPort=$ListenPort TunnelName=$TunnelName Script=$scriptPath Temporary=$($null -ne $expiresAt)"
 
     $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -DeviceName $deviceName -Endpoint $endpoint -DeviceNumber $deviceNumber -ListenPort $ListenPort -Dns $deviceDns -TunnelName $TunnelName -Language $script:Language 2>&1
     $code = $LASTEXITCODE
@@ -635,6 +732,10 @@ function Add-DeviceFromConsole([string]$TunnelName, [int]$ListenPort, [string]$B
     }
 
     $deviceDir = Join-Path $BaseDir "devices"
+    if ($expiresAt) {
+        $metaPath = Save-TemporaryDeviceMetadata -BaseDir $BaseDir -DeviceName $deviceName -VpnIp "10.66.66.$deviceNumber" -ExpiresAt $expiresAt
+        Write-UiHost ((Get-WinWGText $script:Language "TemporaryMetadataCreated") + " : $metaPath") -ForegroundColor Yellow
+    }
     if (Test-Path $deviceDir) { Start-Process explorer.exe $deviceDir }
 
     $qrMessage = ""
@@ -1393,7 +1494,7 @@ function Show-Status([string]$LastMessage = "") {
         if ([string]::IsNullOrWhiteSpace($show)) {
             Write-UiHost "Aucune sortie wg show." -ForegroundColor Yellow
         } else {
-            Write-PeerDashboard -WgShowText $show -ServerConfigPath $serverConfig
+            Write-PeerDashboard -WgShowText $show -ServerConfigPath $serverConfig -BaseDir $BaseDir
             Write-UiHost ""
             Write-UiHost (Get-WinWGText $script:Language "RawWireGuardDetails") -ForegroundColor Cyan
             Write-UiHost "-----------------------" -ForegroundColor DarkGray
@@ -1420,6 +1521,7 @@ function Show-MainMenu {
     Write-UiHost ("5 / R - " + (Get-WinWGText $script:Language "RemoveDevice"))
     if (Test-QrFeatureEnabled -BaseDir $BaseDir) { Write-UiHost ("6 / G - " + (Get-WinWGText $script:Language "GenerateQr")) }
     Write-UiHost ("7 / K - " + (Get-WinWGText $script:Language "QrSettings"))
+    Write-UiHost ("8 / E - " + (Get-WinWGText $script:Language "RemoveExpiredDevices"))
     Write-UiHost ("S     - " + (Get-WinWGText $script:Language "Refresh"))
     Write-UiHost ("V     - " + (Get-WinWGText $script:Language "ToggleVerbose"))
     Write-UiHost ("M     - " + (Get-WinWGText $script:Language "AdvancedTools"))
@@ -1487,6 +1589,11 @@ try {
             }
             { $_ -in @('7','k') } {
                 try { $lastMessage = Show-QrFeatureSettings -BaseDir $BaseDir } catch { $lastMessage = ((Get-WinWGText $script:Language "ErrorQr") + " : $($_.Exception.Message)") }
+            }
+            { $_ -in @('8','e') } {
+                try { $lastMessage = Remove-ExpiredTemporaryDevices -TunnelName $TunnelName -BaseDir $BaseDir } catch { $lastMessage = ((Get-WinWGText $script:Language "ErrorRemoveDevice") + " : $($_.Exception.Message)") }
+                Pause-ConsoleAction $lastMessage
+                $lastMessage = ""
             }
             's' { $lastMessage = Get-WinWGText $script:Language "StatusRefreshed" }
             'v' {

@@ -222,7 +222,7 @@ v0.1.0-beta
 If you ran the uninstaller while keeping configurations, then run `INSTALLER-ONE-CLICK.bat` again, the installer now detects:
 
 ```text
-C:\ProgramData\WireGuardPhoneServer\server\wg-device-server.conf
+C:\ProgramData\WireGuardPhoneServer\server\wg-phone-server.conf
 ```
 
 It then offers:
@@ -246,7 +246,7 @@ UNINSTALLER-ONE-CLICK.bat
 
 The uninstaller removes:
 
-- the WireGuard tunnel/service `wg-device-server`;
+- the WireGuard tunnel/service `wg-phone-server`;
 - the UDP `51820` firewall rule;
 - the Windows NAT `WireGuardPhoneServerNAT`;
 - the UDP `51820` UPnP mapping if it was automatically created;
@@ -404,7 +404,7 @@ This mode may expose sensitive files and actions. It can:
 - open server, clients and QR code folders;
 - export a redacted diagnostic file;
 - edit advanced configuration: WireGuard port, client DNS and `AllowedIPs`;
-- open the server `wg-device-server.conf` file in Notepad.
+- open the server `wg-phone-server.conf` file in Notepad.
 
 Warning: the server configuration file contains the WireGuard private key. Never share this file, its content, or an unredacted screenshot.
 
@@ -580,15 +580,15 @@ Get-ChildItem "C:\ProgramData\WireGuardPhoneServer\clients"
 ### Restart the tunnel manually
 
 ```powershell
-& "$env:ProgramFiles\WireGuard\wireguard.exe" /uninstalltunnelservice "wg-device-server"
-& "$env:ProgramFiles\WireGuard\wireguard.exe" /installtunnelservice "C:\ProgramData\WireGuardPhoneServer\server\wg-device-server.conf"
+& "$env:ProgramFiles\WireGuard\wireguard.exe" /uninstalltunnelservice "wg-phone-server"
+& "$env:ProgramFiles\WireGuard\wireguard.exe" /installtunnelservice "C:\ProgramData\WireGuardPhoneServer\server\wg-phone-server.conf"
 ```
 
 ## Default configuration
 
 | Option | Value |
 |---|---|
-| Tunnel name | `wg-device-server` |
+| Tunnel name | `wg-phone-server` |
 | WireGuard port | `51820/UDP` |
 | VPN network | `10.66.66.0/24` |
 | VPN server IP | `10.66.66.1` |

@@ -126,7 +126,7 @@ PublicKey = ...
 If the name is missing, check:
 
 ```text
-C:\ProgramData\WireGuardPhoneServer\server\wg-device-server.conf
+C:\ProgramData\WireGuardPhoneServer\server\wg-phone-server.conf
 ```
 
 ## 7. The service is running but I want to stop the VPN temporarily

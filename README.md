@@ -45,7 +45,7 @@ L - Change language
 The choice is stored in:
 
 ```text
-C:\ProgramData\WireGuardDeviceServer\settings\language.txt
+C:\ProgramData\WireGuardPhoneServer\settings\language.txt
 ```
 
 Note: translation is progressive. The main installer/console flow is prioritized first.
@@ -73,7 +73,7 @@ The project automatically configures what is usually painful to do manually:
 - service start/stop toggle;
 - clean uninstaller.
 
-> Compatibility note: some internal paths keep the historical name `WireGuardDeviceServer`, for example `C:\ProgramData\WireGuardDeviceServer`. This is intentional to avoid breaking existing installations.
+> Compatibility note: some internal paths keep the historical name `WireGuardPhoneServer`, for example `C:\ProgramData\WireGuardPhoneServer`. This is intentional to avoid breaking existing installations.
 
 ## Recommended one-click installation
 
@@ -161,7 +161,7 @@ This project does **not** turn your Windows PC into a VPN client. It uses WireGu
 When the script mentions `client` files or the `clients` folder, it means:
 
 ```text
-configuration to import on your device/remote device
+configuration to import on the remote device
 ```
 
 The remote device is the VPN peer/client. The Windows PC remains the server.
@@ -179,13 +179,13 @@ cd .\winwg-oneclick-server
 Example with dynamic DNS:
 
 ```powershell
-.\scripts\Install-WireGuardServer.ps1 -Endpoint "home-vpn.duckdns.org" -ClientName "idevice"
+.\scripts\Install-WireGuardServer.ps1 -Endpoint "home-vpn.duckdns.org" -ClientName "iphone"
 ```
 
 At the end, the script shows the device configuration path, for example:
 
 ```text
-C:\ProgramData\WireGuardDeviceServer\clients\idevice.conf
+C:\ProgramData\WireGuardPhoneServer\clients\iphone.conf
 ```
 
 Copy this file to your device and import it into the WireGuard app.
@@ -222,7 +222,7 @@ v0.1.0-beta
 If you ran the uninstaller while keeping configurations, then run `INSTALLER-ONE-CLICK.bat` again, the installer now detects:
 
 ```text
-C:\ProgramData\WireGuardDeviceServer\server\wg-device-server.conf
+C:\ProgramData\WireGuardPhoneServer\server\wg-device-server.conf
 ```
 
 It then offers:
@@ -248,9 +248,9 @@ The uninstaller removes:
 
 - the WireGuard tunnel/service `wg-device-server`;
 - the UDP `51820` firewall rule;
-- the Windows NAT `WireGuardDeviceServerNAT`;
+- the Windows NAT `WireGuardPhoneServerNAT`;
 - the UDP `51820` UPnP mapping if it was automatically created;
-- configurations and keys in `C:\ProgramData\WireGuardDeviceServer`;
+- configurations and keys in `C:\ProgramData\WireGuardPhoneServer`;
 - generated QR codes in `qrcodes`;
 - optional QRCoder QR dependency in `tools`;
 - feature flags in `features`;
@@ -377,7 +377,7 @@ This mode shows more details during sensitive actions, including:
 A log file is also written to:
 
 ```text
-C:\ProgramData\WireGuardDeviceServer\logs
+C:\ProgramData\WireGuardPhoneServer\logs
 ```
 
 This is useful to diagnose cases where a device is correctly created/removed but the WireGuard service reload returns a warning.
@@ -515,7 +515,7 @@ After adding a new device, the console also tries to automatically generate its 
 QR codes are stored here:
 
 ```text
-C:\ProgramData\WireGuardDeviceServer\qrcodes
+C:\ProgramData\WireGuardPhoneServer\qrcodes
 ```
 
 Important: a WireGuard QR code contains the device private key, exactly like the `.conf` file. Never share it publicly.
@@ -574,14 +574,14 @@ Removing a device:
 ### List generated device configurations
 
 ```powershell
-Get-ChildItem "C:\ProgramData\WireGuardDeviceServer\clients"
+Get-ChildItem "C:\ProgramData\WireGuardPhoneServer\clients"
 ```
 
 ### Restart the tunnel manually
 
 ```powershell
 & "$env:ProgramFiles\WireGuard\wireguard.exe" /uninstalltunnelservice "wg-device-server"
-& "$env:ProgramFiles\WireGuard\wireguard.exe" /installtunnelservice "C:\ProgramData\WireGuardDeviceServer\server\wg-device-server.conf"
+& "$env:ProgramFiles\WireGuard\wireguard.exe" /installtunnelservice "C:\ProgramData\WireGuardPhoneServer\server\wg-device-server.conf"
 ```
 
 ## Default configuration

@@ -332,7 +332,7 @@ home-vpn.duckdns.org:51820
 
 Aujourd'hui, `AllowedIPs` est configurable en mode avancé.
 
-État : en cours / partiellement appliqué. Idée restante : rendre le choix plus accessible lors de l'ajout d'un appareil :
+État : nettoyage user-facing largement appliqué. Idée restante : rendre le choix plus accessible lors de l'ajout d'un appareil :
 
 ```text
 Traffic mode:
@@ -411,7 +411,7 @@ Support plus facile via GitHub Issues.
 
 Aujourd'hui, la fonctionnalité QR est choisie à l'installation.
 
-État : en cours / partiellement appliqué. Idée restante : ajouter dans la console :
+État : nettoyage user-facing largement appliqué. Idée restante : ajouter dans la console :
 
 ```text
 QR feature settings

@@ -7,7 +7,7 @@
   - s'eleve en admin via le .bat ;
   - installe WireGuard si absent ;
   - detecte l'IP publique ;
-  - demande seulement le nom du appareil et l'endpoint si besoin ;
+  - demande seulement le nom de l'appareil et l'endpoint si besoin ;
   - genere serveur + client ;
   - active routage, firewall, NAT ;
   - installe le tunnel WireGuard ;
@@ -489,7 +489,7 @@ try {
         Write-Host "Langue selectionnee : Francais" -ForegroundColor Green
         Write-Host "WinWG OneClick Server - installation one click" -ForegroundColor Green
         Write-Host "Ce script va configurer ce PC comme serveur VPN WireGuard pour ton appareil."
-        $clientNamePrompt = "Nom du appareil/client"
+        $clientNamePrompt = "Nom de l'appareil/client"
         $endpointPrompt = "IP publique ou DNS a utiliser cote appareil. Laisse la valeur detectee si tu n'as pas de DNS dynamique."
         $dnsPrompt = "DNS a utiliser sur cet appareil. Laisse vide / ne tape rien pour garder le DNS par defaut. Exemples : 1.1.1.1, 8.8.8.8 ou l'IP DNS de ta box comme 192.168.1.1"
         $qrPrompt = "Installer le generateur de QR code integre ? Cela permet d'importer la configuration dans l'app WireGuard mobile en scannant un QR code. La dependance QRCoder sera telechargee depuis NuGet, mais tes cles/configurations ne sont pas envoyees a Internet. Tape oui ou non ; laisser le champ vide n'est pas accepte."

@@ -89,7 +89,7 @@ Sur le PC Windows qui doit devenir serveur VPN :
 INSTALLER-ONE-CLICK.bat
 ```
 
-L'installeur demande les droits administrateur Windows, installe WireGuard si besoin, génère la configuration serveur + appareil, configure le pare-feu, le routage, le NAT, puis ouvre le dossier contenant le fichier `.conf` à importer dans l'application WireGuard du appareil.
+L'installeur demande les droits administrateur Windows, installe WireGuard si besoin, génère la configuration serveur + appareil, configure le pare-feu, le routage, le NAT, puis ouvre le dossier contenant le fichier `.conf` à importer dans l'application WireGuard de l’appareil.
 
 Il tente aussi de créer automatiquement la redirection de port sur la box via UPnP. Si ta box refuse ou si UPnP est désactivé, l'installeur affiche l'IP locale du PC et tu devras faire la redirection manuellement :
 
@@ -113,7 +113,7 @@ Idéalement, cette IP locale doit être réservée via un **bail DHCP statique**
 - Création d'un tunnel WireGuard serveur.
 - Activation du routage IPv4 Windows.
 - Création d'une règle pare-feu UDP.
-- Création d'une règle NAT Windows pour permettre au appareil de sortir vers Internet via le PC.
+- Création d'une règle NAT Windows pour permettre à l’appareil de sortir vers Internet via le PC.
 - Génération d'un fichier client `.conf` à importer dans l'app WireGuard mobile.
 
 ## Pré-requis
@@ -176,10 +176,10 @@ Le projet ne transforme pas ton PC en "peer/client VPN". Il utilise WireGuard po
 Quand le script parle de fichier `client` ou de dossier `clients`, cela veut dire :
 
 ```text
-configuration à importer sur le appareil
+configuration à importer sur l’appareil
 ```
 
-L’appareil distant est le peer/peer/client VPN. Le PC Windows reste le serveur.
+L’appareil distant est le peer/client VPN. Le PC Windows reste le serveur.
 
 ## Installation rapide
 
@@ -334,7 +334,7 @@ Cette console permet de :
 - activer/démarrer le serveur VPN ;
 - désactiver/arrêter le serveur VPN sans supprimer les configurations ;
 - redémarrer le serveur VPN ;
-- ajouter un appareil, une tablette ou un PC portable ;
+- ajouter un téléphone, une tablette, un PC portable ou un autre appareil de confiance ;
 - supprimer un appareil existant.
 
 Menu disponible dans la console :
@@ -461,7 +461,7 @@ Par défaut, les configurations client utilisent :
 PersistentKeepalive = 25
 ```
 
-Cela aide à garder ouverte la translation NAT côté client, notamment sur appareil 4G/5G, Wi-Fi public ou routeur strict.
+Cela aide à garder ouverte la translation NAT côté client, notamment sur appareil en 4G/5G, Wi-Fi public ou routeur strict.
 
 Valeurs proposées :
 

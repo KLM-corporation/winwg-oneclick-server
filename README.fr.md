@@ -265,6 +265,26 @@ Le workflow release permet de générer un ZIP propre du projet via `workflow_di
 v0.1.0-beta
 ```
 
+
+## Reprise d'une configuration existante
+
+Si tu as lancé le désinstalleur en gardant les configurations, puis que tu relances `INSTALLER-ONE-CLICK.bat`, l'installateur détecte maintenant :
+
+```text
+C:\ProgramData\WireGuardPhoneServer\server\wg-phone-server.conf
+```
+
+Il propose alors :
+
+```text
+1 - Restaurer/réinstaller le service avec cette configuration
+2 - Ajouter un nouvel appareil à cette configuration
+3 - Réinstaller proprement et régénérer toutes les clés
+4 - Annuler
+```
+
+Cela évite d'écraser les clés existantes par erreur.
+
 ## Désinstallation one-click
 
 Pour supprimer proprement tout ce que le projet a configuré sur le PC Windows, double-clique :

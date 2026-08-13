@@ -28,7 +28,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
-$languageScript = Join-Path $PSScriptRoot "scripts\WinWG-Language.ps1"
+$languageScript = Join-Path $PSScriptRoot "WinWG-Language.ps1"
 if (Test-Path $languageScript) { . $languageScript }
 
 function Write-Step([string]$Text) {
@@ -446,7 +446,8 @@ PersistentKeepalive = 25
 
     Start-Process explorer.exe $clientDir
 
-    $consoleBat = Join-Path $PSScriptRoot "SERVER-CONSOLE.bat"
+    $projectRoot = Split-Path $PSScriptRoot -Parent
+    $consoleBat = Join-Path $projectRoot "SERVER-CONSOLE.bat"
     if (Test-Path $consoleBat) {
         Write-Host ""
         Write-Host "Ouverture de la console serveur de supervision..." -ForegroundColor Cyan

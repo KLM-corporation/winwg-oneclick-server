@@ -8,7 +8,7 @@
 
 
 > 💙 **Soutenir le projet** : WinWG OneClick Server est gratuit et open source. Les dons sont optionnels.  
-> BTC : `bc1qp3lzycrpngpk00tecj85pfkhrqqr49gmslzmsg` — voir [`DONATE.md`](DONATE.md).
+> BTC : `bc1qp3lzycrpngpk00tecj85pfkhrqqr49gmslzmsg` — voir [`docs/DONATE.md`](docs/DONATE.md).
 
 Un projet Windows simple et propre pour transformer un PC Windows 10/11 en **serveur d’accès distant WireGuard** avec une installation en **un seul script / un seul double-clic**. Il génère aussi la configuration à importer sur ton téléphone, ta tablette ou ton PC portable.
 
@@ -139,7 +139,7 @@ Adresse Bitcoin BTC :
 bc1qp3lzycrpngpk00tecj85pfkhrqqr49gmslzmsg
 ```
 
-Plus d'informations : [`DONATE.md`](DONATE.md).
+Plus d'informations : [`docs/DONATE.md`](docs/DONATE.md).
 
 ## Attribution
 
@@ -289,7 +289,7 @@ Si tu avais créé une redirection de port manuelle sur ta box, il faut aussi la
 Mode silencieux avancé :
 
 ```powershell
-.\Uninstall-WireGuard-Server.ps1 -Quiet -RemoveWireGuardApp
+.\scripts\Uninstall-WireGuard-Server.ps1 -Quiet -RemoveWireGuardApp
 ```
 
 

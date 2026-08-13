@@ -627,8 +627,9 @@ function Enable-AdvancedModeWithWarning {
     Write-UiHost ""
     Write-UiHost (Get-WinWGText $script:Language "NeverShareSecrets") -ForegroundColor Red
     Write-UiHost ""
+    $expectedPhrase = Get-WinWGText $script:Language "AdvancedConfirmPhrase"
     $confirm = (Read-UiHost (Get-WinWGText $script:Language "AdvancedEnablePrompt")).Trim()
-    if ($confirm -eq "JE COMPRENDS") {
+    if ($confirm -eq $expectedPhrase) {
         $script:AdvancedModeEnabled = $true
         return (Get-WinWGText $script:Language "AdvancedEnabled")
     }

@@ -15,11 +15,15 @@ param(
     [string]$ClientName,
 
     [string]$BaseDir = "$env:ProgramData\WireGuardPhoneServer",
-    [switch]$Open
+    [switch]$Open,
+    [ValidateSet("fr","en")]
+    [string]$Language = "fr"
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+function TQr([string]$Fr, [string]$En) { if ($Language -eq "fr") { return $Fr }; return $En }
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
 
@@ -56,8 +60,8 @@ function Ensure-QRCoder {
     $zip = Join-Path $toolsDir "QRCoder.zip"
     $url = "https://www.nuget.org/api/v2/package/QRCoder"
 
-    Write-Host "QRCoder introuvable. Telechargement local depuis NuGet..." -ForegroundColor Yellow
-    Write-Host "Le fichier WireGuard .conf n'est pas envoye a NuGet ; seule la bibliotheque QR est telechargee." -ForegroundColor DarkGray
+    Write-Host (TQr "QRCoder introuvable. Telechargement local depuis NuGet..." "QRCoder not found. Downloading locally from NuGet...") -ForegroundColor Yellow
+    Write-Host (TQr "Le fichier WireGuard .conf n'est pas envoye a NuGet ; seule la bibliotheque QR est telechargee." "The WireGuard .conf file is not sent to NuGet; only the QR library is downloaded.") -ForegroundColor DarkGray
 
     Invoke-WebRequest -Uri $url -OutFile $nupkg -UseBasicParsing
     Copy-Item $nupkg $zip -Force
@@ -95,9 +99,9 @@ $pngQr = [QRCoder.PngByteQRCode]::new($data)
 $bytes = $pngQr.GetGraphic(20)
 [System.IO.File]::WriteAllBytes($qrPath, $bytes)
 
-Write-Host "OK - QR code genere : $qrPath" -ForegroundColor Green
-Write-Host "Scanne ce QR code avec l'application WireGuard sur Android/iOS." -ForegroundColor Cyan
-Write-Host "Attention : ce QR contient la cle privee de l'appareil. Ne le partage pas publiquement." -ForegroundColor Yellow
+Write-Host ((TQr "OK - QR code genere" "OK - QR code generated") + " : $qrPath") -ForegroundColor Green
+Write-Host (TQr "Scanne ce QR code avec l'application WireGuard sur Android/iOS." "Scan this QR code with the WireGuard app on Android/iOS.") -ForegroundColor Cyan
+Write-Host (TQr "Attention : ce QR contient la cle privee de l'appareil. Ne le partage pas publiquement." "Warning: this QR contains the device private key. Do not share it publicly.") -ForegroundColor Yellow
 
 if ($Open) {
     Start-Process $qrPath

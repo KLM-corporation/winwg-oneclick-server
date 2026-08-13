@@ -452,7 +452,7 @@ function Generate-DeviceQrFromConsole([string]$BaseDir, [string]$ClientName = ""
     }
 
     Write-Ultra "Generation QR: ClientName=$ClientName Script=$scriptPath"
-    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -ClientName $ClientName -BaseDir $BaseDir -Open 2>&1
+    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -ClientName $ClientName -BaseDir $BaseDir -Language $script:Language -Open 2>&1
     $code = $LASTEXITCODE
     $outputText = ($output | Out-String).Trim()
     if (-not [string]::IsNullOrWhiteSpace($outputText)) {
@@ -461,7 +461,7 @@ function Generate-DeviceQrFromConsole([string]$BaseDir, [string]$ClientName = ""
     }
     if ($code -ne 0) { throw "Echec de generation du QR code pour '$ClientName'." }
 
-    return "QR code genere pour : $ClientName"
+    return ((Get-WinWGText $script:Language "QrGeneratedFor") + " : $ClientName")
 }
 
 
@@ -484,24 +484,24 @@ function Add-DeviceFromConsole([string]$TunnelName, [int]$ListenPort, [string]$B
     if (-not (Test-Path $scriptPath)) { throw "Script d'ajout introuvable : $scriptPath" }
 
     Write-UiHost ""
-    Write-UiHost "Ajouter un appareil" -ForegroundColor Cyan
+    Write-UiHost (Get-WinWGText $script:Language "AddDeviceTitle") -ForegroundColor Cyan
     Write-UiHost "-------------------" -ForegroundColor DarkGray
-    $clientName = (Read-UiHost "Nom de l'appareil, ex: iphone, android, laptop").Trim()
+    $clientName = (Read-UiHost (Get-WinWGText $script:Language "DeviceNamePrompt")).Trim()
     if ([string]::IsNullOrWhiteSpace($clientName)) { throw "Nom d'appareil vide." }
 
     $defaultEndpoint = Get-DefaultEndpoint -ListenPort $ListenPort -BaseDir $BaseDir
-    $endpointInput = (Read-UiHost "Endpoint public ou DNS [$defaultEndpoint]").Trim()
+    $endpointInput = (Read-UiHost ((Get-WinWGText $script:Language "EndpointPrompt") + " [$defaultEndpoint]")).Trim()
     $endpoint = if ([string]::IsNullOrWhiteSpace($endpointInput)) { $defaultEndpoint } else { $endpointInput }
 
     $defaultDns = Get-DefaultClientDns -BaseDir $BaseDir
-    $dnsInput = (Read-UiHost "DNS pour cet appareil [$defaultDns] - laisse vide pour garder cette valeur").Trim()
+    $dnsInput = (Read-UiHost ((Get-WinWGText $script:Language "DnsPrompt") + " [$defaultDns] - " + (Get-WinWGText $script:Language "KeepDefault"))).Trim()
     $clientDns = if ([string]::IsNullOrWhiteSpace($dnsInput)) { $defaultDns } else { $dnsInput }
 
     $clientNumber = Get-NextClientNumber -TunnelName $TunnelName -BaseDir $BaseDir
-    Write-UiHost "IP VPN attribuee automatiquement : 10.66.66.$clientNumber" -ForegroundColor DarkCyan
+    Write-UiHost ((Get-WinWGText $script:Language "AssignedVpnIp") + " : 10.66.66.$clientNumber") -ForegroundColor DarkCyan
     Write-Ultra "Ajout appareil: ClientName=$clientName Endpoint=$endpoint Dns=$clientDns ClientNumber=$clientNumber ListenPort=$ListenPort TunnelName=$TunnelName Script=$scriptPath"
 
-    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -ClientName $clientName -Endpoint $endpoint -ClientNumber $clientNumber -ListenPort $ListenPort -Dns $clientDns -TunnelName $TunnelName 2>&1
+    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -ClientName $clientName -Endpoint $endpoint -ClientNumber $clientNumber -ListenPort $ListenPort -Dns $clientDns -TunnelName $TunnelName -Language $script:Language 2>&1
     $code = $LASTEXITCODE
     Write-Ultra "Code retour script ajout: $code"
     $outputText = ($output | Out-String).Trim()
@@ -531,10 +531,10 @@ function Add-DeviceFromConsole([string]$TunnelName, [int]$ListenPort, [string]$B
     }
 
     if ($code -ne 0 -and $added) {
-        return "Appareil ajoute : $clientName. Note : le script a retourne une erreur apres creation, probablement pendant le rechargement du service. Fichier .conf genere dans $clientDir. Si besoin, utilise 3 pour redemarrer le serveur VPN.$qrMessage"
+        return ((Get-WinWGText $script:Language "DeviceAddedFinal") + " : $clientName. Note: script returned an error after creation, probably while reloading the service. " + (Get-WinWGText $script:Language "ConfGeneratedIn") + " $clientDir. $qrMessage")
     }
 
-    return "Appareil ajoute : $clientName. Fichier .conf genere dans $clientDir.$qrMessage"
+    return ((Get-WinWGText $script:Language "DeviceAddedFinal") + " : $clientName. " + (Get-WinWGText $script:Language "ConfGeneratedIn") + " $clientDir.$qrMessage")
 }
 
 function Remove-DeviceFromConsole([string]$TunnelName, [string]$BaseDir) {

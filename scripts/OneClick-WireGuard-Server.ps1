@@ -400,7 +400,15 @@ function Show-ExistingConfigMenu([string]$Language, [string]$ServerConfigPath) {
 }
 
 function Start-ConsoleIfAvailable {
-    Start-ConsoleIfAvailable
+    $projectRoot = Split-Path $PSScriptRoot -Parent
+    $consoleBat = Join-Path $projectRoot "SERVER-CONSOLE.bat"
+    if (Test-Path $consoleBat) {
+        Write-Host ""
+        Write-Host (TInstall "Ouverture de la console serveur de supervision..." "Opening the server monitoring console...") -ForegroundColor Cyan
+        Start-Process -FilePath $consoleBat
+    } else {
+        Write-Host (TInstall "Console serveur introuvable : $consoleBat" "Server console not found: $consoleBat") -ForegroundColor Yellow
+    }
 }
 
 function Restore-ExistingInstallation([string]$BaseDir, [string]$ServerConfigPath, [string]$TunnelName, [int]$ListenPort, [string]$VpnCidr) {

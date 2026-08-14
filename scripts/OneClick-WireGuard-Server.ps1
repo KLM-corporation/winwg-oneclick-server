@@ -320,7 +320,7 @@ function Send-UpnpMSearch([string]$SearchTarget, [int]$TimeoutMs = 2500) {
 
 function Invoke-UpnpSoapFallbackSafe([int]$Port, [string]$LanIp) {
     try {
-        return (Invoke-UpnpSoapFallbackSafe -Port $Port -LanIp $LanIp)
+        return (Try-UpnpPortForwardSoapFallback -Port $Port -LanIp $LanIp)
     } catch {
         Write-Host (TInstall "Methode UPnP alternative terminee avec une erreur : $($_.Exception.Message)" "Alternative UPnP method ended with an error: $($_.Exception.Message)") -ForegroundColor Yellow
         return $false

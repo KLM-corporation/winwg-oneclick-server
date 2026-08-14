@@ -31,13 +31,39 @@ function Invoke-LoggedCommand([string]$Exe, [string[]]$Arguments, [string]$Title
     Write-LogLine ""
     Write-LogLine "==> $Title" Cyan
     Write-LogLine ("Command: " + $Exe + " " + ($Arguments -join ' ')) DarkGray
-    $output = & $Exe @Arguments 2>&1
-    $code = $LASTEXITCODE
-    if ($output) {
-        foreach ($line in $output) { Write-LogLine ([string]$line) }
+
+    # Use ProcessStartInfo instead of PowerShell native redirection.
+    # Some upnpc messages are written to stderr and PowerShell 5.1 can convert them
+    # into NativeCommandError records when $ErrorActionPreference='Stop'.
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = $Exe
+    $escapedArguments = $Arguments | ForEach-Object {
+        if ($_ -match '\s') { '"' + ($_ -replace '"', '\"') + '"' } else { $_ }
     }
+    $psi.Arguments = ($escapedArguments -join ' ')
+    $psi.UseShellExecute = $false
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+
+    $process = [System.Diagnostics.Process]::Start($psi)
+    $stdout = $process.StandardOutput.ReadToEnd()
+    $stderr = $process.StandardError.ReadToEnd()
+    $process.WaitForExit()
+    $code = $process.ExitCode
+
+    if (-not [string]::IsNullOrWhiteSpace($stdout)) {
+        foreach ($line in ($stdout -split "`r?`n")) {
+            if (-not [string]::IsNullOrWhiteSpace($line)) { Write-LogLine $line }
+        }
+    }
+    if (-not [string]::IsNullOrWhiteSpace($stderr)) {
+        foreach ($line in ($stderr -split "`r?`n")) {
+            if (-not [string]::IsNullOrWhiteSpace($line)) { Write-LogLine ("STDERR: " + $line) Yellow }
+        }
+    }
+
     Write-LogLine "Exit code: $code" DarkGray
-    return [pscustomobject]@{ ExitCode = $code; Output = ($output | Out-String) }
+    return [pscustomobject]@{ ExitCode = $code; Output = ($stdout + "`n" + $stderr) }
 }
 
 function Get-PrimaryIPv4Info {

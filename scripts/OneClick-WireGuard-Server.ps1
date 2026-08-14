@@ -300,16 +300,30 @@ function Get-XmlChildText($Node, [string]$Name) {
     return $null
 }
 
-function Send-UpnpMSearch([string]$SearchTarget, [int]$TimeoutMs = 2500) {
+function Get-XmlFirstText($XmlDocument, [string]$Name) {
+    try {
+        $nodes = $XmlDocument.GetElementsByTagName($Name)
+        if ($nodes -and $nodes.Count -gt 0) { return $nodes.Item(0).InnerText }
+    } catch {}
+    return $null
+}
+
+function Send-UpnpMSearch([string]$SearchTarget, [string]$LocalIp, [int]$TimeoutMs = 1800) {
     $responses = New-Object System.Collections.Generic.List[string]
     $client = $null
     try {
-        # Use UdpClient with the hostname/port Send overload. This is the most reliable
-        # option on Windows PowerShell 5.1 and avoids IPEndPoint overload binding issues.
+        # Bind explicitly to the LAN interface used by the VPN server.
+        # This avoids SSDP multicast leaving through WSL/Hyper-V/VPN virtual adapters.
         $client = New-Object System.Net.Sockets.UdpClient
         $client.Client.ReceiveTimeout = $TimeoutMs
         $client.EnableBroadcast = $true
         $client.MulticastLoopback = $false
+
+        if (-not [string]::IsNullOrWhiteSpace($LocalIp)) {
+            $localEndpoint = [System.Net.IPEndPoint]::new([System.Net.IPAddress]::Parse($LocalIp), 0)
+            $client.Client.Bind($localEndpoint)
+            Write-Host (TInstall "SSDP via interface locale : $LocalIp" "SSDP through local interface: $LocalIp") -ForegroundColor DarkGray
+        }
 
         $request = "M-SEARCH * HTTP/1.1`r`nHOST: 239.255.255.250:1900`r`nMAN: `"ssdp:discover`"`r`nMX: 2`r`nST: $SearchTarget`r`n`r`n"
         $bytes = [System.Text.Encoding]::ASCII.GetBytes($request)
@@ -318,7 +332,7 @@ function Send-UpnpMSearch([string]$SearchTarget, [int]$TimeoutMs = 2500) {
         $deadline = (Get-Date).AddMilliseconds($TimeoutMs)
         while ((Get-Date) -lt $deadline) {
             try {
-                $remote = New-Object System.Net.IPEndPoint -ArgumentList @([System.Net.IPAddress]::Any, 0)
+                $remote = [System.Net.IPEndPoint]::new([System.Net.IPAddress]::Any, 0)
                 $buffer = $client.Receive([ref]$remote)
                 $responses.Add([System.Text.Encoding]::ASCII.GetString($buffer))
             } catch {
@@ -342,8 +356,9 @@ function Invoke-UpnpSoapFallbackSafe([int]$Port, [string]$LanIp) {
     }
 }
 
-function Get-UpnpLocationsFromSsdp {
+function Get-UpnpLocationsFromSsdp([string]$LocalIp) {
     $targets = @(
+        'ssdp:all',
         'urn:schemas-upnp-org:service:WANIPConnection:2',
         'urn:schemas-upnp-org:service:WANIPConnection:1',
         'urn:schemas-upnp-org:service:WANPPPConnection:1',
@@ -355,33 +370,41 @@ function Get-UpnpLocationsFromSsdp {
     $locations = New-Object System.Collections.ArrayList
     foreach ($target in $targets) {
         Write-Host (TInstall "Recherche UPnP IGD via SSDP : $target" "Searching UPnP IGD via SSDP: $target") -ForegroundColor DarkCyan
-        foreach ($response in (Send-UpnpMSearch -SearchTarget $target)) {
+        foreach ($response in (Send-UpnpMSearch -SearchTarget $target -LocalIp $LocalIp)) {
             foreach ($line in ($response -split "`r?`n")) {
                 if ($line -match '^(?i)LOCATION\s*:\s*(.+)$') {
                     $loc = $Matches[1].Trim(); if (-not $locations.Contains($loc)) { [void]$locations.Add($loc) }
                 }
             }
         }
-        if (@($locations).Count -gt 0) { break }
     }
     return @($locations | Select-Object -Unique)
 }
 
-function Find-UpnpIgdServices {
+function Find-UpnpIgdServices([string]$LocalIp) {
     $services = New-Object System.Collections.ArrayList
-    $locations = @(Get-UpnpLocationsFromSsdp)
+    $locations = @(Get-UpnpLocationsFromSsdp -LocalIp $LocalIp)
     foreach ($location in $locations) {
         try {
             Write-Host (TInstall "Description UPnP trouvee : $location" "UPnP description found: $location") -ForegroundColor DarkCyan
             [xml]$xml = (Invoke-WebRequest -Uri $location -UseBasicParsing -TimeoutSec 5).Content
+            $deviceType = Get-XmlFirstText -XmlDocument $xml -Name 'deviceType'
+            $friendlyName = Get-XmlFirstText -XmlDocument $xml -Name 'friendlyName'
+            $manufacturer = Get-XmlFirstText -XmlDocument $xml -Name 'manufacturer'
+            if (-not [string]::IsNullOrWhiteSpace($deviceType) -or -not [string]::IsNullOrWhiteSpace($friendlyName)) {
+                Write-Host (TInstall "  Device: $friendlyName / $deviceType / $manufacturer" "  Device: $friendlyName / $deviceType / $manufacturer") -ForegroundColor DarkGray
+            }
             $serviceNodes = $xml.GetElementsByTagName('service')
+            $wanServiceFoundForLocation = $false
             foreach ($svc in $serviceNodes) {
                 $serviceType = Get-XmlChildText -Node $svc -Name 'serviceType'
                 $controlUrl = Get-XmlChildText -Node $svc -Name 'controlURL'
                 if ([string]::IsNullOrWhiteSpace($serviceType) -or [string]::IsNullOrWhiteSpace($controlUrl)) { continue }
                 if ($serviceType -match 'WANIPConnection|WANPPPConnection') {
+                    $wanServiceFoundForLocation = $true
                     try {
                         $control = Join-Uri -BaseUri $location -Path $controlUrl
+                        Write-Host (TInstall "  NAT service: YES - $serviceType -> $control" "  NAT service: YES - $serviceType -> $control") -ForegroundColor Green
                         [void]$services.Add([pscustomobject]@{
                             Location = $location
                             ServiceType = $serviceType
@@ -391,6 +414,9 @@ function Find-UpnpIgdServices {
                         Write-Host (TInstall "Service UPnP ignore, URL invalide : $($_.Exception.Message)" "UPnP service ignored, invalid URL: $($_.Exception.Message)") -ForegroundColor Yellow
                     }
                 }
+            }
+            if (-not $wanServiceFoundForLocation) {
+                Write-Host (TInstall "  NAT service: NON" "  NAT service: NO") -ForegroundColor DarkGray
             }
         } catch {
             Write-Host (TInstall "Impossible de lire une description UPnP : $($_.Exception.Message)" "Unable to read a UPnP description: $($_.Exception.Message)") -ForegroundColor Yellow
@@ -457,7 +483,7 @@ function Test-UpnpPortMappingSoap([object]$Service, [int]$Port) {
 
 function Try-UpnpPortForwardSoapFallback([int]$Port, [string]$LanIp) {
     Write-Step (TInstall "Tentative UPnP alternative via SSDP/SOAP" "Trying alternative UPnP through SSDP/SOAP")
-    $services = @(Find-UpnpIgdServices)
+    $services = @(Find-UpnpIgdServices -LocalIp $LanIp)
     if (@($services).Count -eq 0) {
         Write-Host (TInstall "Aucun service UPnP IGD/WANIPConnection trouve via SSDP." "No UPnP IGD/WANIPConnection service found via SSDP.") -ForegroundColor Yellow
         return $false

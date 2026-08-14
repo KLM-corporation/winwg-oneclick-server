@@ -561,7 +561,12 @@ function Try-NatPmpUdpPortForward([int]$Port, [string]$LanIp) {
         Write-Host (TInstall "NAT-PMP refuse ou reponse inattendue : result=$result external=$external internal=$internal" "NAT-PMP refused or unexpected response: result=$result external=$external internal=$internal") -ForegroundColor Yellow
         return $false
     } catch {
-        Write-Host (TInstall "NAT-PMP impossible : $($_.Exception.Message)" "NAT-PMP failed: $($_.Exception.Message)") -ForegroundColor Yellow
+        $message = $_.Exception.Message
+        if ($message -match 'timed out|délai|delai|n.a pas répondu|n’a pas répondu|host.*not respond|connexion.*échoué') {
+            Write-Host (TInstall "NAT-PMP : aucune reponse de la box sur UDP 5351." "NAT-PMP: no response from the router on UDP 5351.") -ForegroundColor Yellow
+        } else {
+            Write-Host (TInstall "NAT-PMP impossible : $message" "NAT-PMP failed: $message") -ForegroundColor Yellow
+        }
         return $false
     } finally {
         if ($client) { $client.Close() }
@@ -580,6 +585,7 @@ function Try-UpnpPortForward([int]$Port, [string]$LanIp) {
     }
 
     Ensure-UpnpWindowsServices
+    $soapFallbackAlreadyTried = $false
 
     for ($attempt = 1; $attempt -le 3; $attempt++) {
         try {
@@ -588,6 +594,7 @@ function Try-UpnpPortForward([int]$Port, [string]$LanIp) {
             $mappings = $nat.StaticPortMappingCollection
             if ($null -eq $mappings) {
                 Write-Host (TInstall "UPnP COM indisponible sur cette box ou desactive. Essai de la methode alternative..." "UPnP COM unavailable on this router or disabled. Trying alternative method...") -ForegroundColor Yellow
+                $soapFallbackAlreadyTried = $true
                 if (Invoke-UpnpSoapFallbackSafe -Port $Port -LanIp $LanIp) { return $true }
                 break
             }
@@ -615,7 +622,9 @@ function Try-UpnpPortForward([int]$Port, [string]$LanIp) {
         Start-Sleep -Seconds 2
     }
 
-    if (Invoke-UpnpSoapFallbackSafe -Port $Port -LanIp $LanIp) { return $true }
+    if (-not $soapFallbackAlreadyTried) {
+        if (Invoke-UpnpSoapFallbackSafe -Port $Port -LanIp $LanIp) { return $true }
+    }
 
     if (Try-NatPmpUdpPortForward -Port $Port -LanIp $LanIp) { return $true }
 

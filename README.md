@@ -330,6 +330,38 @@ If the uninstaller removed the configurations, the console cannot re-enable the 
 > Note: the old separate `WIREGUARD-SERVICE-TOGGLE.bat` script has been removed in this test version because its functions are now integrated into `SERVER-CONSOLE.bat`.
 
 
+
+## UPnP / NAT-PMP / PCP diagnostics
+
+If automatic port forwarding fails, you can run:
+
+```text
+DEBUG-UPNP.bat
+```
+
+This diagnostic does not create any port mapping. It checks:
+
+- the network interface being used;
+- the IPv4 gateway;
+- SSDP responses;
+- detected UPnP devices;
+- whether a NAT service such as `WANIPConnection` / `WANPPPConnection` exists;
+- PCP/NAT-PMP responses on UDP 5351.
+
+The result is saved in:
+
+```text
+C:\ProgramData\WinWGOneClickServer\logs
+```
+
+This helps distinguish:
+
+```text
+UPnP present on the network
+UPnP IGD NAT actually usable
+PCP/NAT-PMP available or not
+```
+
 ## Router port-forwarding
 
 In your router/Internet box admin panel:

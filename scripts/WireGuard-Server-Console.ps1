@@ -1513,6 +1513,106 @@ function Show-Status([string]$LastMessage = "") {
     Write-UiHost ("- " + (Get-WinWGText $script:Language "HelpSpeedRefresh"))
 }
 
+
+function New-HealthResult([string]$Level, [string]$Message, [string]$Details = "") {
+    return [pscustomobject]@{ Level = $Level; Message = $Message; Details = $Details }
+}
+
+function Write-HealthResult([object]$Result) {
+    $label = switch ($Result.Level) {
+        'OK' { Get-WinWGText $script:Language 'HealthOk' }
+        'WARN' { Get-WinWGText $script:Language 'HealthWarn' }
+        'ERROR' { Get-WinWGText $script:Language 'HealthError' }
+        default { Get-WinWGText $script:Language 'HealthInfo' }
+    }
+    $color = switch ($Result.Level) {
+        'OK' { [ConsoleColor]::Green }
+        'WARN' { [ConsoleColor]::Yellow }
+        'ERROR' { [ConsoleColor]::Red }
+        default { [ConsoleColor]::Cyan }
+    }
+    $text = "[$label] $($Result.Message)"
+    if (-not [string]::IsNullOrWhiteSpace($Result.Details)) { $text += " - $($Result.Details)" }
+    Write-UiHost $text -ForegroundColor $color
+}
+
+function Test-RecentHandshake([string]$HandshakeText) {
+    if ([string]::IsNullOrWhiteSpace($HandshakeText)) { return $false }
+    if ($HandshakeText -eq (Get-WinWGText $script:Language 'Never')) { return $false }
+    if ($HandshakeText -match '(\d+)\s+second') { return ([int]$Matches[1] -le 180) }
+    if ($HandshakeText -match '(\d+)\s+minute') { return ([int]$Matches[1] -le 3) }
+    return $true
+}
+
+function Show-HealthCheck([string]$TunnelName, [int]$ListenPort, [string]$BaseDir) {
+    Clear-Host
+    Write-UiHost (Get-WinWGText $script:Language 'HealthTitle') -ForegroundColor Green
+    Write-UiHost "====================" -ForegroundColor DarkGray
+    Write-UiHost ""
+
+    $results = New-Object System.Collections.Generic.List[object]
+    $serverConfig = Get-ServerConfigPath -TunnelName $TunnelName -BaseDir $BaseDir
+    $deviceDir = Join-Path $BaseDir 'devices'
+
+    $svc = Get-ServiceState -TunnelName $TunnelName
+    if ($svc -and $svc.Status -eq 'Running') { $results.Add((New-HealthResult 'OK' (Get-WinWGText $script:Language 'HealthServiceRunning') $svc.Name)) }
+    else { $results.Add((New-HealthResult 'ERROR' (Get-WinWGText $script:Language 'HealthServiceNotRunning'))) }
+
+    if (Test-Path $serverConfig) { $results.Add((New-HealthResult 'OK' (Get-WinWGText $script:Language 'HealthServerConfigPresent') $serverConfig)) }
+    else { $results.Add((New-HealthResult 'ERROR' (Get-WinWGText $script:Language 'HealthServerConfigMissing') $serverConfig)) }
+
+    $fw = @(Get-NetFirewallRule -DisplayName "WireGuard Server UDP $ListenPort" -ErrorAction SilentlyContinue)
+    if ($fw.Length -gt 0) { $results.Add((New-HealthResult 'OK' (Get-WinWGText $script:Language 'HealthFirewallPresent') "UDP $ListenPort")) }
+    else { $results.Add((New-HealthResult 'ERROR' (Get-WinWGText $script:Language 'HealthFirewallMissing') "UDP $ListenPort")) }
+
+    $nat = Get-NetNat -Name 'WinWGOneClickServerNAT' -ErrorAction SilentlyContinue
+    if ($nat) { $results.Add((New-HealthResult 'OK' (Get-WinWGText $script:Language 'HealthNatPresent') $nat.InternalIPInterfaceAddressPrefix)) }
+    else { $results.Add((New-HealthResult 'WARN' (Get-WinWGText $script:Language 'HealthNatMissing') 'WinWGOneClickServerNAT')) }
+
+    $forwarding = @(Get-NetIPInterface -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object { $_.Forwarding -eq 'Enabled' })
+    if ($forwarding.Length -gt 0) { $results.Add((New-HealthResult 'OK' (Get-WinWGText $script:Language 'HealthForwardingEnabled') "$($forwarding.Length) interface(s)")) }
+    else { $results.Add((New-HealthResult 'WARN' (Get-WinWGText $script:Language 'HealthForwardingDisabled'))) }
+
+    $udp = @(Get-NetUDPEndpoint -LocalPort $ListenPort -ErrorAction SilentlyContinue)
+    if ($udp.Length -gt 0) { $results.Add((New-HealthResult 'OK' (Get-WinWGText $script:Language 'HealthUdpEndpointPresent') "UDP $ListenPort")) }
+    else { $results.Add((New-HealthResult 'WARN' (Get-WinWGText $script:Language 'HealthUdpEndpointMissing') "UDP $ListenPort")) }
+
+    $devices = @()
+    if (Test-Path $deviceDir) { $devices = @(Get-ChildItem $deviceDir -Filter '*.conf' -ErrorAction SilentlyContinue) }
+    if ($devices.Length -gt 0) { $results.Add((New-HealthResult 'OK' (Get-WinWGText $script:Language 'HealthDevicesFound') "$($devices.Length)")) }
+    else { $results.Add((New-HealthResult 'WARN' (Get-WinWGText $script:Language 'HealthNoDevices') $deviceDir)) }
+
+    $wgShow = $null
+    if ($svc -and $svc.Status -eq 'Running' -and (Test-Path $serverConfig)) {
+        $wgShow = Get-WgShow -TunnelName $TunnelName
+        $nameMap = Get-PeerNameMap -ServerConfigPath $serverConfig
+        $peers = @(Get-WgPeerSummaries -WgShowText $wgShow -PeerNameMap $nameMap)
+        if ($peers.Length -gt 0) {
+            $results.Add((New-HealthResult 'OK' (Get-WinWGText $script:Language 'HealthPeersFound') "$($peers.Length)"))
+            $recent = @($peers | Where-Object { Test-RecentHandshake -HandshakeText $_.LatestHandshake })
+            if ($recent.Length -gt 0) { $results.Add((New-HealthResult 'OK' (Get-WinWGText $script:Language 'HealthRecentHandshake') ($recent.Name -join ', '))) }
+            else { $results.Add((New-HealthResult 'WARN' (Get-WinWGText $script:Language 'HealthNoRecentHandshake'))) }
+        } else {
+            $results.Add((New-HealthResult 'WARN' (Get-WinWGText $script:Language 'HealthNoPeers')))
+        }
+    }
+
+    foreach ($result in $results) { Write-HealthResult $result }
+
+    $okCount = @($results | Where-Object Level -eq 'OK').Count
+    $warnCount = @($results | Where-Object Level -eq 'WARN').Count
+    $errorCount = @($results | Where-Object Level -eq 'ERROR').Count
+    Write-UiHost ""
+    Write-UiHost ((Get-WinWGText $script:Language 'HealthSummary') + ": $okCount " + (Get-WinWGText $script:Language 'HealthPassed') + ", $warnCount " + (Get-WinWGText $script:Language 'HealthWarnings') + ", $errorCount " + (Get-WinWGText $script:Language 'HealthErrors')) -ForegroundColor Cyan
+
+    $lanIp = Get-PrimaryIPv4
+    Write-UiHost ""
+    Write-UiHost ((Get-WinWGText $script:Language 'HealthAdvice') + ": " + ((Get-WinWGText $script:Language 'HealthManualForward') -f $ListenPort, $lanIp)) -ForegroundColor Yellow
+
+    Pause-ConsoleAction ""
+    return ""
+}
+
 function Show-MainMenu {
     Write-UiHost ""
     Write-UiHost (Get-WinWGText $script:Language "Actions") -ForegroundColor Cyan
@@ -1525,6 +1625,7 @@ function Show-MainMenu {
     if (Test-QrFeatureEnabled -BaseDir $BaseDir) { Write-UiHost ("6 / G - " + (Get-WinWGText $script:Language "GenerateQr")) }
     Write-UiHost ("7 / K - " + (Get-WinWGText $script:Language "QrSettings"))
     Write-UiHost ("8 / E - " + (Get-WinWGText $script:Language "RemoveExpiredDevices"))
+    Write-UiHost ("9 / H - " + (Get-WinWGText $script:Language "HealthCheck"))
     Write-UiHost ("S     - " + (Get-WinWGText $script:Language "Refresh"))
     Write-UiHost ("V     - " + (Get-WinWGText $script:Language "ToggleVerbose"))
     Write-UiHost ("M     - " + (Get-WinWGText $script:Language "AdvancedTools"))
@@ -1597,6 +1698,9 @@ try {
                 try { $lastMessage = Remove-ExpiredTemporaryDevices -TunnelName $TunnelName -BaseDir $BaseDir } catch { $lastMessage = ((Get-WinWGText $script:Language "ErrorRemoveDevice") + " : $($_.Exception.Message)") }
                 Pause-ConsoleAction $lastMessage
                 $lastMessage = ""
+            }
+            { $_ -in @('9','h') } {
+                try { $lastMessage = Show-HealthCheck -TunnelName $TunnelName -ListenPort $ListenPort -BaseDir $BaseDir } catch { $lastMessage = "Health check error: $($_.Exception.Message)" }
             }
             's' { $lastMessage = Get-WinWGText $script:Language "StatusRefreshed" }
             'v' {

@@ -359,6 +359,29 @@ Mode silencieux avancé :
 
 
 
+
+## Health check / diagnostic rapide
+
+La console contient un diagnostic rapide :
+
+```text
+9 / H - Health check / Diagnostic rapide
+```
+
+Il vérifie notamment :
+
+- service WireGuard lancé ;
+- configuration serveur présente ;
+- règle pare-feu UDP ;
+- NAT Windows ;
+- routage/forwarding IPv4 ;
+- endpoint UDP local ;
+- configurations appareils ;
+- peers WireGuard ;
+- handshakes récents.
+
+Le health check affiche un résumé `OK / WARN / ERREUR` et rappelle la redirection manuelle nécessaire si l'appareil ne se connecte pas hors LAN.
+
 ## Console serveur unifiée
 
 WireGuard Windows tourne comme un service en arrière-plan. WinWG regroupe maintenant la supervision et le contrôle du serveur dans une seule console :

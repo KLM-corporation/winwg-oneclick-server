@@ -276,6 +276,29 @@ Advanced silent mode:
 ```
 
 
+
+## Health check
+
+The console includes a quick diagnostic mode:
+
+```text
+9 / H - Health check
+```
+
+It checks, among other things:
+
+- WireGuard service status;
+- server configuration presence;
+- UDP firewall rule;
+- Windows NAT;
+- IPv4 routing/forwarding;
+- local UDP endpoint;
+- device configurations;
+- WireGuard peers;
+- recent handshakes.
+
+The health check displays an `OK / WARN / ERROR` summary and reminds the manual forwarding rule required if the device cannot connect outside the LAN.
+
 ## Unified server console
 
 WireGuard for Windows runs as a background service. WinWG now combines monitoring and service control in a single console:

@@ -345,15 +345,40 @@ function Write-Line([string]$Name, [string]$Value, [ConsoleColor]$Color = [Conso
 }
 
 
-function Get-DefaultEndpoint([int]$ListenPort, [string]$BaseDir) {
+function Normalize-EndpointBase([string]$Endpoint, [int]$ListenPort) {
+    if ([string]::IsNullOrWhiteSpace($Endpoint)) { return $Endpoint }
+    $value = $Endpoint.Trim()
+    if ($value -match '^\[(.+)\]:(\d+)$') { return "[$($Matches[1])]" }
+    if ($value -match '^\[(.+)\]$') { return $value }
+    if ($value -match '^(.+):(\d+)$' -and $value -notmatch '^[0-9a-fA-F:]+$') { return $Matches[1] }
+    if ($value -match '^[0-9a-fA-F:]+$' -and $value -match ':') { return "[$value]" }
+    return $value
+}
+
+function Get-EndpointBaseFromConfigContent([string]$Content, [int]$ListenPort) {
+    if ([string]::IsNullOrWhiteSpace($Content)) { return $null }
+    if ($Content -match '(?m)^Endpoint\s*=\s*(.+)$') {
+        return (Normalize-EndpointBase -Endpoint $Matches[1] -ListenPort $ListenPort)
+    }
+    return $null
+}
+
+function Get-ConfiguredDeviceEndpoint([int]$ListenPort, [string]$BaseDir) {
     $deviceDir = Join-Path $BaseDir "devices"
     if (Test-Path $deviceDir) {
         $firstDevice = Get-ChildItem $deviceDir -Filter "*.conf" -ErrorAction SilentlyContinue | Select-Object -First 1
         if ($firstDevice) {
             $content = Get-Content $firstDevice.FullName -Raw -ErrorAction SilentlyContinue
-            if ($content -match '(?m)^Endpoint\s*=\s*([^:\s]+):\d+') { return $Matches[1] }
+            $existingEndpoint = Get-EndpointBaseFromConfigContent -Content $content -ListenPort $ListenPort
+            if (-not [string]::IsNullOrWhiteSpace($existingEndpoint)) { return $existingEndpoint }
         }
     }
+    return $null
+}
+
+function Get-DefaultEndpoint([int]$ListenPort, [string]$BaseDir) {
+    $existingEndpoint = Get-ConfiguredDeviceEndpoint -ListenPort $ListenPort -BaseDir $BaseDir
+    if (-not [string]::IsNullOrWhiteSpace($existingEndpoint)) { return $existingEndpoint }
 
     $services = @("https://api.ipify.org", "https://ifconfig.me/ip", "https://icanhazip.com")
     foreach ($svc in $services) {
@@ -363,6 +388,124 @@ function Get-DefaultEndpoint([int]$ListenPort, [string]$BaseDir) {
         } catch {}
     }
     return "TON_IP_PUBLIQUE_OU_DNS"
+}
+
+function Get-PublicIPv6Candidate {
+    try {
+        $defaultRoute = Get-NetRoute -AddressFamily IPv6 -DestinationPrefix '::/0' -ErrorAction SilentlyContinue |
+            Sort-Object RouteMetric, InterfaceMetric |
+            Select-Object -First 1
+
+        $addresses = @(Get-NetIPAddress -AddressFamily IPv6 -ErrorAction SilentlyContinue |
+            Where-Object {
+                $_.IPAddress -notmatch '^fe80:' -and
+                $_.IPAddress -ne '::1' -and
+                $_.IPAddress -notmatch '^(fc|fd)' -and
+                $_.IPAddress -match '^(2|3)' -and
+                $_.AddressState -ne 'Deprecated'
+            })
+
+        if ($defaultRoute) {
+            $preferred = $addresses | Where-Object { $_.InterfaceIndex -eq $defaultRoute.InterfaceIndex } | Select-Object -First 1
+            if ($preferred) { return $preferred.IPAddress }
+        }
+
+        $fallback = $addresses | Select-Object -First 1
+        if ($fallback) { return $fallback.IPAddress }
+    } catch {}
+    return $null
+}
+
+function Ensure-IPv6FirewallRule([int]$Port) {
+    $fwName = "WinWG WireGuard UDP $Port IPv6"
+    try { Get-NetFirewallRule -DisplayName $fwName -ErrorAction SilentlyContinue | Remove-NetFirewallRule } catch {}
+    New-NetFirewallRule -DisplayName $fwName -Direction Inbound -Action Allow -Protocol UDP -LocalPort $Port -RemoteAddress Any -LocalAddress Any | Out-Null
+}
+
+function Save-PortForwardStatus([string]$BaseDir, [int]$Port, [string]$LanIp, [bool]$Succeeded, [string]$Method, [string]$Message) {
+    $settingsDir = Join-Path $BaseDir "settings"
+    if (-not (Test-Path $settingsDir)) { New-Item -ItemType Directory -Path $settingsDir -Force | Out-Null }
+    $path = Join-Path $settingsDir "port-forwarding.json"
+    $status = [ordered]@{
+        checkedAt = (Get-Date).ToUniversalTime().ToString('o')
+        port = $Port
+        protocol = 'UDP'
+        lanIp = $LanIp
+        succeeded = $Succeeded
+        method = $Method
+        message = $Message
+        manualRule = "UDP $Port -> $LanIp`:$Port"
+    }
+    ($status | ConvertTo-Json -Depth 4) | Set-Content -Path $path -Encoding UTF8
+    return $path
+}
+
+function Update-AllDeviceEndpoints([string]$BaseDir, [int]$ListenPort, [string]$EndpointBase) {
+    $deviceDir = Join-Path $BaseDir "devices"
+    if (-not (Test-Path $deviceDir)) { throw (Get-WinWGText $script:Language "NoDeviceConfigFolder") }
+    $endpointBase = Normalize-EndpointBase -Endpoint $EndpointBase -ListenPort $ListenPort
+    $endpointLine = "Endpoint = $endpointBase`:$ListenPort"
+    $updated = 0
+    foreach ($conf in Get-ChildItem $deviceDir -Filter "*.conf" -ErrorAction SilentlyContinue) {
+        $content = Get-Content $conf.FullName -Raw -ErrorAction SilentlyContinue
+        if ([string]::IsNullOrWhiteSpace($content)) { continue }
+        if ($content -match '(?m)^Endpoint\s*=\s*.+$') {
+            $newContent = [regex]::Replace($content, '(?m)^Endpoint\s*=\s*.+$', $endpointLine, 1)
+        } else {
+            $newContent = $content.TrimEnd() + "`r`n" + $endpointLine + "`r`n"
+        }
+        if ($newContent -ne $content) {
+            Set-Content -Path $conf.FullName -Value $newContent -Encoding ASCII
+            $updated++
+        }
+    }
+    return [pscustomobject]@{ Updated = $updated; EndpointBase = $endpointBase; EndpointLine = $endpointLine }
+}
+
+function Get-AccessModeSummary([string]$BaseDir, [int]$ListenPort) {
+    $pfStatus = Get-PortForwardStatus -BaseDir $BaseDir
+    $method = "unknown"
+    if ($pfStatus -and ($pfStatus.PSObject.Properties.Name -contains 'method')) { $method = [string]$pfStatus.method }
+    $endpoint = Get-ConfiguredDeviceEndpoint -ListenPort $ListenPort -BaseDir $BaseDir
+    if ([string]::IsNullOrWhiteSpace($endpoint)) { return "unknown / $method" }
+    if ($endpoint -match '^\[') { return "IPv6 / $endpoint`:$ListenPort / $method" }
+    return "IPv4/DNS / $endpoint`:$ListenPort / $method"
+}
+
+function Show-EndpointModeMenu([string]$BaseDir, [int]$ListenPort) {
+    Assert-ProjectInstalled -TunnelName $TunnelName -BaseDir $BaseDir
+    Write-UiHost ""
+    Write-UiHost (Get-WinWGText $script:Language "EndpointModeTitle") -ForegroundColor Cyan
+    Write-UiHost "-------------------" -ForegroundColor DarkGray
+    Write-UiHost ((Get-WinWGText $script:Language "CurrentEndpointMode") + " : " + (Get-AccessModeSummary -BaseDir $BaseDir -ListenPort $ListenPort)) -ForegroundColor DarkCyan
+    Write-UiHost ""
+    Write-UiHost ("1 - " + (Get-WinWGText $script:Language "SwitchToIPv6Endpoint"))
+    Write-UiHost ("2 - " + (Get-WinWGText $script:Language "SwitchToIPv4Endpoint"))
+    Write-UiHost ("Q - " + (Get-WinWGText $script:Language "Back"))
+    Write-UiHost ""
+    $choice = (Read-UiHost (Get-WinWGText $script:Language "Choice")).Trim().ToLowerInvariant()
+
+    if ($choice -eq '1') {
+        $ipv6 = Get-PublicIPv6Candidate
+        if ([string]::IsNullOrWhiteSpace($ipv6)) { return (Get-WinWGText $script:Language "NoPublicIPv6Detected") }
+        $endpoint = "[$ipv6]"
+        Ensure-IPv6FirewallRule -Port $ListenPort
+        $result = Update-AllDeviceEndpoints -BaseDir $BaseDir -ListenPort $ListenPort -EndpointBase $endpoint
+        $statusPath = Save-PortForwardStatus -BaseDir $BaseDir -Port $ListenPort -LanIp (Get-PrimaryIPv4) -Succeeded $true -Method 'ipv6-endpoint' -Message "IPv6 endpoint selected from console: $endpoint`:$ListenPort"
+        return ((Get-WinWGText $script:Language "IPv6EndpointModeEnabled") + " : $($result.EndpointLine)`n" + ((Get-WinWGText $script:Language "DeviceConfigsUpdated") + " : $($result.Updated)`n") + ((Get-WinWGText $script:Language "PortForwardStatusSaved") + " : $statusPath`n") + (Get-WinWGText $script:Language "ReimportDeviceConfigsWarning"))
+    }
+
+    if ($choice -eq '2') {
+        $defaultEndpoint = Get-DefaultEndpoint -ListenPort $ListenPort -BaseDir $BaseDir
+        if ($defaultEndpoint -match '^\[') { $defaultEndpoint = "TON_IP_PUBLIQUE_OU_DNS" }
+        $endpointInput = (Read-UiHost ((Get-WinWGText $script:Language "EndpointPrompt") + " [$defaultEndpoint]")).Trim()
+        $endpoint = if ([string]::IsNullOrWhiteSpace($endpointInput)) { $defaultEndpoint } else { $endpointInput }
+        $result = Update-AllDeviceEndpoints -BaseDir $BaseDir -ListenPort $ListenPort -EndpointBase $endpoint
+        $statusPath = Save-PortForwardStatus -BaseDir $BaseDir -Port $ListenPort -LanIp (Get-PrimaryIPv4) -Succeeded $false -Method 'manual-required' -Message "Manual IPv4/DNS endpoint selected from console: $($result.EndpointBase)`:$ListenPort"
+        return ((Get-WinWGText $script:Language "IPv4EndpointModeEnabled") + " : $($result.EndpointLine)`n" + ((Get-WinWGText $script:Language "DeviceConfigsUpdated") + " : $($result.Updated)`n") + ((Get-WinWGText $script:Language "PortForwardStatusSaved") + " : $statusPath`n") + (Get-WinWGText $script:Language "ReimportDeviceConfigsWarning"))
+    }
+
+    return ""
 }
 
 function Get-NextDeviceNumber([string]$TunnelName, [string]$BaseDir) {
@@ -1229,7 +1372,7 @@ function Set-ServerListenPortAdvanced([string]$TunnelName, [string]$BaseDir, [in
     if (Test-Path $deviceDir) {
         foreach ($device in Get-ChildItem $deviceDir -Filter "*.conf" -ErrorAction SilentlyContinue) {
             $deviceContent = Get-Content $device.FullName -Raw
-            $deviceContent = [regex]::Replace($deviceContent, '(?m)^(Endpoint\s*=\s*[^:\s]+:)\d+', "`${1}$NewPort", 1)
+            $deviceContent = [regex]::Replace($deviceContent, '(?m)^(Endpoint\s*=\s*(?:\[[^\]]+\]|[^:\s]+):)\d+', "`${1}$NewPort", 1)
             Set-Content -Path $device.FullName -Value $deviceContent -Encoding ASCII
             $updatedDevices++
         }
@@ -1472,6 +1615,7 @@ function Show-Status([string]$LastMessage = "") {
     Write-Line (Get-WinWGText $script:Language "Tunnel") $TunnelName Cyan
     Write-Line (Get-WinWGText $script:Language "UdpPort") "$ListenPort" Cyan
     Write-Line (Get-WinWGText $script:Language "LocalIp") (Get-PrimaryIPv4) Cyan
+    Write-Line (Get-WinWGText $script:Language "EndpointModeStatus") (Get-AccessModeSummary -BaseDir $BaseDir -ListenPort $ListenPort) Cyan
     Write-Line (Get-WinWGText $script:Language "ServerConfig") $serverConfig Cyan
 
     $fw = @(Get-NetFirewallRule -DisplayName "WireGuard Server UDP $ListenPort" -ErrorAction SilentlyContinue)
@@ -1664,6 +1808,7 @@ function Show-MainMenu {
     Write-UiHost ("7 / K - " + (Get-WinWGText $script:Language "QrSettings"))
     Write-UiHost ("8 / E - " + (Get-WinWGText $script:Language "RemoveExpiredDevices"))
     Write-UiHost ("9 / H - " + (Get-WinWGText $script:Language "HealthCheck"))
+    Write-UiHost ("I     - " + (Get-WinWGText $script:Language "EndpointModeMenu"))
     Write-UiHost ("S     - " + (Get-WinWGText $script:Language "Refresh"))
     Write-UiHost ("V     - " + (Get-WinWGText $script:Language "ToggleVerbose"))
     Write-UiHost ("M     - " + (Get-WinWGText $script:Language "AdvancedTools"))
@@ -1739,6 +1884,11 @@ try {
             }
             { $_ -in @('9','h') } {
                 try { $lastMessage = Show-HealthCheck -TunnelName $TunnelName -ListenPort $ListenPort -BaseDir $BaseDir } catch { $lastMessage = "Health check error: $($_.Exception.Message)" }
+            }
+            'i' {
+                try { $lastMessage = Show-EndpointModeMenu -BaseDir $BaseDir -ListenPort $ListenPort } catch { $lastMessage = ((Get-WinWGText $script:Language "ErrorEndpointMode") + " : $($_.Exception.Message)") }
+                Pause-ConsoleAction $lastMessage
+                $lastMessage = ""
             }
             's' { $lastMessage = Get-WinWGText $script:Language "StatusRefreshed" }
             'v' {

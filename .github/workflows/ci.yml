@@ -142,10 +142,12 @@ jobs:
             docs/CHANGELOG.md
             INSTALLER-ONE-CLICK.bat
             SERVER-CONSOLE.bat
+            WINWG-GUI.bat
             UNINSTALLER-ONE-CLICK.bat
             DEBUG-UPNP.bat
             scripts/OneClick-WireGuard-Server.ps1
             scripts/WireGuard-Server-Console.ps1
+            scripts/WinWG-OneClick-GUI.ps1
             scripts/Uninstall-WireGuard-Server.ps1
             scripts/Debug-UPnP.ps1
             docs/TROUBLESHOOTING.md

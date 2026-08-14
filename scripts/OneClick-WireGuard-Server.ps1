@@ -962,21 +962,38 @@ try {
         Write-Host "Fonctionnalite QR desactivee par choix utilisateur." -ForegroundColor Yellow
     }
 
-    Write-Step (TInstall "Generation des cles et configurations" "Generating keys and configurations")
+    Write-Step (TInstall "Generation de la configuration serveur" "Generating server configuration")
     $serverPrivateKey = New-WgPrivateKey $wgExe
     $serverPublicKey = Get-WgPublicKey $wgExe $serverPrivateKey
-    $devicePrivateKey = New-WgPrivateKey $wgExe
-    $devicePublicKey = Get-WgPublicKey $wgExe $devicePrivateKey
-    $psk = New-WgPresharedKey $wgExe
-
     $safeDeviceName = ($deviceName -replace '[^a-zA-Z0-9_-]', '_')
     $deviceConfigPath = Join-Path $deviceDir "$safeDeviceName.conf"
 
+    # Important: the first device/peer is created later, after the server service,
+    # firewall, NAT and automatic port mapping attempts are completed.
     $serverConfig = @"
 [Interface]
 PrivateKey = $serverPrivateKey
 Address = $ServerVpnIp/24
 ListenPort = $ListenPort
+"@
+
+    Set-Content -Path $serverConfigPath -Value $serverConfig -Encoding ASCII
+    Write-Ok (TInstall "Configuration serveur creee : $serverConfigPath" "Server configuration created: $serverConfigPath")
+
+    Enable-IPv4Forwarding
+    Ensure-Firewall -Port $ListenPort
+    Ensure-Nat -Cidr $VpnCidr
+    Install-Tunnel -WireGuardExe $wireguardExe -TunnelName $TunnelName -ConfigPath $serverConfigPath
+
+    $lanIp = Get-PrimaryIPv4
+    $upnpOk = Try-UpnpPortForward -Port $ListenPort -LanIp $lanIp
+
+    Write-Step (TInstall "Creation du premier appareil / peer" "Creating first device / peer")
+    $devicePrivateKey = New-WgPrivateKey $wgExe
+    $devicePublicKey = Get-WgPublicKey $wgExe $devicePrivateKey
+    $psk = New-WgPresharedKey $wgExe
+
+    $peerBlock = @"
 
 # $safeDeviceName
 [Peer]
@@ -984,6 +1001,7 @@ PublicKey = $devicePublicKey
 PresharedKey = $psk
 AllowedIPs = $DeviceVpnIp/32
 "@
+    Add-Content -Path $serverConfigPath -Value $peerBlock -Encoding ASCII
 
     $deviceConfig = @"
 [Interface]
@@ -999,11 +1017,13 @@ AllowedIPs = 0.0.0.0/0
 PersistentKeepalive = 25
 "@
 
-    Set-Content -Path $serverConfigPath -Value $serverConfig -Encoding ASCII
     Set-Content -Path $deviceConfigPath -Value $deviceConfig -Encoding ASCII
     $metaPath = Save-DeviceMetadata -BaseDir $baseDir -DeviceName $safeDeviceName -VpnIp $DeviceVpnIp
     Write-Ok (TInstall "Configuration appareil creee : $deviceConfigPath" "Device configuration created: $deviceConfigPath")
     Write-Ok (TInstall "Metadonnees appareil creees : $metaPath" "Device metadata created: $metaPath")
+
+    Write-Step (TInstall "Rechargement du tunnel avec le premier appareil" "Reloading tunnel with the first device")
+    Install-Tunnel -WireGuardExe $wireguardExe -TunnelName $TunnelName -ConfigPath $serverConfigPath
 
     if ($enableQrFeature) {
         $generateFirstQrPrompt = TInstall "Generer un QR code pour ce premier appareil ? Tape oui ou non ; laisser le champ vide n'est pas accepte." "Generate a QR code for this first device? Please type yes or no; leaving the field empty is not accepted."
@@ -1025,14 +1045,6 @@ PersistentKeepalive = 25
             Write-Host (TInstall "QR code non genere pour ce premier appareil. Le fichier .conf reste disponible." "QR code not generated for this first device. The .conf file is still available.") -ForegroundColor Yellow
         }
     }
-
-    Enable-IPv4Forwarding
-    Ensure-Firewall -Port $ListenPort
-    Ensure-Nat -Cidr $VpnCidr
-    Install-Tunnel -WireGuardExe $wireguardExe -TunnelName $TunnelName -ConfigPath $serverConfigPath
-
-    $lanIp = Get-PrimaryIPv4
-    $upnpOk = Try-UpnpPortForward -Port $ListenPort -LanIp $lanIp
 
     Write-Host ""
     Write-Host "============================================================" -ForegroundColor Green

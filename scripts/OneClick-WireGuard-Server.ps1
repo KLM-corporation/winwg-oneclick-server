@@ -272,6 +272,176 @@ function Test-UpnpMapping([object]$Mappings, [int]$Port, [string]$LanIp) {
     return ($enabled -and $internalClient -eq $LanIp -and $internalPort -eq $Port)
 }
 
+
+function Join-Uri([string]$BaseUri, [string]$Path) {
+    $base = [Uri]$BaseUri
+    return ([Uri]::new($base, $Path)).AbsoluteUri
+}
+
+function Get-XmlChildText($Node, [string]$Name) {
+    foreach ($child in $Node.ChildNodes) {
+        if ($child.LocalName -eq $Name) { return $child.InnerText }
+    }
+    return $null
+}
+
+function Send-UpnpMSearch([string]$SearchTarget, [int]$TimeoutMs = 2500) {
+    $responses = New-Object System.Collections.Generic.List[string]
+    $client = New-Object System.Net.Sockets.UdpClient
+    try {
+        $client.Client.ReceiveTimeout = $TimeoutMs
+        $endpoint = New-Object System.Net.IPEndPoint ([System.Net.IPAddress]::Parse('239.255.255.250')), 1900
+        $request = "M-SEARCH * HTTP/1.1`r`nHOST: 239.255.255.250:1900`r`nMAN: `"ssdp:discover`"`r`nMX: 2`r`nST: $SearchTarget`r`n`r`n"
+        $bytes = [System.Text.Encoding]::ASCII.GetBytes($request)
+        [void]$client.Send($bytes, $bytes.Length, $endpoint)
+
+        $deadline = (Get-Date).AddMilliseconds($TimeoutMs)
+        while ((Get-Date) -lt $deadline) {
+            try {
+                $remote = New-Object System.Net.IPEndPoint ([System.Net.IPAddress]::Any), 0
+                $buffer = $client.Receive([ref]$remote)
+                $responses.Add([System.Text.Encoding]::ASCII.GetString($buffer))
+            } catch {
+                break
+            }
+        }
+    } finally {
+        $client.Close()
+    }
+    return $responses
+}
+
+function Get-UpnpLocationsFromSsdp {
+    $targets = @(
+        'urn:schemas-upnp-org:service:WANIPConnection:2',
+        'urn:schemas-upnp-org:service:WANIPConnection:1',
+        'urn:schemas-upnp-org:service:WANPPPConnection:1',
+        'urn:schemas-upnp-org:device:InternetGatewayDevice:2',
+        'urn:schemas-upnp-org:device:InternetGatewayDevice:1',
+        'upnp:rootdevice'
+    )
+
+    $locations = New-Object System.Collections.Generic.HashSet[string]
+    foreach ($target in $targets) {
+        Write-Host (TInstall "Recherche UPnP IGD via SSDP : $target" "Searching UPnP IGD via SSDP: $target") -ForegroundColor DarkCyan
+        foreach ($response in (Send-UpnpMSearch -SearchTarget $target)) {
+            foreach ($line in ($response -split "`r?`n")) {
+                if ($line -match '^(?i)LOCATION\s*:\s*(.+)$') {
+                    [void]$locations.Add($Matches[1].Trim())
+                }
+            }
+        }
+        if ($locations.Count -gt 0) { break }
+    }
+    return @($locations)
+}
+
+function Find-UpnpIgdServices {
+    $services = New-Object System.Collections.Generic.List[object]
+    $locations = Get-UpnpLocationsFromSsdp
+    foreach ($location in $locations) {
+        try {
+            Write-Host (TInstall "Description UPnP trouvee : $location" "UPnP description found: $location") -ForegroundColor DarkCyan
+            [xml]$xml = (Invoke-WebRequest -Uri $location -UseBasicParsing -TimeoutSec 5).Content
+            $serviceNodes = $xml.GetElementsByTagName('service')
+            foreach ($svc in $serviceNodes) {
+                $serviceType = Get-XmlChildText -Node $svc -Name 'serviceType'
+                $controlUrl = Get-XmlChildText -Node $svc -Name 'controlURL'
+                if ([string]::IsNullOrWhiteSpace($serviceType) -or [string]::IsNullOrWhiteSpace($controlUrl)) { continue }
+                if ($serviceType -match 'WANIPConnection|WANPPPConnection') {
+                    $services.Add([pscustomobject]@{
+                        Location = $location
+                        ServiceType = $serviceType
+                        ControlUrl = (Join-Uri -BaseUri $location -Path $controlUrl)
+                    })
+                }
+            }
+        } catch {
+            Write-Host (TInstall "Impossible de lire une description UPnP : $($_.Exception.Message)" "Unable to read a UPnP description: $($_.Exception.Message)") -ForegroundColor Yellow
+        }
+    }
+    return @($services)
+}
+
+function Invoke-UpnpSoap([object]$Service, [string]$Action, [string]$InnerXml) {
+    $body = @"
+<?xml version="1.0"?>
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+  <s:Body>
+    <u:$Action xmlns:u="$($Service.ServiceType)">
+$InnerXml
+    </u:$Action>
+  </s:Body>
+</s:Envelope>
+"@
+    $headers = @{ SOAPACTION = '"' + $Service.ServiceType + '#' + $Action + '"' }
+    return Invoke-WebRequest -Uri $Service.ControlUrl -Method POST -Headers $headers -ContentType 'text/xml; charset="utf-8"' -Body $body -UseBasicParsing -TimeoutSec 8
+}
+
+function Add-UpnpPortMappingSoap([object]$Service, [int]$Port, [string]$LanIp) {
+    $description = "WinWG OneClick Server UDP $Port"
+    $inner = @"
+      <NewRemoteHost></NewRemoteHost>
+      <NewExternalPort>$Port</NewExternalPort>
+      <NewProtocol>UDP</NewProtocol>
+      <NewInternalPort>$Port</NewInternalPort>
+      <NewInternalClient>$LanIp</NewInternalClient>
+      <NewEnabled>1</NewEnabled>
+      <NewPortMappingDescription>$description</NewPortMappingDescription>
+      <NewLeaseDuration>0</NewLeaseDuration>
+"@
+    return Invoke-UpnpSoap -Service $Service -Action 'AddPortMapping' -InnerXml $inner
+}
+
+function Remove-UpnpPortMappingSoap([object]$Service, [int]$Port) {
+    $inner = @"
+      <NewRemoteHost></NewRemoteHost>
+      <NewExternalPort>$Port</NewExternalPort>
+      <NewProtocol>UDP</NewProtocol>
+"@
+    try { [void](Invoke-UpnpSoap -Service $Service -Action 'DeletePortMapping' -InnerXml $inner) } catch {}
+}
+
+function Test-UpnpPortMappingSoap([object]$Service, [int]$Port) {
+    $inner = @"
+      <NewRemoteHost></NewRemoteHost>
+      <NewExternalPort>$Port</NewExternalPort>
+      <NewProtocol>UDP</NewProtocol>
+"@
+    try {
+        $result = Invoke-UpnpSoap -Service $Service -Action 'GetSpecificPortMappingEntry' -InnerXml $inner
+        return ($result.StatusCode -ge 200 -and $result.StatusCode -lt 300)
+    } catch {
+        return $false
+    }
+}
+
+function Try-UpnpPortForwardSoapFallback([int]$Port, [string]$LanIp) {
+    Write-Step (TInstall "Tentative UPnP alternative via SSDP/SOAP" "Trying alternative UPnP through SSDP/SOAP")
+    $services = @(Find-UpnpIgdServices)
+    if ($services.Count -eq 0) {
+        Write-Host (TInstall "Aucun service UPnP IGD/WANIPConnection trouve via SSDP." "No UPnP IGD/WANIPConnection service found via SSDP.") -ForegroundColor Yellow
+        return $false
+    }
+
+    foreach ($service in $services) {
+        try {
+            Write-Host (TInstall "Essai service UPnP : $($service.ServiceType) -> $($service.ControlUrl)" "Trying UPnP service: $($service.ServiceType) -> $($service.ControlUrl)") -ForegroundColor DarkCyan
+            Remove-UpnpPortMappingSoap -Service $service -Port $Port
+            Start-Sleep -Seconds 1
+            [void](Add-UpnpPortMappingSoap -Service $service -Port $Port -LanIp $LanIp)
+            Start-Sleep -Seconds 1
+            if (Test-UpnpPortMappingSoap -Service $service -Port $Port) {
+                Write-Ok (TInstall "Redirection UPnP verifiee via SOAP : UDP $Port -> $LanIp`:$Port" "UPnP forwarding verified through SOAP: UDP $Port -> $LanIp`:$Port")
+                return $true
+            }
+        } catch {
+            Write-Host (TInstall "Echec du service UPnP SOAP : $($_.Exception.Message)" "UPnP SOAP service failed: $($_.Exception.Message)") -ForegroundColor Yellow
+        }
+    }
+    return $false
+}
+
 function Try-UpnpPortForward([int]$Port, [string]$LanIp) {
     if (-not $LanIp) { return $false }
     Write-Step (TInstall "Tentative de redirection automatique du port sur la box via UPnP" "Trying automatic router port forwarding via UPnP")
@@ -291,8 +461,8 @@ function Try-UpnpPortForward([int]$Port, [string]$LanIp) {
             $nat = New-Object -ComObject HNetCfg.NATUPnP
             $mappings = $nat.StaticPortMappingCollection
             if ($null -eq $mappings) {
-                Write-Host (TInstall "UPnP indisponible sur cette box ou desactive." "UPnP unavailable on this router or disabled.") -ForegroundColor Yellow
-                return $false
+                Write-Host (TInstall "UPnP COM indisponible sur cette box ou desactive. Essai de la methode alternative..." "UPnP COM unavailable on this router or disabled. Trying alternative method...") -ForegroundColor Yellow
+                return (Try-UpnpPortForwardSoapFallback -Port $Port -LanIp $LanIp)
             }
 
             $existing = Get-UpnpMapping -Mappings $mappings -Port $Port -Protocol 'UDP'
@@ -317,6 +487,8 @@ function Try-UpnpPortForward([int]$Port, [string]$LanIp) {
         }
         Start-Sleep -Seconds 2
     }
+
+    if (Try-UpnpPortForwardSoapFallback -Port $Port -LanIp $LanIp) { return $true }
 
     Write-Host (TInstall "UPnP n'a pas pu etre configure automatiquement. Cela depend de la box : UPnP peut etre desactive, non supporte, bloque par le profil reseau, ou impossible derriere CG-NAT." "UPnP could not be configured automatically. This depends on the router: UPnP may be disabled, unsupported, blocked by the network profile, or impossible behind CG-NAT.") -ForegroundColor Yellow
     return $false

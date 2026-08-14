@@ -274,8 +274,23 @@ function Test-UpnpMapping([object]$Mappings, [int]$Port, [string]$LanIp) {
 
 
 function Join-Uri([string]$BaseUri, [string]$Path) {
-    $base = [Uri]$BaseUri
-    return ([Uri]::new($base, $Path)).AbsoluteUri
+    if ([string]::IsNullOrWhiteSpace($Path)) { return $BaseUri }
+    if ($Path -match '^https?://') { return $Path }
+
+    $base = [System.Uri]$BaseUri
+    $root = $base.Scheme + '://' + $base.Authority
+
+    if ($Path.StartsWith('/')) {
+        return ($root + $Path)
+    }
+
+    $baseText = $base.AbsoluteUri
+    $lastSlash = $baseText.LastIndexOf('/')
+    if ($lastSlash -ge 0) {
+        return ($baseText.Substring(0, $lastSlash + 1) + $Path)
+    }
+
+    return ($root + '/' + $Path)
 }
 
 function Get-XmlChildText($Node, [string]$Name) {
@@ -353,7 +368,7 @@ function Get-UpnpLocationsFromSsdp {
 }
 
 function Find-UpnpIgdServices {
-    $services = New-Object System.Collections.Generic.List[object]
+    $services = New-Object System.Collections.ArrayList
     $locations = Get-UpnpLocationsFromSsdp
     foreach ($location in $locations) {
         try {
@@ -365,16 +380,24 @@ function Find-UpnpIgdServices {
                 $controlUrl = Get-XmlChildText -Node $svc -Name 'controlURL'
                 if ([string]::IsNullOrWhiteSpace($serviceType) -or [string]::IsNullOrWhiteSpace($controlUrl)) { continue }
                 if ($serviceType -match 'WANIPConnection|WANPPPConnection') {
-                    $services.Add([pscustomobject]@{
-                        Location = $location
-                        ServiceType = $serviceType
-                        ControlUrl = (Join-Uri -BaseUri $location -Path $controlUrl)
-                    })
+                    try {
+                        $control = Join-Uri -BaseUri $location -Path $controlUrl
+                        [void]$services.Add([pscustomobject]@{
+                            Location = $location
+                            ServiceType = $serviceType
+                            ControlUrl = $control
+                        })
+                    } catch {
+                        Write-Host (TInstall "Service UPnP ignore, URL invalide : $($_.Exception.Message)" "UPnP service ignored, invalid URL: $($_.Exception.Message)") -ForegroundColor Yellow
+                    }
                 }
             }
         } catch {
             Write-Host (TInstall "Impossible de lire une description UPnP : $($_.Exception.Message)" "Unable to read a UPnP description: $($_.Exception.Message)") -ForegroundColor Yellow
         }
+    }
+    if ($services.Count -eq 0 -and $locations.Count -gt 0) {
+        Write-Host (TInstall "Des peripheriques UPnP ont repondu, mais aucun service routeur WANIPConnection/WANPPPConnection exploitable n'a ete trouve." "UPnP devices responded, but no usable router WANIPConnection/WANPPPConnection service was found.") -ForegroundColor Yellow
     }
     return @($services)
 }

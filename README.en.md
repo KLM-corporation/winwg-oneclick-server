@@ -299,18 +299,6 @@ It checks, among other things:
 
 The health check displays an `OK / WARN / ERROR` summary and reminds the manual forwarding rule required if the device cannot connect outside the LAN.
 
-## Graphical interface beta
-
-A first WPF graphical control center is available:
-
-```text
-WINWG-GUI.bat
-```
-
-It can show server status, start/stop/restart the tunnel, run a quick health check, add/remove devices, generate QR codes, open folders, and switch device endpoints between IPv4/DNS and direct IPv6.
-
-IPv6 note: direct IPv6 can still require an IPv6 firewall rule on the router/box, for example allowing the WireGuard UDP port to the PC IPv6 address.
-
 ## Unified server console
 
 WireGuard for Windows runs as a background service. WinWG now combines monitoring and service control in a single console:

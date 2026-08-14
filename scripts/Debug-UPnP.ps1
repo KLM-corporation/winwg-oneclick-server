@@ -46,7 +46,7 @@ function Get-PrimaryIPv4Info {
     return [pscustomobject]@{ LocalIP = $null; Gateway = $null; InterfaceIndex = $null; InterfaceAlias = $null }
 }
 
-function Send-MSearch([string]$Target, [string]$LocalIp, [int]$TimeoutMs) {
+function Send-MSearch([string]$Target, [string]$LocalIp, [string]$Gateway, [string]$Mode, [int]$TimeoutMs) {
     $responses = New-Object System.Collections.Generic.List[object]
     $client = $null
     try {
@@ -54,27 +54,32 @@ function Send-MSearch([string]$Target, [string]$LocalIp, [int]$TimeoutMs) {
         $client.Client.ReceiveTimeout = $TimeoutMs
         $client.EnableBroadcast = $true
         $client.MulticastLoopback = $false
-        if ($LocalIp) {
-            $localEndpoint = [System.Net.IPEndPoint]::new([System.Net.IPAddress]::Parse($LocalIp), 0)
-            $client.Client.Bind($localEndpoint)
+
+        if ($Mode -eq 'bound' -and $LocalIp) {
+            $client.Client.Bind([System.Net.IPEndPoint]::new([System.Net.IPAddress]::Parse($LocalIp), 0))
         }
+
         $request = "M-SEARCH * HTTP/1.1`r`nHOST: 239.255.255.250:1900`r`nMAN: `"ssdp:discover`"`r`nMX: 2`r`nST: $Target`r`n`r`n"
         $bytes = [System.Text.Encoding]::ASCII.GetBytes($request)
-        [void]$client.Send($bytes, $bytes.Length, '239.255.255.250', 1900)
+
+        if ($Mode -eq 'unicast' -and $Gateway) {
+            [void]$client.Send($bytes, $bytes.Length, $Gateway, 1900)
+        } else {
+            [void]$client.Send($bytes, $bytes.Length, '239.255.255.250', 1900)
+        }
+
         $deadline = (Get-Date).AddMilliseconds($TimeoutMs)
         while ((Get-Date) -lt $deadline) {
             try {
                 $remote = [System.Net.IPEndPoint]::new([System.Net.IPAddress]::Any, 0)
                 $buffer = $client.Receive([ref]$remote)
                 $text = [System.Text.Encoding]::ASCII.GetString($buffer)
-                $responses.Add([pscustomobject]@{ Remote = $remote.ToString(); Text = $text }) | Out-Null
+                $responses.Add([pscustomobject]@{ Remote = $remote.ToString(); Text = $text; Mode = $Mode }) | Out-Null
             } catch { break }
         }
     } catch {
-        Write-Diag "[SSDP] Error for ${Target}: $($_.Exception.Message)" Yellow
-    } finally {
-        if ($client) { $client.Close() }
-    }
+        Write-Diag "[SSDP/$Mode] Error for ${Target}: $($_.Exception.Message)" Yellow
+    } finally { if ($client) { $client.Close() } }
     return @($responses)
 }
 
@@ -168,20 +173,24 @@ Write-Diag ""
 
 $targets = @('ssdp:all','upnp:rootdevice','urn:schemas-upnp-org:device:InternetGatewayDevice:1','urn:schemas-upnp-org:device:InternetGatewayDevice:2','urn:schemas-upnp-org:service:WANIPConnection:1','urn:schemas-upnp-org:service:WANIPConnection:2','urn:schemas-upnp-org:service:WANPPPConnection:1')
 $locations = New-Object System.Collections.ArrayList
+$ssdpModes = @('bound', 'unbound', 'unicast')
 foreach ($target in $targets) {
-    Write-Diag "[SSDP] M-SEARCH $target" Cyan
-    foreach ($r in (Send-MSearch -Target $target -LocalIp $net.LocalIP -TimeoutMs $TimeoutMs)) {
-        $location = Get-HeaderValue -Response $r.Text -Header 'LOCATION'
-        $st = Get-HeaderValue -Response $r.Text -Header 'ST'
-        $usn = Get-HeaderValue -Response $r.Text -Header 'USN'
-        $server = Get-HeaderValue -Response $r.Text -Header 'SERVER'
-        Write-Diag "  From     : $($r.Remote)"
-        Write-Diag "  ST       : $st"
-        Write-Diag "  USN      : $usn"
-        Write-Diag "  LOCATION : $location"
-        Write-Diag "  SERVER   : $server"
-        Write-Diag ""
-        if ($location -and -not $locations.Contains($location)) { [void]$locations.Add($location) }
+    foreach ($mode in $ssdpModes) {
+        Write-Diag "[SSDP/$mode] M-SEARCH $target" Cyan
+        foreach ($r in (Send-MSearch -Target $target -LocalIp $net.LocalIP -Gateway $net.Gateway -Mode $mode -TimeoutMs $TimeoutMs)) {
+            $location = Get-HeaderValue -Response $r.Text -Header 'LOCATION'
+            $st = Get-HeaderValue -Response $r.Text -Header 'ST'
+            $usn = Get-HeaderValue -Response $r.Text -Header 'USN'
+            $server = Get-HeaderValue -Response $r.Text -Header 'SERVER'
+            Write-Diag "  From     : $($r.Remote)"
+            Write-Diag "  Mode     : $($r.Mode)"
+            Write-Diag "  ST       : $st"
+            Write-Diag "  USN      : $usn"
+            Write-Diag "  LOCATION : $location"
+            Write-Diag "  SERVER   : $server"
+            Write-Diag ""
+            if ($location -and -not $locations.Contains($location)) { [void]$locations.Add($location) }
+        }
     }
 }
 

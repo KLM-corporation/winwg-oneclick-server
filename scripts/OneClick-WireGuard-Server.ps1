@@ -287,23 +287,25 @@ function Get-XmlChildText($Node, [string]$Name) {
 
 function Send-UpnpMSearch([string]$SearchTarget, [int]$TimeoutMs = 2500) {
     $responses = New-Object System.Collections.Generic.List[string]
-    $client = New-Object System.Net.Sockets.UdpClient
+    $client = [System.Net.Sockets.UdpClient]::new()
     try {
         $client.Client.ReceiveTimeout = $TimeoutMs
         $client.EnableBroadcast = $true
         $client.MulticastLoopback = $false
 
-        # Use the hostname/port overload instead of constructing IPEndPoint through New-Object.
-        # This avoids a Windows PowerShell 5.1 overload issue that can throw:
-        # "Les types des arguments ne correspondent pas."
+        # Build endpoints with explicit .NET constructors to avoid Windows PowerShell 5.1
+        # overload-binding errors such as: "Les types des arguments ne correspondent pas."
+        $multicastAddress = [System.Net.IPAddress]::Parse('239.255.255.250')
+        $endpoint = [System.Net.IPEndPoint]::new($multicastAddress, 1900)
+
         $request = "M-SEARCH * HTTP/1.1`r`nHOST: 239.255.255.250:1900`r`nMAN: `"ssdp:discover`"`r`nMX: 2`r`nST: $SearchTarget`r`n`r`n"
         $bytes = [System.Text.Encoding]::ASCII.GetBytes($request)
-        [void]$client.Send($bytes, $bytes.Length, '239.255.255.250', 1900)
+        [void]$client.Send($bytes, $bytes.Length, $endpoint)
 
         $deadline = (Get-Date).AddMilliseconds($TimeoutMs)
         while ((Get-Date) -lt $deadline) {
             try {
-                $remote = New-Object System.Net.IPEndPoint -ArgumentList ([System.Net.IPAddress]::Any), 0
+                $remote = [System.Net.IPEndPoint]::new([System.Net.IPAddress]::Any, 0)
                 $buffer = $client.Receive([ref]$remote)
                 $responses.Add([System.Text.Encoding]::ASCII.GetString($buffer))
             } catch {
@@ -495,7 +497,11 @@ function Try-UpnpPortForward([int]$Port, [string]$LanIp) {
         Start-Sleep -Seconds 2
     }
 
-    if (Try-UpnpPortForwardSoapFallback -Port $Port -LanIp $LanIp) { return $true }
+    try {
+        if (Try-UpnpPortForwardSoapFallback -Port $Port -LanIp $LanIp) { return $true }
+    } catch {
+        Write-Host (TInstall "Methode UPnP alternative terminee avec une erreur : $($_.Exception.Message)" "Alternative UPnP method ended with an error: $($_.Exception.Message)") -ForegroundColor Yellow
+    }
 
     Write-Host (TInstall "UPnP n'a pas pu etre configure automatiquement. Cela depend de la box : UPnP peut etre desactive, non supporte, bloque par le profil reseau, ou impossible derriere CG-NAT." "UPnP could not be configured automatically. This depends on the router: UPnP may be disabled, unsupported, blocked by the network profile, or impossible behind CG-NAT.") -ForegroundColor Yellow
     return $false

@@ -94,7 +94,7 @@ INSTALLER-ONE-CLICK.bat
 
 The installer asks for Windows administrator rights, installs WireGuard if needed, generates the server + device configuration, configures firewall, routing and NAT, then opens the folder containing the `.conf` file to import into the WireGuard mobile app.
 
-It also tries to create the router port-forwarding automatically via UPnP.
+It also performs a quick UPnP port-forwarding attempt. If it fails, installation continues and you can run `DEBUG-UPNP.bat` for detailed diagnostics.
 > UPnP note: the installer now tries to make UPnP more reliable by starting Windows SSDP/UPnP services, removing conflicting old mappings, retrying several times and verifying the created mapping. Even with this, UPnP still depends on the router: it may be disabled, unsupported or impossible behind CG-NAT.
  If your router refuses it or UPnP is disabled, the installer shows the PC local IP address and you must manually forward the port:
 

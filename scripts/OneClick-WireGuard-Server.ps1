@@ -562,7 +562,7 @@ function Try-NatPmpUdpPortForward([int]$Port, [string]$LanIp) {
         return $false
     } catch {
         $message = $_.Exception.Message
-        if ($message -match 'timed out|délai|delai|n.a pas répondu|n’a pas répondu|host.*not respond|connexion.*échoué') {
+        if ($message -match "timed out|délai|delai|n.a pas répondu|n’a pas répondu|host.*not respond|connexion.*échoué") {
             Write-Host (TInstall "NAT-PMP : aucune reponse de la box sur UDP 5351." "NAT-PMP: no response from the router on UDP 5351.") -ForegroundColor Yellow
         } else {
             Write-Host (TInstall "NAT-PMP impossible : $message" "NAT-PMP failed: $message") -ForegroundColor Yellow

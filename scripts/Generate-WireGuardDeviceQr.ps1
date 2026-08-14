@@ -86,6 +86,11 @@ if ([string]::IsNullOrWhiteSpace($confText)) {
     throw "Configuration vide : $deviceConfigPath"
 }
 
+# WireGuard mobile imports QR payloads more reliably with LF line endings.
+# The .conf file on Windows can stay CRLF, but the QR content should mimic qrencode on Linux.
+$confText = $confText -replace "`r`n", "`n" -replace "`r", "`n"
+$confText = $confText.Trim() + "`n"
+
 $qrcoderDll = Ensure-QRCoder
 Add-Type -Path $qrcoderDll
 
@@ -94,7 +99,7 @@ Ensure-Directory $qrDir
 $qrPath = Join-Path $qrDir "$DeviceName.png"
 
 $generator = [QRCoder.QRCodeGenerator]::new()
-$data = $generator.CreateQrCode($confText, [QRCoder.QRCodeGenerator+ECCLevel]::Q)
+$data = $generator.CreateQrCode($confText, [QRCoder.QRCodeGenerator+ECCLevel]::M)
 $pngQr = [QRCoder.PngByteQRCode]::new($data)
 $bytes = $pngQr.GetGraphic(20)
 [System.IO.File]::WriteAllBytes($qrPath, $bytes)

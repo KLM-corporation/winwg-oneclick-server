@@ -270,6 +270,88 @@ function Try-UpnpPortForward([int]$Port, [string]$LanIp) {
 }
 
 
+
+function Get-PublicIPv6Candidate {
+    try {
+        $defaultRoute = Get-NetRoute -AddressFamily IPv6 -DestinationPrefix '::/0' -ErrorAction SilentlyContinue |
+            Sort-Object RouteMetric, InterfaceMetric |
+            Select-Object -First 1
+
+        $addresses = @(Get-NetIPAddress -AddressFamily IPv6 -ErrorAction SilentlyContinue |
+            Where-Object {
+                $_.IPAddress -notmatch '^fe80:' -and
+                $_.IPAddress -ne '::1' -and
+                $_.IPAddress -notmatch '^(fc|fd)' -and
+                $_.IPAddress -match '^(2|3)' -and
+                $_.AddressState -ne 'Deprecated'
+            })
+
+        if ($defaultRoute) {
+            $preferred = $addresses | Where-Object { $_.InterfaceIndex -eq $defaultRoute.InterfaceIndex } | Select-Object -First 1
+            if ($preferred) { return $preferred.IPAddress }
+        }
+
+        $fallback = $addresses | Select-Object -First 1
+        if ($fallback) { return $fallback.IPAddress }
+    } catch {}
+    return $null
+}
+
+function Ensure-IPv6Firewall([int]$Port) {
+    Write-Step (TInstall "Configuration du pare-feu Windows IPv6" "Configuring Windows IPv6 firewall")
+    $fwName = "WinWG WireGuard UDP $Port IPv6"
+    Get-NetFirewallRule -DisplayName $fwName -ErrorAction SilentlyContinue | Remove-NetFirewallRule
+    New-NetFirewallRule -DisplayName $fwName -Direction Inbound -Action Allow -Protocol UDP -LocalPort $Port -RemoteAddress Any -LocalAddress Any | Out-Null
+    Write-Ok (TInstall "Pare-feu IPv6 autorise sur UDP $Port" "IPv6 firewall allowed on UDP $Port")
+}
+
+function Select-IPv6FallbackOrManual([int]$Port, [string]$LanIp) {
+    Write-Host ""
+    Write-Host (TInstall "La redirection automatique IPv4 a echoue." "Automatic IPv4 port forwarding failed.") -ForegroundColor Yellow
+    Write-Host (TInstall "Choisis comment continuer :" "Choose how to continue:") -ForegroundColor Cyan
+    Write-Host (TInstall "1 - Redirection manuelle IPv4 : UDP $Port -> $LanIp`:$Port" "1 - Manual IPv4 forwarding: UDP $Port -> $LanIp`:$Port")
+    Write-Host (TInstall "2 - Essayer la methode IPv6 automatique (endpoint IPv6, pas de NAT IPv4)" "2 - Try automatic IPv6 method (IPv6 endpoint, no IPv4 NAT)")
+    Write-Host ""
+    $choice = (Read-Host (TInstall "Choix [1]" "Choice [1]")).Trim()
+    if ([string]::IsNullOrWhiteSpace($choice)) { $choice = '1' }
+
+    if ($choice -ne '2') {
+        return [pscustomobject]@{
+            UseIPv6 = $false
+            Endpoint = $null
+            Succeeded = $false
+            Method = 'manual-required'
+            Message = 'Manual IPv4 forwarding selected or required'
+        }
+    }
+
+    $ipv6 = Get-PublicIPv6Candidate
+    if ([string]::IsNullOrWhiteSpace($ipv6)) {
+        Write-Host (TInstall "Aucune IPv6 publique globale detectee sur ce PC." "No global public IPv6 address detected on this PC.") -ForegroundColor Yellow
+        Write-Host (TInstall "Retour a la redirection manuelle IPv4." "Falling back to manual IPv4 forwarding.") -ForegroundColor Yellow
+        return [pscustomobject]@{
+            UseIPv6 = $false
+            Endpoint = $null
+            Succeeded = $false
+            Method = 'manual-required'
+            Message = 'No public IPv6 detected; manual IPv4 forwarding required'
+        }
+    }
+
+    Ensure-IPv6Firewall -Port $Port
+    $endpoint = "[$ipv6]"
+    Write-Host (TInstall "Endpoint IPv6 propose : $endpoint`:$Port" "Suggested IPv6 endpoint: $endpoint`:$Port") -ForegroundColor Green
+    Write-Host (TInstall "Important : la box et le pare-feu IPv6 doivent autoriser UDP $Port vers ce PC." "Important: the router and IPv6 firewall must allow UDP $Port to this PC.") -ForegroundColor Yellow
+
+    return [pscustomobject]@{
+        UseIPv6 = $true
+        Endpoint = $endpoint
+        Succeeded = $true
+        Method = 'ipv6-endpoint'
+        Message = "IPv6 endpoint selected: $endpoint`:$Port"
+    }
+}
+
 function Save-PortForwardStatus([string]$BaseDir, [int]$Port, [string]$LanIp, [bool]$Succeeded, [string]$Method, [string]$Message) {
     $settingsDir = Join-Path $BaseDir "settings"
     Ensure-Directory $settingsDir
@@ -650,14 +732,23 @@ ListenPort = $ListenPort
 
     $lanIp = Get-PrimaryIPv4
     $upnpOk = Try-UpnpPortForward -Port $ListenPort -LanIp $lanIp
-    if ($upnpOk) {
-        [void](Save-PortForwardStatus -BaseDir $baseDir -Port $ListenPort -LanIp $lanIp -Succeeded $true -Method 'UPnP' -Message 'Automatic port forwarding succeeded')
-    } else {
-        [void](Save-PortForwardStatus -BaseDir $baseDir -Port $ListenPort -LanIp $lanIp -Succeeded $false -Method 'manual-required' -Message 'Automatic port forwarding failed or unavailable')
+    $endpointOverride = $null
+    $portForwardMethod = 'UPnP'
+    $portForwardMessage = 'Automatic port forwarding succeeded'
+    $portForwardSucceeded = $upnpOk
+
+    if (-not $upnpOk) {
+        $fallbackChoice = Select-IPv6FallbackOrManual -Port $ListenPort -LanIp $lanIp
+        $endpointOverride = $fallbackChoice.Endpoint
+        $portForwardMethod = $fallbackChoice.Method
+        $portForwardMessage = $fallbackChoice.Message
+        $portForwardSucceeded = [bool]$fallbackChoice.Succeeded
     }
 
+    [void](Save-PortForwardStatus -BaseDir $baseDir -Port $ListenPort -LanIp $lanIp -Succeeded $portForwardSucceeded -Method $portForwardMethod -Message $portForwardMessage)
+
     Write-Step (TInstall "Parametres du premier appareil" "First device settings")
-    $defaultEndpoint = Get-PublicEndpoint -Port $ListenPort
+    $defaultEndpoint = if ($endpointOverride) { $endpointOverride } else { Get-PublicEndpoint -Port $ListenPort }
     $deviceName = Ask-Text "WireGuard" $deviceNamePrompt "appareil"
     $endpoint = Ask-Text "WireGuard" $endpointPrompt $defaultEndpoint
     $Dns = Ask-Text "WireGuard" $dnsPrompt $Dns
@@ -736,6 +827,10 @@ PersistentKeepalive = 25
 
     if ($upnpOk) {
         Write-Host (TInstall "La redirection de port automatique UPnP a reussi. Tu peux tester en 4G/5G." "Automatic UPnP port forwarding succeeded. You can test from mobile data.") -ForegroundColor Green
+    } elseif ($portForwardMethod -eq 'ipv6-endpoint') {
+        Write-Host (TInstall "Mode IPv6 selectionne : aucune redirection NAT IPv4 n'est necessaire pour les clients compatibles IPv6." "IPv6 mode selected: no IPv4 NAT forwarding is required for IPv6-capable clients.") -ForegroundColor Green
+        Write-Host (TInstall "Endpoint utilise : $endpoint`:$ListenPort" "Endpoint used: $endpoint`:$ListenPort") -ForegroundColor Green
+        Write-Host (TInstall "Si l'appareil distant n'a pas IPv6, il faudra utiliser la redirection IPv4 manuelle." "If the remote device has no IPv6, manual IPv4 forwarding will still be required.") -ForegroundColor Yellow
     } else {
         Write-Host (TInstall "Action manuelle probablement necessaire sur ta box :" "Manual action probably required on your router:") -ForegroundColor Yellow
         Write-Host (TInstall "  Rediriger UDP $ListenPort vers l'IP locale du PC : $lanIp" "  Forward UDP $ListenPort to the PC local IP: $lanIp")

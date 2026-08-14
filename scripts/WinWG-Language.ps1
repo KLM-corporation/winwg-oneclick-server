@@ -251,7 +251,7 @@ function Get-WinWGText([string]$Language, [string]$Key) {
             IPv4EndpointModeEnabled = 'Mode endpoint IPv4/DNS active'
             DeviceConfigsUpdated = 'Configs appareil mises a jour'
             PortForwardStatusSaved = 'Statut redirection enregistre'
-            ReimportDeviceConfigsWarning = 'Important : les appareils deja ajoutes doivent reimporter le .conf ou rescanner un QR regenere. Si ca marche en Wi-Fi mais pas en 4G/5G, cree une regle pare-feu IPv6 sur la box : UDP du port WireGuard vers l'adresse IPv6 du PC.'
+            ReimportDeviceConfigsWarning = 'Important : les appareils deja ajoutes doivent reimporter le .conf ou rescanner un QR regenere. Si ca marche en Wi-Fi mais pas en 4G/5G, cree une regle pare-feu IPv6 sur la box : UDP du port WireGuard vers l''adresse IPv6 du PC.'
             NoDeviceConfigFolder = 'Dossier des configs appareil introuvable'
             ErrorEndpointMode = 'ERREUR mode endpoint IPv4/IPv6'
             NoExpiredDevices = 'Aucun appareil temporaire expire trouve'

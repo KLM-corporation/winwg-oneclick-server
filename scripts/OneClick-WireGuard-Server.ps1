@@ -232,24 +232,94 @@ function Ensure-Nat([string]$Cidr) {
     Write-Ok (TInstall "NAT cree pour $Cidr" "NAT created for $Cidr")
 }
 
+function Ensure-UpnpWindowsServices {
+    $serviceNames = @('SSDPSRV', 'upnphost')
+    foreach ($name in $serviceNames) {
+        try {
+            $svc = Get-Service -Name $name -ErrorAction Stop
+            if ($svc.Status -ne 'Running') {
+                Write-Host (TInstall "Demarrage du service Windows UPnP/SSDP : $name" "Starting Windows UPnP/SSDP service: $name") -ForegroundColor DarkCyan
+                Start-Service -Name $name -ErrorAction SilentlyContinue
+                Start-Sleep -Milliseconds 800
+            }
+        } catch {
+            Write-Host (TInstall "Service Windows UPnP/SSDP introuvable ou inaccessible : $name" "Windows UPnP/SSDP service missing or inaccessible: $name") -ForegroundColor Yellow
+        }
+    }
+}
+
+function Get-UpnpMapping([object]$Mappings, [int]$Port, [string]$Protocol = 'UDP') {
+    try {
+        $mapping = $Mappings.Item($Port, $Protocol)
+        if ($null -ne $mapping) { return $mapping }
+    } catch {}
+
+    try {
+        foreach ($m in $Mappings) {
+            if ([int]$m.ExternalPort -eq $Port -and [string]$m.Protocol -eq $Protocol) { return $m }
+        }
+    } catch {}
+    return $null
+}
+
+function Test-UpnpMapping([object]$Mappings, [int]$Port, [string]$LanIp) {
+    $mapping = Get-UpnpMapping -Mappings $Mappings -Port $Port -Protocol 'UDP'
+    if ($null -eq $mapping) { return $false }
+
+    $internalClient = [string]$mapping.InternalClient
+    $internalPort = [int]$mapping.InternalPort
+    $enabled = [bool]$mapping.Enabled
+    return ($enabled -and $internalClient -eq $LanIp -and $internalPort -eq $Port)
+}
+
 function Try-UpnpPortForward([int]$Port, [string]$LanIp) {
     if (-not $LanIp) { return $false }
     Write-Step (TInstall "Tentative de redirection automatique du port sur la box via UPnP" "Trying automatic router port forwarding via UPnP")
-    try {
-        $nat = New-Object -ComObject HNetCfg.NATUPnP
-        $mappings = $nat.StaticPortMappingCollection
-        if ($null -eq $mappings) {
-            Write-Host "UPnP indisponible sur cette box ou desactive." -ForegroundColor Yellow
-            return $false
+
+    $profiles = @(Get-NetConnectionProfile -ErrorAction SilentlyContinue)
+    foreach ($profile in $profiles) {
+        if ($profile.IPv4Connectivity -ne 'Disconnected' -and $profile.NetworkCategory -eq 'Public') {
+            Write-Host (TInstall "Avertissement : le profil reseau Windows est Public. UPnP/decouverte peut etre bloque. Profil: $($profile.Name)" "Warning: Windows network profile is Public. UPnP/discovery may be blocked. Profile: $($profile.Name)") -ForegroundColor Yellow
         }
-        try { $mappings.Remove($Port, "UDP") } catch {}
-        $mappings.Add($Port, "UDP", $Port, $LanIp, $true, "WinWG OneClick Server") | Out-Null
-        Write-Ok (TInstall "Redirection UPnP ajoutee : UDP $Port -> $LanIp`:$Port" "UPnP forwarding added: UDP $Port -> $LanIp`:$Port")
-        return $true
-    } catch {
-        Write-Host "Redirection UPnP impossible : $($_.Exception.Message)" -ForegroundColor Yellow
-        return $false
     }
+
+    Ensure-UpnpWindowsServices
+
+    for ($attempt = 1; $attempt -le 3; $attempt++) {
+        try {
+            Write-Host (TInstall "Essai UPnP $attempt/3..." "UPnP attempt $attempt/3...") -ForegroundColor DarkCyan
+            $nat = New-Object -ComObject HNetCfg.NATUPnP
+            $mappings = $nat.StaticPortMappingCollection
+            if ($null -eq $mappings) {
+                Write-Host (TInstall "UPnP indisponible sur cette box ou desactive." "UPnP unavailable on this router or disabled.") -ForegroundColor Yellow
+                return $false
+            }
+
+            $existing = Get-UpnpMapping -Mappings $mappings -Port $Port -Protocol 'UDP'
+            if ($existing) {
+                Write-Host (TInstall "Mapping UPnP existant detecte sur UDP $Port, suppression avant recreation..." "Existing UPnP mapping detected on UDP $Port, removing before recreation...") -ForegroundColor DarkCyan
+                try { $mappings.Remove($Port, 'UDP') } catch {}
+                Start-Sleep -Seconds 1
+            }
+
+            $description = "WinWG OneClick Server UDP $Port"
+            $mappings.Add($Port, 'UDP', $Port, $LanIp, $true, $description) | Out-Null
+            Start-Sleep -Seconds 1
+
+            if (Test-UpnpMapping -Mappings $mappings -Port $Port -LanIp $LanIp) {
+                Write-Ok (TInstall "Redirection UPnP verifiee : UDP $Port -> $LanIp`:$Port" "UPnP forwarding verified: UDP $Port -> $LanIp`:$Port")
+                return $true
+            }
+
+            Write-Host (TInstall "Mapping ajoute mais verification incomplete. Nouvelle tentative..." "Mapping added but verification was incomplete. Retrying...") -ForegroundColor Yellow
+        } catch {
+            Write-Host (TInstall "Redirection UPnP impossible a l'essai $attempt : $($_.Exception.Message)" "UPnP forwarding failed on attempt $attempt: $($_.Exception.Message)") -ForegroundColor Yellow
+        }
+        Start-Sleep -Seconds 2
+    }
+
+    Write-Host (TInstall "UPnP n'a pas pu etre configure automatiquement. Cela depend de la box : UPnP peut etre desactive, non supporte, bloque par le profil reseau, ou impossible derriere CG-NAT." "UPnP could not be configured automatically. This depends on the router: UPnP may be disabled, unsupported, blocked by the network profile, or impossible behind CG-NAT.") -ForegroundColor Yellow
+    return $false
 }
 
 function Invoke-WireGuardNoThrow([string]$WireGuardExe, [string[]]$Arguments) {

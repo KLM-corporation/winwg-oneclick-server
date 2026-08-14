@@ -92,7 +92,9 @@ INSTALLER-ONE-CLICK.bat
 
 L'installeur demande les droits administrateur Windows, installe WireGuard si besoin, génère la configuration serveur + appareil, configure le pare-feu, le routage, le NAT, puis ouvre le dossier contenant le fichier `.conf` à importer dans l'application WireGuard de l’appareil.
 
-Il tente aussi de créer automatiquement la redirection de port sur la box via UPnP. Si ta box refuse ou si UPnP est désactivé, l'installeur affiche l'IP locale du PC et tu devras faire la redirection manuellement :
+Il tente aussi une redirection de port UPnP rapide. Si elle échoue, l'installation continue et tu peux lancer `DEBUG-UPNP.bat` pour un diagnostic détaillé.
+> Note UPnP : l'installateur essaie maintenant de rendre l'UPnP plus fiable en démarrant les services Windows SSDP/UPnP, en supprimant les anciens mappings conflictuels, en réessayant plusieurs fois et en vérifiant le mapping créé. Malgré ça, l'UPnP dépend toujours de la box : il peut être désactivé, non supporté ou impossible derrière CG-NAT.
+ Si ta box refuse ou si UPnP est désactivé, l'installeur affiche l'IP locale du PC et tu devras faire la redirection manuellement :
 
 ```text
 UDP 51820 -> IP locale du PC Windows -> UDP 51820
@@ -211,6 +213,38 @@ C:\ProgramData\WinWGOneClickServer\devices\iphone.conf
 ```
 
 Copie ce fichier sur ton appareil puis importe-le dans l'application WireGuard.
+
+
+## Diagnostic UPnP / NAT-PMP / PCP
+
+Si la redirection automatique de port échoue, tu peux lancer :
+
+```text
+DEBUG-UPNP.bat
+```
+
+Ce diagnostic ne crée pas de redirection. Il vérifie :
+
+- l'interface réseau utilisée ;
+- la passerelle IPv4 ;
+- les réponses SSDP ;
+- les périphériques UPnP détectés ;
+- la présence ou non d'un service NAT `WANIPConnection` / `WANPPPConnection` ;
+- les réponses PCP/NAT-PMP sur UDP 5351.
+
+Le résultat est sauvegardé dans :
+
+```text
+C:\ProgramData\WinWGOneClickServer\logs
+```
+
+Cela permet de distinguer :
+
+```text
+UPnP présent sur le réseau
+UPnP IGD NAT réellement exploitable
+PCP/NAT-PMP disponible ou non
+```
 
 ## Redirection de port sur la box
 

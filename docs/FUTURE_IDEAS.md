@@ -57,6 +57,7 @@ Ces idées ont été faites ou largement traitées depuis la première version d
 - [x] Ajouter le compteur de vitesse par peer.
 - [x] Ajouter le mode avancé avec avertissement.
 - [x] Ajouter l'édition avancée du port, DNS, `AllowedIPs` et `PersistentKeepalive`.
+- [x] Ajouter `DEBUG-UPNP.bat` pour diagnostiquer UPnP / PCP / NAT-PMP.
 - [x] Ajouter les donations optionnelles BTC/ETH.
 
 ---

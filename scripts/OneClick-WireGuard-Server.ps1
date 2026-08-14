@@ -234,20 +234,37 @@ function Ensure-Nat([string]$Cidr) {
 
 function Try-UpnpPortForward([int]$Port, [string]$LanIp) {
     if (-not $LanIp) { return $false }
-    Write-Step (TInstall "Tentative de redirection automatique du port sur la box via UPnP" "Trying automatic router port forwarding via UPnP")
+
+    Write-Step (TInstall "Tentative rapide de redirection automatique UPnP" "Quick automatic UPnP port-forwarding attempt")
+
     try {
         $nat = New-Object -ComObject HNetCfg.NATUPnP
         $mappings = $nat.StaticPortMappingCollection
         if ($null -eq $mappings) {
-            Write-Host "UPnP indisponible sur cette box ou desactive." -ForegroundColor Yellow
+            Write-Host (TInstall "UPnP automatique indisponible ou non expose par la box." "Automatic UPnP unavailable or not exposed by the router.") -ForegroundColor Yellow
+            Write-Host (TInstall "Pour un diagnostic detaille, lance DEBUG-UPNP.bat." "For detailed diagnostics, run DEBUG-UPNP.bat.") -ForegroundColor Yellow
             return $false
         }
+
         try { $mappings.Remove($Port, "UDP") } catch {}
-        $mappings.Add($Port, "UDP", $Port, $LanIp, $true, "WinWG OneClick Server") | Out-Null
-        Write-Ok (TInstall "Redirection UPnP ajoutee : UDP $Port -> $LanIp`:$Port" "UPnP forwarding added: UDP $Port -> $LanIp`:$Port")
-        return $true
+        $description = "WinWG OneClick Server UDP $Port"
+        $mappings.Add($Port, "UDP", $Port, $LanIp, $true, $description) | Out-Null
+        Start-Sleep -Milliseconds 500
+
+        try {
+            $mapping = $mappings.Item($Port, "UDP")
+            if ($mapping -and [string]$mapping.InternalClient -eq $LanIp -and [int]$mapping.InternalPort -eq $Port) {
+                Write-Ok (TInstall "Redirection UPnP verifiee : UDP $Port -> $LanIp`:$Port" "UPnP forwarding verified: UDP $Port -> $LanIp`:$Port")
+                return $true
+            }
+        } catch {}
+
+        Write-Host (TInstall "UPnP a tente de creer la regle, mais la verification a echoue." "UPnP tried to create the rule, but verification failed.") -ForegroundColor Yellow
+        Write-Host (TInstall "Pour analyser la box, lance DEBUG-UPNP.bat." "To analyze the router, run DEBUG-UPNP.bat.") -ForegroundColor Yellow
+        return $false
     } catch {
-        Write-Host "Redirection UPnP impossible : $($_.Exception.Message)" -ForegroundColor Yellow
+        Write-Host (TInstall "UPnP automatique impossible : $($_.Exception.Message)" "Automatic UPnP failed: $($_.Exception.Message)") -ForegroundColor Yellow
+        Write-Host (TInstall "Pour un diagnostic detaille, lance DEBUG-UPNP.bat." "For detailed diagnostics, run DEBUG-UPNP.bat.") -ForegroundColor Yellow
         return $false
     }
 }
@@ -565,11 +582,6 @@ try {
         }
     }
 
-    $defaultEndpoint = Get-PublicEndpoint -Port $ListenPort
-    $deviceName = Ask-Text "WireGuard" $deviceNamePrompt "appareil"
-    $endpoint = Ask-Text "WireGuard" $endpointPrompt $defaultEndpoint
-    $Dns = Ask-Text "WireGuard" $dnsPrompt $Dns
-
     $tools = @(Ensure-WireGuard)[-1]
     if (-not $tools -or -not $tools.PSObject.Properties["WgExe"] -or -not $tools.PSObject.Properties["WireGuardExe"]) { throw "Impossible de recuperer les chemins WireGuard apres installation." }
     $wgExe = $tools.WgExe
@@ -591,21 +603,44 @@ try {
         Write-Host "Fonctionnalite QR desactivee par choix utilisateur." -ForegroundColor Yellow
     }
 
-    Write-Step (TInstall "Generation des cles et configurations" "Generating keys and configurations")
+    Write-Step (TInstall "Generation de la configuration serveur" "Generating server configuration")
     $serverPrivateKey = New-WgPrivateKey $wgExe
     $serverPublicKey = Get-WgPublicKey $wgExe $serverPrivateKey
-    $devicePrivateKey = New-WgPrivateKey $wgExe
-    $devicePublicKey = Get-WgPublicKey $wgExe $devicePrivateKey
-    $psk = New-WgPresharedKey $wgExe
 
-    $safeDeviceName = ($deviceName -replace '[^a-zA-Z0-9_-]', '_')
-    $deviceConfigPath = Join-Path $deviceDir "$safeDeviceName.conf"
-
+    # Important: the first device/peer is created later, after the server service,
+    # firewall, NAT and automatic port mapping attempts are completed.
     $serverConfig = @"
 [Interface]
 PrivateKey = $serverPrivateKey
 Address = $ServerVpnIp/24
 ListenPort = $ListenPort
+"@
+
+    Set-Content -Path $serverConfigPath -Value $serverConfig -Encoding ASCII
+    Write-Ok (TInstall "Configuration serveur creee : $serverConfigPath" "Server configuration created: $serverConfigPath")
+
+    Enable-IPv4Forwarding
+    Ensure-Firewall -Port $ListenPort
+    Ensure-Nat -Cidr $VpnCidr
+    Install-Tunnel -WireGuardExe $wireguardExe -TunnelName $TunnelName -ConfigPath $serverConfigPath
+
+    $lanIp = Get-PrimaryIPv4
+    $upnpOk = Try-UpnpPortForward -Port $ListenPort -LanIp $lanIp
+
+    Write-Step (TInstall "Parametres du premier appareil" "First device settings")
+    $defaultEndpoint = Get-PublicEndpoint -Port $ListenPort
+    $deviceName = Ask-Text "WireGuard" $deviceNamePrompt "appareil"
+    $endpoint = Ask-Text "WireGuard" $endpointPrompt $defaultEndpoint
+    $Dns = Ask-Text "WireGuard" $dnsPrompt $Dns
+    $safeDeviceName = ($deviceName -replace '[^a-zA-Z0-9_-]', '_')
+    $deviceConfigPath = Join-Path $deviceDir "$safeDeviceName.conf"
+
+    Write-Step (TInstall "Creation du premier appareil / peer" "Creating first device / peer")
+    $devicePrivateKey = New-WgPrivateKey $wgExe
+    $devicePublicKey = Get-WgPublicKey $wgExe $devicePrivateKey
+    $psk = New-WgPresharedKey $wgExe
+
+    $peerBlock = @"
 
 # $safeDeviceName
 [Peer]
@@ -613,6 +648,7 @@ PublicKey = $devicePublicKey
 PresharedKey = $psk
 AllowedIPs = $DeviceVpnIp/32
 "@
+    Add-Content -Path $serverConfigPath -Value $peerBlock -Encoding ASCII
 
     $deviceConfig = @"
 [Interface]
@@ -628,11 +664,13 @@ AllowedIPs = 0.0.0.0/0
 PersistentKeepalive = 25
 "@
 
-    Set-Content -Path $serverConfigPath -Value $serverConfig -Encoding ASCII
     Set-Content -Path $deviceConfigPath -Value $deviceConfig -Encoding ASCII
-    $metaPath = Save-DeviceMetadata -BaseDir $baseDir -DeviceName $safeDeviceName -VpnIp $ClientVpnIp
+    $metaPath = Save-DeviceMetadata -BaseDir $baseDir -DeviceName $safeDeviceName -VpnIp $DeviceVpnIp
     Write-Ok (TInstall "Configuration appareil creee : $deviceConfigPath" "Device configuration created: $deviceConfigPath")
     Write-Ok (TInstall "Metadonnees appareil creees : $metaPath" "Device metadata created: $metaPath")
+
+    Write-Step (TInstall "Rechargement du tunnel avec le premier appareil" "Reloading tunnel with the first device")
+    Install-Tunnel -WireGuardExe $wireguardExe -TunnelName $TunnelName -ConfigPath $serverConfigPath
 
     if ($enableQrFeature) {
         $generateFirstQrPrompt = TInstall "Generer un QR code pour ce premier appareil ? Tape oui ou non ; laisser le champ vide n'est pas accepte." "Generate a QR code for this first device? Please type yes or no; leaving the field empty is not accepted."
@@ -654,14 +692,6 @@ PersistentKeepalive = 25
             Write-Host (TInstall "QR code non genere pour ce premier appareil. Le fichier .conf reste disponible." "QR code not generated for this first device. The .conf file is still available.") -ForegroundColor Yellow
         }
     }
-
-    Enable-IPv4Forwarding
-    Ensure-Firewall -Port $ListenPort
-    Ensure-Nat -Cidr $VpnCidr
-    Install-Tunnel -WireGuardExe $wireguardExe -TunnelName $TunnelName -ConfigPath $serverConfigPath
-
-    $lanIp = Get-PrimaryIPv4
-    $upnpOk = Try-UpnpPortForward -Port $ListenPort -LanIp $lanIp
 
     Write-Host ""
     Write-Host "============================================================" -ForegroundColor Green

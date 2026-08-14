@@ -269,6 +269,25 @@ function Try-UpnpPortForward([int]$Port, [string]$LanIp) {
     }
 }
 
+
+function Save-PortForwardStatus([string]$BaseDir, [int]$Port, [string]$LanIp, [bool]$Succeeded, [string]$Method, [string]$Message) {
+    $settingsDir = Join-Path $BaseDir "settings"
+    Ensure-Directory $settingsDir
+    $path = Join-Path $settingsDir "port-forwarding.json"
+    $status = [ordered]@{
+        checkedAt = (Get-Date).ToUniversalTime().ToString('o')
+        port = $Port
+        protocol = 'UDP'
+        lanIp = $LanIp
+        succeeded = $Succeeded
+        method = $Method
+        message = $Message
+        manualRule = "UDP $Port -> $LanIp`:$Port"
+    }
+    [pscustomobject]$status | ConvertTo-Json -Depth 5 | Set-Content -Path $path -Encoding UTF8
+    return $path
+}
+
 function Invoke-WireGuardNoThrow([string]$WireGuardExe, [string[]]$Arguments) {
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = $WireGuardExe
@@ -470,7 +489,12 @@ function Restore-ExistingInstallation([string]$BaseDir, [string]$ServerConfigPat
     Ensure-Nat -Cidr $VpnCidr
     Install-Tunnel -WireGuardExe $wireguardExe -TunnelName $TunnelName -ConfigPath $ServerConfigPath
     $lanIp = Get-PrimaryIPv4
-    [void](Try-UpnpPortForward -Port $existingPort -LanIp $lanIp)
+    $restoreUpnpOk = Try-UpnpPortForward -Port $existingPort -LanIp $lanIp
+    if ($restoreUpnpOk) {
+        [void](Save-PortForwardStatus -BaseDir $BaseDir -Port $existingPort -LanIp $lanIp -Succeeded $true -Method 'UPnP' -Message 'Automatic port forwarding succeeded during restore')
+    } else {
+        [void](Save-PortForwardStatus -BaseDir $BaseDir -Port $existingPort -LanIp $lanIp -Succeeded $false -Method 'manual-required' -Message 'Automatic port forwarding failed or unavailable during restore')
+    }
 
     Write-Host ""
     Write-Host (TInstall "Configuration existante restauree." "Existing configuration restored.") -ForegroundColor Green
@@ -626,6 +650,11 @@ ListenPort = $ListenPort
 
     $lanIp = Get-PrimaryIPv4
     $upnpOk = Try-UpnpPortForward -Port $ListenPort -LanIp $lanIp
+    if ($upnpOk) {
+        [void](Save-PortForwardStatus -BaseDir $baseDir -Port $ListenPort -LanIp $lanIp -Succeeded $true -Method 'UPnP' -Message 'Automatic port forwarding succeeded')
+    } else {
+        [void](Save-PortForwardStatus -BaseDir $baseDir -Port $ListenPort -LanIp $lanIp -Succeeded $false -Method 'manual-required' -Message 'Automatic port forwarding failed or unavailable')
+    }
 
     Write-Step (TInstall "Parametres du premier appareil" "First device settings")
     $defaultEndpoint = Get-PublicEndpoint -Port $ListenPort

@@ -1514,6 +1514,28 @@ function Show-Status([string]$LastMessage = "") {
 }
 
 
+
+function Get-PortForwardStatus([string]$BaseDir) {
+    $path = Join-Path $BaseDir "settings\port-forwarding.json"
+    if (-not (Test-Path $path)) { return $null }
+    try { return (Get-Content $path -Raw | ConvertFrom-Json) } catch { return $null }
+}
+
+function Test-CurrentUpnpMapping([int]$Port, [string]$LanIp) {
+    if ([string]::IsNullOrWhiteSpace($LanIp)) { return $false }
+    try {
+        $nat = New-Object -ComObject HNetCfg.NATUPnP
+        $mappings = $nat.StaticPortMappingCollection
+        if ($null -eq $mappings) { return $false }
+        $mapping = $null
+        try { $mapping = $mappings.Item($Port, "UDP") } catch {}
+        if ($null -eq $mapping) { return $false }
+        return ([string]$mapping.InternalClient -eq $LanIp -and [int]$mapping.InternalPort -eq $Port -and [bool]$mapping.Enabled)
+    } catch {
+        return $false
+    }
+}
+
 function New-HealthResult([string]$Level, [string]$Message, [string]$Details = "") {
     return [pscustomobject]@{ Level = $Level; Message = $Message; Details = $Details }
 }
@@ -1576,6 +1598,22 @@ function Show-HealthCheck([string]$TunnelName, [int]$ListenPort, [string]$BaseDi
     $udp = @(Get-NetUDPEndpoint -LocalPort $ListenPort -ErrorAction SilentlyContinue)
     if ($udp.Length -gt 0) { $results.Add((New-HealthResult 'OK' (Get-WinWGText $script:Language 'HealthUdpEndpointPresent') "UDP $ListenPort")) }
     else { $results.Add((New-HealthResult 'WARN' (Get-WinWGText $script:Language 'HealthUdpEndpointMissing') "UDP $ListenPort")) }
+
+    $lanIp = Get-PrimaryIPv4
+    $pfStatus = Get-PortForwardStatus -BaseDir $BaseDir
+    if ($pfStatus) {
+        $pfDetails = "$($pfStatus.manualRule) / $($pfStatus.method) / $($pfStatus.checkedAt)"
+        if ($pfStatus.succeeded) { $results.Add((New-HealthResult 'OK' (Get-WinWGText $script:Language 'HealthPortForwardSucceeded') $pfDetails)) }
+        else { $results.Add((New-HealthResult 'WARN' (Get-WinWGText $script:Language 'HealthPortForwardFailed') $pfDetails)) }
+    } else {
+        $results.Add((New-HealthResult 'WARN' (Get-WinWGText $script:Language 'HealthPortForwardUnknown')))
+    }
+
+    if (Test-CurrentUpnpMapping -Port $ListenPort -LanIp $lanIp) {
+        $results.Add((New-HealthResult 'OK' (Get-WinWGText $script:Language 'HealthUpnpCurrentMappingPresent') "UDP $ListenPort -> $lanIp`:$ListenPort"))
+    } else {
+        $results.Add((New-HealthResult 'INFO' (Get-WinWGText $script:Language 'HealthUpnpCurrentMappingMissing') "UDP $ListenPort -> $lanIp`:$ListenPort"))
+    }
 
     $devices = @()
     if (Test-Path $deviceDir) { $devices = @(Get-ChildItem $deviceDir -Filter '*.conf' -ErrorAction SilentlyContinue) }

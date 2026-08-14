@@ -290,25 +290,32 @@ function Send-UpnpMSearch([string]$SearchTarget, [int]$TimeoutMs = 2500) {
     $client = New-Object System.Net.Sockets.UdpClient
     try {
         $client.Client.ReceiveTimeout = $TimeoutMs
-        $endpoint = New-Object System.Net.IPEndPoint ([System.Net.IPAddress]::Parse('239.255.255.250')), 1900
+        $client.EnableBroadcast = $true
+        $client.MulticastLoopback = $false
+
+        # Use the hostname/port overload instead of constructing IPEndPoint through New-Object.
+        # This avoids a Windows PowerShell 5.1 overload issue that can throw:
+        # "Les types des arguments ne correspondent pas."
         $request = "M-SEARCH * HTTP/1.1`r`nHOST: 239.255.255.250:1900`r`nMAN: `"ssdp:discover`"`r`nMX: 2`r`nST: $SearchTarget`r`n`r`n"
         $bytes = [System.Text.Encoding]::ASCII.GetBytes($request)
-        [void]$client.Send($bytes, $bytes.Length, $endpoint)
+        [void]$client.Send($bytes, $bytes.Length, '239.255.255.250', 1900)
 
         $deadline = (Get-Date).AddMilliseconds($TimeoutMs)
         while ((Get-Date) -lt $deadline) {
             try {
-                $remote = New-Object System.Net.IPEndPoint ([System.Net.IPAddress]::Any), 0
+                $remote = New-Object System.Net.IPEndPoint -ArgumentList ([System.Net.IPAddress]::Any), 0
                 $buffer = $client.Receive([ref]$remote)
                 $responses.Add([System.Text.Encoding]::ASCII.GetString($buffer))
             } catch {
                 break
             }
         }
+    } catch {
+        Write-Host (TInstall "Erreur SSDP pour $SearchTarget : $($_.Exception.Message)" "SSDP error for $($SearchTarget): $($_.Exception.Message)") -ForegroundColor Yellow
     } finally {
         $client.Close()
     }
-    return $responses
+    return @($responses)
 }
 
 function Get-UpnpLocationsFromSsdp {
@@ -321,19 +328,19 @@ function Get-UpnpLocationsFromSsdp {
         'upnp:rootdevice'
     )
 
-    $locations = New-Object System.Collections.Generic.HashSet[string]
+    $locations = New-Object System.Collections.ArrayList
     foreach ($target in $targets) {
         Write-Host (TInstall "Recherche UPnP IGD via SSDP : $target" "Searching UPnP IGD via SSDP: $target") -ForegroundColor DarkCyan
         foreach ($response in (Send-UpnpMSearch -SearchTarget $target)) {
             foreach ($line in ($response -split "`r?`n")) {
                 if ($line -match '^(?i)LOCATION\s*:\s*(.+)$') {
-                    [void]$locations.Add($Matches[1].Trim())
+                    $loc = $Matches[1].Trim(); if (-not $locations.Contains($loc)) { [void]$locations.Add($loc) }
                 }
             }
         }
         if ($locations.Count -gt 0) { break }
     }
-    return @($locations)
+    return @($locations | Select-Object -Unique)
 }
 
 function Find-UpnpIgdServices {

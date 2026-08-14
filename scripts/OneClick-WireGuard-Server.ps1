@@ -362,14 +362,14 @@ function Get-UpnpLocationsFromSsdp {
                 }
             }
         }
-        if ($locations.Count -gt 0) { break }
+        if (@($locations).Count -gt 0) { break }
     }
     return @($locations | Select-Object -Unique)
 }
 
 function Find-UpnpIgdServices {
     $services = New-Object System.Collections.ArrayList
-    $locations = Get-UpnpLocationsFromSsdp
+    $locations = @(Get-UpnpLocationsFromSsdp)
     foreach ($location in $locations) {
         try {
             Write-Host (TInstall "Description UPnP trouvee : $location" "UPnP description found: $location") -ForegroundColor DarkCyan
@@ -396,7 +396,7 @@ function Find-UpnpIgdServices {
             Write-Host (TInstall "Impossible de lire une description UPnP : $($_.Exception.Message)" "Unable to read a UPnP description: $($_.Exception.Message)") -ForegroundColor Yellow
         }
     }
-    if ($services.Count -eq 0 -and $locations.Count -gt 0) {
+    if (@($services).Count -eq 0 -and @($locations).Count -gt 0) {
         Write-Host (TInstall "Des peripheriques UPnP ont repondu, mais aucun service routeur WANIPConnection/WANPPPConnection exploitable n'a ete trouve." "UPnP devices responded, but no usable router WANIPConnection/WANPPPConnection service was found.") -ForegroundColor Yellow
     }
     return @($services)
@@ -458,7 +458,7 @@ function Test-UpnpPortMappingSoap([object]$Service, [int]$Port) {
 function Try-UpnpPortForwardSoapFallback([int]$Port, [string]$LanIp) {
     Write-Step (TInstall "Tentative UPnP alternative via SSDP/SOAP" "Trying alternative UPnP through SSDP/SOAP")
     $services = @(Find-UpnpIgdServices)
-    if ($services.Count -eq 0) {
+    if (@($services).Count -eq 0) {
         Write-Host (TInstall "Aucun service UPnP IGD/WANIPConnection trouve via SSDP." "No UPnP IGD/WANIPConnection service found via SSDP.") -ForegroundColor Yellow
         return $false
     }

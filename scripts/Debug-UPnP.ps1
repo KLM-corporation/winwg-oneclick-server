@@ -47,7 +47,7 @@ function Get-PrimaryIPv4Info {
 }
 
 function Send-MSearch([string]$Target, [string]$LocalIp, [string]$Gateway, [string]$Mode, [int]$TimeoutMs) {
-    $responses = New-Object System.Collections.Generic.List[object]
+    $responses = @()
     $client = $null
     try {
         $client = New-Object System.Net.Sockets.UdpClient
@@ -74,13 +74,13 @@ function Send-MSearch([string]$Target, [string]$LocalIp, [string]$Gateway, [stri
                 $remote = [System.Net.IPEndPoint]::new([System.Net.IPAddress]::Any, 0)
                 $buffer = $client.Receive([ref]$remote)
                 $text = [System.Text.Encoding]::ASCII.GetString($buffer)
-                $responses.Add([pscustomobject]@{ Remote = $remote.ToString(); Text = $text; Mode = $Mode }) | Out-Null
+                $responses += [pscustomobject]@{ Remote = $remote.ToString(); Text = $text; Mode = $Mode }
             } catch { break }
         }
     } catch {
         Write-Diag "[SSDP/$Mode] Error for ${Target}: $($_.Exception.Message)" Yellow
     } finally { if ($client) { $client.Close() } }
-    return @($responses)
+    return $responses
 }
 
 function Get-HeaderValue([string]$Response, [string]$Header) {

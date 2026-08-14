@@ -406,7 +406,7 @@ function Refresh-Ui {
     if ($devices.Count -eq 0) {
         [void]$ListDevices.Items.Add("Aucun appareil configure")
     } else {
-        foreach ($d in $devices) { [void]$ListDevices.Items.Add("$($d.BaseName)  —  $($d.FullName)") }
+        foreach ($d in $devices) { [void]$ListDevices.Items.Add("$($d.BaseName) - $($d.FullName)") }
     }
 }
 

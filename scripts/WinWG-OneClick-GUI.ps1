@@ -304,9 +304,15 @@ Assert-Admin
             </Grid.ColumnDefinitions>
 
             <Border Grid.Column="0" Background="#111827" CornerRadius="12" Padding="16" Margin="0,0,10,0">
-                <StackPanel>
-                    <TextBlock Text="Statut" Foreground="#e5e7eb" FontSize="20" FontWeight="Bold" Margin="0,0,0,12"/>
-                    <Grid>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*" MinHeight="160"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="Statut" Foreground="#e5e7eb" FontSize="20" FontWeight="Bold" Margin="0,0,0,12"/>
+                    <Grid Grid.Row="1" Margin="0,0,0,14">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="170"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="30"/><RowDefinition Height="30"/><RowDefinition Height="30"/><RowDefinition Height="30"/><RowDefinition Height="30"/><RowDefinition Height="30"/><RowDefinition Height="30"/><RowDefinition Height="30"/>
@@ -320,15 +326,25 @@ Assert-Admin
                         <TextBlock Grid.Row="6" Grid.Column="0" Text="Acces externe" Foreground="#94a3b8"/><TextBlock Name="TxtAccess" Grid.Row="6" Grid.Column="1" Foreground="#e5e7eb"/>
                         <TextBlock Grid.Row="7" Grid.Column="0" Text="Appareils" Foreground="#94a3b8"/><TextBlock Name="TxtDevices" Grid.Row="7" Grid.Column="1" Foreground="#e5e7eb"/>
                     </Grid>
-                    <TextBlock Text="Appareils configures" Foreground="#e5e7eb" FontSize="16" FontWeight="Bold" Margin="0,22,0,8"/>
-                    <ListBox Name="ListDevices" Height="210" Background="#020617" Foreground="#e5e7eb" BorderBrush="#334155"/>
-                </StackPanel>
+
+                    <Border Grid.Row="2" Background="#020617" BorderBrush="#334155" BorderThickness="1" CornerRadius="8" Padding="10">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Text="Appareils configures" Foreground="#e5e7eb" FontSize="16" FontWeight="Bold" Margin="0,0,0,8"/>
+                            <ListBox Name="ListDevices" Grid.Row="1" MinHeight="130" Background="#020617" Foreground="#e5e7eb" BorderThickness="0" FontSize="14" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Auto"/>
+                        </Grid>
+                    </Border>
+                </Grid>
             </Border>
 
             <Border Grid.Column="1" Background="#111827" CornerRadius="12" Padding="16">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel>
                     <TextBlock Text="Actions" Foreground="#e5e7eb" FontSize="20" FontWeight="Bold" Margin="0,0,0,12"/>
-                    <UniformGrid Columns="2" Rows="8">
+                    <UniformGrid Columns="2">
                         <Button Name="BtnStart" Content="Demarrer" Margin="4" Height="42" Background="#16a34a" Foreground="White"/>
                         <Button Name="BtnStop" Content="Arreter" Margin="4" Height="42" Background="#dc2626" Foreground="White"/>
                         <Button Name="BtnRestart" Content="Redemarrer" Margin="4" Height="42" Background="#ca8a04" Foreground="White"/>
@@ -346,6 +362,7 @@ Assert-Admin
                     </UniformGrid>
                     <TextBlock Text="Note : l'IPv6 direct peut demander une regle pare-feu IPv6 sur la box." Foreground="#facc15" TextWrapping="Wrap" Margin="4,16,4,0"/>
                 </StackPanel>
+                </ScrollViewer>
             </Border>
         </Grid>
 
@@ -386,7 +403,11 @@ function Refresh-Ui {
     $TxtAccess.Text = if ($pf) { "$($pf.method) / success=$($pf.succeeded)" } else { "inconnu" }
     $TxtDevices.Text = "$($devices.Count) fichier(s)"
     $ListDevices.Items.Clear()
-    foreach ($d in $devices) { [void]$ListDevices.Items.Add($d.BaseName) }
+    if ($devices.Count -eq 0) {
+        [void]$ListDevices.Items.Add("Aucun appareil configure")
+    } else {
+        foreach ($d in $devices) { [void]$ListDevices.Items.Add("$($d.BaseName)  —  $($d.FullName)") }
+    }
 }
 
 function Run-Action([scriptblock]$Action) {

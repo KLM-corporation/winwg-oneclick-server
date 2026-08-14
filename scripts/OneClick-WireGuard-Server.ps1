@@ -313,7 +313,7 @@ function Try-UpnpPortForward([int]$Port, [string]$LanIp) {
 
             Write-Host (TInstall "Mapping ajoute mais verification incomplete. Nouvelle tentative..." "Mapping added but verification was incomplete. Retrying...") -ForegroundColor Yellow
         } catch {
-            Write-Host (TInstall "Redirection UPnP impossible a l'essai $attempt : $($_.Exception.Message)" "UPnP forwarding failed on attempt $attempt: $($_.Exception.Message)") -ForegroundColor Yellow
+            Write-Host (TInstall "Redirection UPnP impossible a l'essai $($attempt) : $($_.Exception.Message)" "UPnP forwarding failed on attempt $($attempt): $($_.Exception.Message)") -ForegroundColor Yellow
         }
         Start-Sleep -Seconds 2
     }

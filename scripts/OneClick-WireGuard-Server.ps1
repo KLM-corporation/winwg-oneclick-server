@@ -481,6 +481,93 @@ function Try-UpnpPortForwardSoapFallback([int]$Port, [string]$LanIp) {
     return $false
 }
 
+
+function Get-DefaultGatewayIPv4 {
+    try {
+        $route = Get-NetRoute -DestinationPrefix "0.0.0.0/0" -ErrorAction Stop |
+            Sort-Object RouteMetric, InterfaceMetric |
+            Select-Object -First 1
+        if ($route -and $route.NextHop -and $route.NextHop -ne '0.0.0.0') { return $route.NextHop }
+    } catch {}
+    return $null
+}
+
+function Set-UInt16BE([byte[]]$Buffer, [int]$Offset, [int]$Value) {
+    $Buffer[$Offset] = [byte](($Value -shr 8) -band 0xff)
+    $Buffer[$Offset + 1] = [byte]($Value -band 0xff)
+}
+
+function Set-UInt32BE([byte[]]$Buffer, [int]$Offset, [uint32]$Value) {
+    $Buffer[$Offset] = [byte](($Value -shr 24) -band 0xff)
+    $Buffer[$Offset + 1] = [byte](($Value -shr 16) -band 0xff)
+    $Buffer[$Offset + 2] = [byte](($Value -shr 8) -band 0xff)
+    $Buffer[$Offset + 3] = [byte]($Value -band 0xff)
+}
+
+function Get-UInt16BE([byte[]]$Buffer, [int]$Offset) {
+    return ([int]$Buffer[$Offset] -shl 8) -bor [int]$Buffer[$Offset + 1]
+}
+
+function Get-UInt32BE([byte[]]$Buffer, [int]$Offset) {
+    return ([uint32](([uint32]$Buffer[$Offset] -shl 24) -bor ([uint32]$Buffer[$Offset + 1] -shl 16) -bor ([uint32]$Buffer[$Offset + 2] -shl 8) -bor [uint32]$Buffer[$Offset + 3]))
+}
+
+function Try-NatPmpUdpPortForward([int]$Port, [string]$LanIp) {
+    $gateway = Get-DefaultGatewayIPv4
+    if (-not $gateway) {
+        Write-Host (TInstall "NAT-PMP ignore : passerelle IPv4 introuvable." "NAT-PMP skipped: IPv4 gateway not found.") -ForegroundColor Yellow
+        return $false
+    }
+
+    Write-Step (TInstall "Tentative alternative NAT-PMP : UDP $Port via $gateway" "Trying NAT-PMP alternative: UDP $Port through $gateway")
+
+    $client = $null
+    try {
+        $client = [System.Net.Sockets.UdpClient]::new()
+        $client.Client.ReceiveTimeout = 2500
+        $endpoint = [System.Net.IPEndPoint]::new([System.Net.IPAddress]::Parse($gateway), 5351)
+
+        # NAT-PMP UDP mapping request, RFC 6886:
+        # version=0, opcode=1 UDP, reserved=0, internal port, suggested external port, lifetime seconds.
+        $request = New-Object byte[] 12
+        $request[0] = 0
+        $request[1] = 1
+        Set-UInt16BE -Buffer $request -Offset 2 -Value 0
+        Set-UInt16BE -Buffer $request -Offset 4 -Value $Port
+        Set-UInt16BE -Buffer $request -Offset 6 -Value $Port
+        Set-UInt32BE -Buffer $request -Offset 8 -Value ([uint32]86400)
+
+        [void]$client.Send($request, $request.Length, $endpoint)
+        $remote = [System.Net.IPEndPoint]::new([System.Net.IPAddress]::Any, 0)
+        $response = $client.Receive([ref]$remote)
+
+        if ($response.Length -lt 16) {
+            Write-Host (TInstall "NAT-PMP reponse trop courte." "NAT-PMP response too short.") -ForegroundColor Yellow
+            return $false
+        }
+
+        $version = [int]$response[0]
+        $opcode = [int]$response[1]
+        $result = Get-UInt16BE -Buffer $response -Offset 2
+        $internal = Get-UInt16BE -Buffer $response -Offset 8
+        $external = Get-UInt16BE -Buffer $response -Offset 10
+        $lifetime = Get-UInt32BE -Buffer $response -Offset 12
+
+        if ($version -eq 0 -and $opcode -eq 129 -and $result -eq 0 -and $internal -eq $Port -and $external -eq $Port) {
+            Write-Ok (TInstall "Redirection NAT-PMP creee : UDP $external -> $LanIp`:$internal, duree $lifetime s" "NAT-PMP forwarding created: UDP $external -> $LanIp`:$internal, lifetime $lifetime s")
+            return $true
+        }
+
+        Write-Host (TInstall "NAT-PMP refuse ou reponse inattendue : result=$result external=$external internal=$internal" "NAT-PMP refused or unexpected response: result=$result external=$external internal=$internal") -ForegroundColor Yellow
+        return $false
+    } catch {
+        Write-Host (TInstall "NAT-PMP impossible : $($_.Exception.Message)" "NAT-PMP failed: $($_.Exception.Message)") -ForegroundColor Yellow
+        return $false
+    } finally {
+        if ($client) { $client.Close() }
+    }
+}
+
 function Try-UpnpPortForward([int]$Port, [string]$LanIp) {
     if (-not $LanIp) { return $false }
     Write-Step (TInstall "Tentative de redirection automatique du port sur la box via UPnP" "Trying automatic router port forwarding via UPnP")
@@ -529,7 +616,9 @@ function Try-UpnpPortForward([int]$Port, [string]$LanIp) {
 
     if (Invoke-UpnpSoapFallbackSafe -Port $Port -LanIp $LanIp) { return $true }
 
-    Write-Host (TInstall "UPnP n'a pas pu etre configure automatiquement. Cela depend de la box : UPnP peut etre desactive, non supporte, bloque par le profil reseau, ou impossible derriere CG-NAT." "UPnP could not be configured automatically. This depends on the router: UPnP may be disabled, unsupported, blocked by the network profile, or impossible behind CG-NAT.") -ForegroundColor Yellow
+    if (Try-NatPmpUdpPortForward -Port $Port -LanIp $LanIp) { return $true }
+
+    Write-Host (TInstall "UPnP/NAT-PMP n'a pas pu etre configure automatiquement. Cela depend de la box : UPnP/NAT-PMP peut etre desactive, non supporte, bloque par le profil reseau, ou impossible derriere CG-NAT." "UPnP/NAT-PMP could not be configured automatically. This depends on the router: UPnP/NAT-PMP may be disabled, unsupported, blocked by the network profile, or impossible behind CG-NAT.") -ForegroundColor Yellow
     return $false
 }
 

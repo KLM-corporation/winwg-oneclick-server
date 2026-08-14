@@ -88,17 +88,17 @@ function Ask-YesNo([string]$Title, [string]$Prompt, [bool]$DefaultYes = $true) {
 
 
 function Ask-YesNoRequired([string]$Title, [string]$Prompt) {
+    # Console-only prompt on purpose.
+    # A GUI InputBox can appear behind the terminal and make users press Enter repeatedly
+    # without seeing the actual yes/no question.
+    Write-Host ""
+    Write-Host $Title -ForegroundColor Cyan
     while ($true) {
-        try {
-            Add-Type -AssemblyName Microsoft.VisualBasic -ErrorAction Stop
-            $value = [Microsoft.VisualBasic.Interaction]::InputBox("$Prompt`n`nType yes/no or oui/non. Empty is not accepted.", $Title, "")
-            $v = $value.Trim().ToLowerInvariant()
-        } catch {
-            $v = (Read-Host "$Prompt [yes/no - oui/non]").Trim().ToLowerInvariant()
-        }
+        Write-Host $Prompt -ForegroundColor Yellow
+        $value = (Read-Host "yes/no - oui/non").Trim().ToLowerInvariant()
 
-        if ($v -in @('o','oui','y','yes','1','true')) { return $true }
-        if ($v -in @('n','non','no','0','false')) { return $false }
+        if ($value -in @('o','oui','y','yes','1','true')) { return $true }
+        if ($value -in @('n','non','no','0','false')) { return $false }
 
         Write-Host "Please answer yes/no or oui/non. Empty input is not accepted." -ForegroundColor Yellow
     }

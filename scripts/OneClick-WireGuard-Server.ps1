@@ -945,11 +945,6 @@ try {
         }
     }
 
-    $defaultEndpoint = Get-PublicEndpoint -Port $ListenPort
-    $deviceName = Ask-Text "WireGuard" $deviceNamePrompt "appareil"
-    $endpoint = Ask-Text "WireGuard" $endpointPrompt $defaultEndpoint
-    $Dns = Ask-Text "WireGuard" $dnsPrompt $Dns
-
     $tools = @(Ensure-WireGuard)[-1]
     if (-not $tools -or -not $tools.PSObject.Properties["WgExe"] -or -not $tools.PSObject.Properties["WireGuardExe"]) { throw "Impossible de recuperer les chemins WireGuard apres installation." }
     $wgExe = $tools.WgExe
@@ -974,8 +969,6 @@ try {
     Write-Step (TInstall "Generation de la configuration serveur" "Generating server configuration")
     $serverPrivateKey = New-WgPrivateKey $wgExe
     $serverPublicKey = Get-WgPublicKey $wgExe $serverPrivateKey
-    $safeDeviceName = ($deviceName -replace '[^a-zA-Z0-9_-]', '_')
-    $deviceConfigPath = Join-Path $deviceDir "$safeDeviceName.conf"
 
     # Important: the first device/peer is created later, after the server service,
     # firewall, NAT and automatic port mapping attempts are completed.
@@ -996,6 +989,14 @@ ListenPort = $ListenPort
 
     $lanIp = Get-PrimaryIPv4
     $upnpOk = Try-UpnpPortForward -Port $ListenPort -LanIp $lanIp
+
+    Write-Step (TInstall "Parametres du premier appareil" "First device settings")
+    $defaultEndpoint = Get-PublicEndpoint -Port $ListenPort
+    $deviceName = Ask-Text "WireGuard" $deviceNamePrompt "appareil"
+    $endpoint = Ask-Text "WireGuard" $endpointPrompt $defaultEndpoint
+    $Dns = Ask-Text "WireGuard" $dnsPrompt $Dns
+    $safeDeviceName = ($deviceName -replace '[^a-zA-Z0-9_-]', '_')
+    $deviceConfigPath = Join-Path $deviceDir "$safeDeviceName.conf"
 
     Write-Step (TInstall "Creation du premier appareil / peer" "Creating first device / peer")
     $devicePrivateKey = New-WgPrivateKey $wgExe

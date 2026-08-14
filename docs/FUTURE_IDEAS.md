@@ -333,6 +333,41 @@ Assistant semi-manuel : l'utilisateur entre l'IP WAN affichée par sa box, WinWG
 
 ---
 
+### 6. Mode relais / Headscale optionnel
+
+Ajouter une documentation ou un assistant pour les cas où l'utilisateur ne peut pas ouvrir de port sur sa box :
+
+```text
+CG-NAT
+box verrouillée
+UPnP inutilisable
+pas d'accès admin au routeur
+réseau mobile / hôtel / résidence
+```
+
+Options à étudier :
+
+```text
+Headscale = contrôle Tailscale auto-hébergé
+Tailscale = solution simple basée sur WireGuard
+VPS relais WireGuard = solution plus proche de l'esprit WinWG
+```
+
+Idée de positionnement :
+
+```text
+WinWG classique       -> serveur WireGuard Windows avec port UDP ouvert
+WinWG + VPS relay     -> pas besoin d'ouvrir de port à la maison
+WinWG + Headscale doc -> alternative mesh VPN pour utilisateurs avancés
+```
+
+Ce ne serait pas le cœur du projet au début, mais une section claire dans la documentation aiderait les utilisateurs qui sont bloqués par leur box ou leur opérateur.
+
+Priorité : moyenne/haute, car ça répond au problème le plus fréquent après l'installation : être injoignable depuis Internet.
+
+
+---
+
 ## Priorité moyenne
 
 ### 6. Assistant DNS dynamique
@@ -353,6 +388,45 @@ Exemple :
 ```text
 home-vpn.duckdns.org:51820
 ```
+
+---
+
+### IPv6 direct / mode avancé IPv6
+
+Étudier un mode IPv6 pour les utilisateurs dont l'opérateur fournit une IPv6 publique.
+
+Objectif : permettre à un appareil distant de joindre le serveur WireGuard via IPv6, même si l'IPv4 est derrière CG-NAT.
+
+Points à gérer :
+
+```text
+- détection IPv6 publique du PC Windows ;
+- pare-feu Windows IPv6 ;
+- endpoint IPv6 dans les fichiers WireGuard ;
+- syntaxe Endpoint avec IPv6 : [adresse_ipv6]:port ;
+- sécurité : ne pas exposer plus que nécessaire ;
+- compatibilité mobile selon opérateur ;
+- documentation claire pour box/routeur IPv6.
+```
+
+Avantages :
+
+```text
+- peut contourner les limites du CG-NAT IPv4 ;
+- pas besoin de NAT IPv4 ;
+- potentiellement plus propre techniquement.
+```
+
+Inconvénients :
+
+```text
+- plus complexe pour les débutants ;
+- tous les réseaux clients n'ont pas IPv6 ;
+- mauvaise configuration IPv6 = exposition directe sur Internet.
+```
+
+À classer comme fonctionnalité avancée, pas comme comportement par défaut.
+
 
 ---
 

@@ -287,15 +287,32 @@ function Get-PublicIPv6Candidate {
             })
 
         if ($defaultRoute) {
-            $preferred = $addresses | Where-Object { $_.InterfaceIndex -eq $defaultRoute.InterfaceIndex } | Select-Object -First 1
+            $onDefaultRoute = @($addresses | Where-Object { $_.InterfaceIndex -eq $defaultRoute.InterfaceIndex })
+            $stablePreferred = $onDefaultRoute |
+                Where-Object { $_.AddressState -eq 'Preferred' -and [string]$_.SuffixOrigin -ne 'Random' } |
+                Select-Object -First 1
+            if ($stablePreferred) { return $stablePreferred.IPAddress }
+
+            $anyStable = $onDefaultRoute |
+                Where-Object { [string]$_.SuffixOrigin -ne 'Random' } |
+                Select-Object -First 1
+            if ($anyStable) { return $anyStable.IPAddress }
+
+            $preferred = $onDefaultRoute | Select-Object -First 1
             if ($preferred) { return $preferred.IPAddress }
         }
+
+        $fallbackStable = $addresses |
+            Where-Object { $_.AddressState -eq 'Preferred' -and [string]$_.SuffixOrigin -ne 'Random' } |
+            Select-Object -First 1
+        if ($fallbackStable) { return $fallbackStable.IPAddress }
 
         $fallback = $addresses | Select-Object -First 1
         if ($fallback) { return $fallback.IPAddress }
     } catch {}
     return $null
 }
+
 
 function Ensure-IPv6Firewall([int]$Port) {
     Write-Step (TInstall "Configuration du pare-feu Windows IPv6" "Configuring Windows IPv6 firewall")

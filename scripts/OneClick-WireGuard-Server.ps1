@@ -700,7 +700,7 @@ PersistentKeepalive = 25
 
     Set-Content -Path $serverConfigPath -Value $serverConfig -Encoding ASCII
     Set-Content -Path $deviceConfigPath -Value $deviceConfig -Encoding ASCII
-    $metaPath = Save-DeviceMetadata -BaseDir $baseDir -DeviceName $safeDeviceName -VpnIp $ClientVpnIp
+    $metaPath = Save-DeviceMetadata -BaseDir $baseDir -DeviceName $safeDeviceName -VpnIp $DeviceVpnIp
     Write-Ok (TInstall "Configuration appareil creee : $deviceConfigPath" "Device configuration created: $deviceConfigPath")
     Write-Ok (TInstall "Metadonnees appareil creees : $metaPath" "Device metadata created: $metaPath")
 

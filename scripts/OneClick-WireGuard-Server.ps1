@@ -327,7 +327,7 @@ function Select-IPv6FallbackOrManual([int]$Port, [string]$LanIp) {
     Write-Host (TInstall "La redirection automatique IPv4 a echoue." "Automatic IPv4 port forwarding failed.") -ForegroundColor Yellow
     Write-Host (TInstall "Choisis comment continuer :" "Choose how to continue:") -ForegroundColor Cyan
     Write-Host (TInstall "1 - Redirection manuelle IPv4 : UDP $Port -> $LanIp`:$Port" "1 - Manual IPv4 forwarding: UDP $Port -> $LanIp`:$Port")
-    Write-Host (TInstall "2 - Essayer la methode IPv6 automatique (endpoint IPv6, pas de NAT IPv4)" "2 - Try automatic IPv6 method (IPv6 endpoint, no IPv4 NAT)")
+    Write-Host (TInstall "2 - Essayer l'endpoint IPv6 direct (peut demander une regle pare-feu IPv6 sur la box)" "2 - Try direct IPv6 endpoint (may require an IPv6 firewall rule on the router)")
     Write-Host ""
     $choice = (Read-Host (TInstall "Choix [1]" "Choice [1]")).Trim()
     if ([string]::IsNullOrWhiteSpace($choice)) { $choice = '1' }
@@ -358,7 +358,7 @@ function Select-IPv6FallbackOrManual([int]$Port, [string]$LanIp) {
     Ensure-IPv6Firewall -Port $Port
     $endpoint = "[$ipv6]"
     Write-Host (TInstall "Endpoint IPv6 propose : $endpoint`:$Port" "Suggested IPv6 endpoint: $endpoint`:$Port") -ForegroundColor Green
-    Write-Host (TInstall "Important : la box et le pare-feu IPv6 doivent autoriser UDP $Port vers ce PC." "Important: the router and IPv6 firewall must allow UDP $Port to this PC.") -ForegroundColor Yellow
+    Write-Host (TInstall "Important : il faudra peut-etre creer une regle pare-feu IPv6 sur la box : autoriser UDP $Port vers cette IPv6 du PC." "Important: you may need to create an IPv6 firewall rule on the router: allow UDP $Port to this PC IPv6 address.") -ForegroundColor Yellow
 
     return [pscustomobject]@{
         UseIPv6 = $true
@@ -845,8 +845,10 @@ PersistentKeepalive = 25
     if ($upnpOk) {
         Write-Host (TInstall "La redirection de port automatique UPnP a reussi. Tu peux tester en 4G/5G." "Automatic UPnP port forwarding succeeded. You can test from mobile data.") -ForegroundColor Green
     } elseif ($portForwardMethod -eq 'ipv6-endpoint') {
-        Write-Host (TInstall "Mode IPv6 selectionne : aucune redirection NAT IPv4 n'est necessaire pour les clients compatibles IPv6." "IPv6 mode selected: no IPv4 NAT forwarding is required for IPv6-capable clients.") -ForegroundColor Green
+        Write-Host (TInstall "Mode IPv6 direct selectionne : aucune redirection NAT IPv4 n'est necessaire pour les clients compatibles IPv6." "Direct IPv6 mode selected: no IPv4 NAT forwarding is required for IPv6-capable clients.") -ForegroundColor Green
         Write-Host (TInstall "Endpoint utilise : $endpoint`:$ListenPort" "Endpoint used: $endpoint`:$ListenPort") -ForegroundColor Green
+        Write-Host (TInstall "Attention : il faut souvent creer une regle pare-feu IPv6 sur la box : UDP $ListenPort vers cette IPv6 du PC." "Warning: you often need to create an IPv6 firewall rule on the router: UDP $ListenPort to this PC IPv6 address.") -ForegroundColor Yellow
+        Write-Host (TInstall "Si ca marche en Wi-Fi mais pas en 4G/5G, la box bloque probablement l'entree IPv6." "If it works on Wi-Fi but not on 4G/5G, the router probably blocks inbound IPv6.") -ForegroundColor Yellow
         Write-Host (TInstall "Si l'appareil distant n'a pas IPv6, il faudra utiliser la redirection IPv4 manuelle." "If the remote device has no IPv6, manual IPv4 forwarding will still be required.") -ForegroundColor Yellow
     } else {
         Write-Host (TInstall "Action manuelle probablement necessaire sur ta box :" "Manual action probably required on your router:") -ForegroundColor Yellow

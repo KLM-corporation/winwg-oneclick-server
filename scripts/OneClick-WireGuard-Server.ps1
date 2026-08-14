@@ -588,7 +588,8 @@ function Try-UpnpPortForward([int]$Port, [string]$LanIp) {
             $mappings = $nat.StaticPortMappingCollection
             if ($null -eq $mappings) {
                 Write-Host (TInstall "UPnP COM indisponible sur cette box ou desactive. Essai de la methode alternative..." "UPnP COM unavailable on this router or disabled. Trying alternative method...") -ForegroundColor Yellow
-                return (Invoke-UpnpSoapFallbackSafe -Port $Port -LanIp $LanIp)
+                if (Invoke-UpnpSoapFallbackSafe -Port $Port -LanIp $LanIp) { return $true }
+                break
             }
 
             $existing = Get-UpnpMapping -Mappings $mappings -Port $Port -Protocol 'UDP'

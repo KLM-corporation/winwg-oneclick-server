@@ -282,7 +282,7 @@ Assert-Admin
 [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="WinWG OneClick Server" Height="720" Width="980" WindowStartupLocation="CenterScreen" Background="#0f172a">
+        Title="WinWG OneClick Server" Height="820" Width="980" MinHeight="760" MinWidth="900" WindowStartupLocation="CenterScreen" Background="#0f172a">
     <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -303,19 +303,19 @@ Assert-Admin
                 <ColumnDefinition Width="1.35*"/>
             </Grid.ColumnDefinitions>
 
-            <Border Grid.Column="0" Background="#111827" CornerRadius="12" Padding="16" Margin="0,0,10,0">
+            <Border Grid.Column="0" Background="#111827" CornerRadius="12" Padding="16" Margin="0,0,10,0" ClipToBounds="True">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*" MinHeight="160"/>
+                        <RowDefinition Height="*" MinHeight="110"/>
                     </Grid.RowDefinitions>
 
                     <TextBlock Grid.Row="0" Text="Statut" Foreground="#e5e7eb" FontSize="20" FontWeight="Bold" Margin="0,0,0,12"/>
                     <Grid Grid.Row="1" Margin="0,0,0,14">
                         <Grid.ColumnDefinitions><ColumnDefinition Width="170"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="30"/><RowDefinition Height="30"/><RowDefinition Height="30"/><RowDefinition Height="30"/><RowDefinition Height="30"/><RowDefinition Height="30"/><RowDefinition Height="30"/><RowDefinition Height="30"/>
+                            <RowDefinition Height="26"/><RowDefinition Height="26"/><RowDefinition Height="26"/><RowDefinition Height="26"/><RowDefinition Height="26"/><RowDefinition Height="26"/><RowDefinition Height="26"/><RowDefinition Height="26"/>
                         </Grid.RowDefinitions>
                         <TextBlock Grid.Row="0" Grid.Column="0" Text="Installation" Foreground="#94a3b8"/><TextBlock Name="TxtInstall" Grid.Row="0" Grid.Column="1" Foreground="#e5e7eb"/>
                         <TextBlock Grid.Row="1" Grid.Column="0" Text="Service" Foreground="#94a3b8"/><TextBlock Name="TxtService" Grid.Row="1" Grid.Column="1" Foreground="#e5e7eb"/>
@@ -327,7 +327,7 @@ Assert-Admin
                         <TextBlock Grid.Row="7" Grid.Column="0" Text="Appareils" Foreground="#94a3b8"/><TextBlock Name="TxtDevices" Grid.Row="7" Grid.Column="1" Foreground="#e5e7eb"/>
                     </Grid>
 
-                    <Border Grid.Row="2" Background="#020617" BorderBrush="#334155" BorderThickness="1" CornerRadius="8" Padding="10">
+                    <Border Grid.Row="2" Background="#020617" BorderBrush="#334155" BorderThickness="1" CornerRadius="8" Padding="10" ClipToBounds="True">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -337,7 +337,7 @@ Assert-Admin
                                 <TextBlock Text="Appareils configures" Foreground="#e5e7eb" FontSize="16" FontWeight="Bold" DockPanel.Dock="Left"/>
                                 <TextBlock Text="molette / barre pour defiler" Foreground="#64748b" FontSize="12" HorizontalAlignment="Right" DockPanel.Dock="Right"/>
                             </DockPanel>
-                            <ListBox Name="ListDevices" Grid.Row="1" MinHeight="130" Background="#020617" Foreground="#e5e7eb" BorderThickness="0" FontSize="14" ScrollViewer.VerticalScrollBarVisibility="Visible" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.CanContentScroll="True"/>
+                            <ListBox Name="ListDevices" Grid.Row="1" MinHeight="80" Background="#020617" Foreground="#e5e7eb" BorderThickness="0" FontSize="14" ScrollViewer.VerticalScrollBarVisibility="Visible" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.CanContentScroll="True"/>
                         </Grid>
                     </Border>
                 </Grid>

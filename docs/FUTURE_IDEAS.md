@@ -9,7 +9,7 @@ Le projet est maintenant **public** et publié en **beta**.
 ```text
 État actuel : public
 Niveau maturité : beta utilisable
-Version publiée : v0.2.0-beta
+Version publiée : v0.3.0-beta
 ```
 
 Positionnement conseillé :
@@ -58,6 +58,9 @@ Ces idées ont été faites ou largement traitées depuis la première version d
 - [x] Ajouter le mode avancé avec avertissement.
 - [x] Ajouter l'édition avancée du port, DNS, `AllowedIPs` et `PersistentKeepalive`.
 - [x] Ajouter `DEBUG-UPNP.bat` pour diagnostiquer UPnP / PCP / NAT-PMP.
+- [x] Ajouter le health check console.
+- [x] Ajouter le fallback endpoint IPv6 direct avec avertissement pare-feu IPv6.
+- [x] Corriger le QR pour une meilleure importation mobile.
 - [x] Ajouter les donations optionnelles BTC/ETH.
 
 ---
@@ -100,7 +103,7 @@ Ces idées ont été faites ou largement traitées depuis la première version d
 La release publique actuelle est :
 
 ```text
-v0.2.0-beta
+v0.3.0-beta
 ```
 
 Pourquoi pas `v1.0.0` ?
@@ -112,7 +115,7 @@ Le projet est utilisable, mais il reste encore à tester sur plusieurs machines 
 Prochaine release possible après nouvelles fonctionnalités :
 
 ```text
-v0.3.0-beta
+v0.4.0-beta
 ```
 
 ---

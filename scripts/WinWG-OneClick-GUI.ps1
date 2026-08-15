@@ -333,8 +333,11 @@ Assert-Admin
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
-                            <TextBlock Text="Appareils configures" Foreground="#e5e7eb" FontSize="16" FontWeight="Bold" Margin="0,0,0,8"/>
-                            <ListBox Name="ListDevices" Grid.Row="1" MinHeight="130" Background="#020617" Foreground="#e5e7eb" BorderThickness="0" FontSize="14" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Auto"/>
+                            <DockPanel Margin="0,0,0,8">
+                                <TextBlock Text="Appareils configures" Foreground="#e5e7eb" FontSize="16" FontWeight="Bold" DockPanel.Dock="Left"/>
+                                <TextBlock Text="molette / barre pour defiler" Foreground="#64748b" FontSize="12" HorizontalAlignment="Right" DockPanel.Dock="Right"/>
+                            </DockPanel>
+                            <ListBox Name="ListDevices" Grid.Row="1" MinHeight="130" Background="#020617" Foreground="#e5e7eb" BorderThickness="0" FontSize="14" ScrollViewer.VerticalScrollBarVisibility="Visible" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.CanContentScroll="True"/>
                         </Grid>
                     </Border>
                 </Grid>
